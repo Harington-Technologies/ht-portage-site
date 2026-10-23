@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offres de missions — HT Portage</title>
+<meta name="description" content="Les missions du groupe Harington ouvertes aux consultants portés : développement, data & IA, cloud & DevOps, pilotage.">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container site-header__bar">
+    <a class="brand" href="index.html" aria-label="HT Portage, accueil">
+      <span class="brand__mark">HT</span><span class="brand__word">PORTAGE</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Ouvrir le menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <nav class="nav" id="nav" aria-label="Navigation principale">
+      <a href="index.html#offre">L'offre</a>
+      <a href="simulateur.html">Simulateur</a>
+      <a href="ambassadeur.html">Ambassadeur</a>
+      <a href="missions.html">Missions</a>
+      <a class="btn btn--rose" href="simulateur.html">Simuler mon net</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="page-intro">
+    <div class="container">
+      <p class="eyebrow">/Offres de missions/</p>
+      <h1 class="h1">Les missions du groupe Harington, ouvertes aux consultants portés.</h1>
+      <p class="lead">Même priorité de staffing que nos consultants en CDI. Postulez directement, notre équipe revient vers vous.</p>
+    </div>
+  </section>
+
+  <section style="padding: 24px 0 0">
+    <div class="container head-row" style="align-items: center">
+      <div class="filters" role="group" aria-label="Filtrer par domaine" id="filters"></div>
+      <p style="font-size: 15px; color: var(--muted)" id="mission-count" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section style="padding: 28px 0 96px">
+    <div class="container">
+      <div class="grid grid--3" style="margin-top: 0; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr))" id="missions-list">
+        <p class="empty">Chargement des missions…</p>
+      </div>
+      <p class="small" id="missions-note" style="margin-top: 20px"></p>
+    </div>
+  </section>
+
+  <section class="section section--tint" id="postuler">
+    <div class="container">
+      <div class="panel" style="align-items: flex-start">
+        <div class="panel__main" style="flex-basis: 320px">
+          <p class="eyebrow">/Postuler/</p>
+          <h2 class="h3">Envoyez votre candidature.</h2>
+          <p class="lead" style="font-size: 17px">Pour une mission précise ou en candidature spontanée : nous vous alertons dès qu'un besoin client correspond à votre profil.</p>
+        </div>
+        <form class="form panel__side" style="flex: 999 1 420px" data-form="candidature" novalidate>
+          <div class="field">
+            <label for="m-mission">Mission</label>
+            <select class="select" id="m-mission" name="mission_ref">
+              <option value="">Candidature spontanée</option>
+            </select>
+          </div>
+          <div class="form__row">
+            <div class="field"><label for="m-nom">Nom et prénom</label><input class="input" id="m-nom" name="nom" autocomplete="name" required></div>
+            <div class="field"><label for="m-email">E-mail</label><input class="input" id="m-email" name="email" type="email" autocomplete="email" required></div>
+          </div>
+          <div class="form__row">
+            <div class="field"><label for="m-tel">Téléphone</label><input class="input" id="m-tel" name="telephone" type="tel" autocomplete="tel" required></div>
+            <div class="field"><label for="m-tjm">TJM souhaité <span class="hint">(€, facultatif)</span></label><input class="input" id="m-tjm" name="tjm_souhaite" type="number" min="100" max="3000" step="10" inputmode="numeric"></div>
+          </div>
+          <div class="form__row">
+            <div class="field"><label for="m-dispo">Disponibilité</label>
+              <select class="select" id="m-dispo" name="disponibilite">
+                <option>Immédiate</option>
+                <option>Sous 1 mois</option>
+                <option>Sous 2 à 3 mois</option>
+                <option>En veille</option>
+              </select>
+            </div>
+            <div class="field"><label for="m-cv">CV <span class="hint">(PDF ou Word, 5 Mo max.)</span></label><input class="input" id="m-cv" name="cv" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required style="padding: 10px"></div>
+          </div>
+          <div class="field"><label for="m-msg">Message <span class="hint">(facultatif)</span></label><textarea class="textarea" id="m-msg" name="message"></textarea></div>
+          <div class="hp" aria-hidden="true"><label for="m-site">Site web</label><input id="m-site" name="site_web" tabindex="-1" autocomplete="off"></div>
+          <label class="check"><input type="checkbox" name="consentement" required>J'accepte que HT Portage conserve mon CV et mes coordonnées pour me proposer des missions. <a href="confidentialite.html">Politique de confidentialité</a></label>
+          <div><button class="btn btn--dark" type="submit">Envoyer ma candidature</button></div>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer__top">
+    <div class="footer__brand">
+      <div class="footer__logo"><img src="assets/img/favicon.svg" width="40" height="40" alt="Monogramme HT Portage"><span>HT Portage</span></div>
+      <p>L'indépendance connectée. Une filiale de Harington Technologies.</p>
+    </div>
+    <div class="footer__col">
+      <p>Le site</p>
+      <a href="index.html">Accueil</a>
+      <a href="simulateur.html">Simulateur</a>
+      <a href="ambassadeur.html">Programme Ambassadeur</a>
+    </div>
+    <div class="footer__col">
+      <p>Contact</p>
+      <a href="mailto:contact@htportage.fr">contact@htportage.fr</a>
+      <a href="https://harington.fr">harington.fr</a>
+    </div>
+  </div>
+  <div class="container footer__bottom">
+    <span>© <span data-year>2026</span> HT Portage</span>
+    <span>Garantie financière : [ORGANISME À COMPLÉTER]</span>
+    <a href="mentions-legales.html">Mentions légales</a>
+    <a href="confidentialite.html">Confidentialité</a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/missions.js"></script>
+</body>
+</html>

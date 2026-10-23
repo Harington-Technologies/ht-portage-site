@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulateur de revenus — HT Portage</title>
+<meta name="description" content="Simulez votre salaire net en portage salarial avec HT Portage : TJM, jours travaillés, frais fixes de 5 %.">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container site-header__bar">
+    <a class="brand" href="index.html" aria-label="HT Portage, accueil">
+      <span class="brand__mark">HT</span><span class="brand__word">PORTAGE</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Ouvrir le menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <nav class="nav" id="nav" aria-label="Navigation principale">
+      <a href="index.html#offre">L'offre</a>
+      <a href="simulateur.html">Simulateur</a>
+      <a href="ambassadeur.html">Ambassadeur</a>
+      <a href="missions.html">Missions</a>
+      <a class="btn btn--rose" href="index.html#contact">Nous contacter</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="page-intro">
+    <div class="container">
+      <p class="eyebrow">/Simulateur de revenus/</p>
+      <h1 class="h1">Combien gagnerez-vous en portage ?</h1>
+      <p class="lead">Indiquez votre TJM et vos jours travaillés : votre salaire net estimé s'affiche instantanément, frais de gestion de 5 % compris.</p>
+    </div>
+  </section>
+
+  <section style="padding: 16px 0 96px">
+    <div class="container sim">
+      <div class="sim__controls">
+        <div>
+          <div class="range-head"><label for="tjm">Taux journalier (TJM)</label><output id="tjm-out" for="tjm">600 €</output></div>
+          <input id="tjm" type="range" min="300" max="1500" step="10" value="600">
+          <div class="range-scale"><span>300 €</span><span>1 500 €</span></div>
+        </div>
+        <div>
+          <div class="range-head"><label for="jours">Jours travaillés par mois</label><output id="jours-out" for="jours">19 j</output></div>
+          <input id="jours" type="range" min="5" max="23" step="1" value="19">
+          <div class="range-scale"><span>5 jours</span><span>23 jours</span></div>
+        </div>
+        <div>
+          <p style="margin: 0 0 12px; font-weight: 600; font-size: 17px" id="periode-label">Affichage</p>
+          <div class="segmented" role="group" aria-labelledby="periode-label">
+            <button type="button" data-periode="mois" aria-pressed="true">Par mois</button>
+            <button type="button" data-periode="an" aria-pressed="false">Par an</button>
+          </div>
+        </div>
+        <p class="small" style="margin-top: auto">Estimation indicative fondée sur un net cible de 67 % du chiffre d'affaires, hors frais professionnels et avant prélèvement à la source. Votre simulation personnalisée est établie avant signature.</p>
+      </div>
+
+      <div class="sim__result" aria-live="polite">
+        <div>
+          <p class="sim__net-label">Salaire net estimé <span data-out="periode">par mois</span></p>
+          <p class="sim__net" data-out="net">7 638 €</p>
+        </div>
+        <div class="stack-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+        <dl class="breakdown">
+          <div><dt>Chiffre d'affaires facturé</dt><dd data-out="ca">11 400 €</dd></div>
+          <div><dt><span class="swatch" style="background: var(--white)"></span>Frais de gestion fixes (5 %)</dt><dd data-out="gestion">− 570 €</dd></div>
+          <div><dt><span class="swatch" style="background: var(--on-dark-2)"></span>Cotisations sociales</dt><dd data-out="cotisations">− 3 192 €</dd></div>
+          <div class="total"><dt><span class="swatch" style="background: var(--rose)"></span>Votre salaire net</dt><dd data-out="net">7 638 €</dd></div>
+        </dl>
+        <div class="gain">
+          <p>Par rapport à un net de ~58 % (moyenne du marché), vous gagnez environ</p>
+          <strong><span data-out="gain">+ 12 312 €</span> par an</strong>
+        </div>
+        <a class="btn btn--rose" href="#simulation-detaillee">Recevoir ma simulation détaillée</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--tint">
+    <div class="container">
+      <h2 class="h3">Comment votre net est calculé</h2>
+      <div class="grid grid--3" style="margin-top: 40px">
+        <div class="card card--flat"><h3 style="margin-top: 0">1. Votre chiffre d'affaires</h3><p>TJM × jours validés sur votre CRA. C'est le montant facturé à votre client.</p></div>
+        <div class="card card--flat"><h3 style="margin-top: 0">2. 5 % de frais, point</h3><p>Un taux fixe, sans option payante ni marge arrière. Tout est visible sur votre compte d'activité.</p></div>
+        <div class="card card--flat"><h3 style="margin-top: 0">3. Votre salaire</h3><p>Après cotisations (mutuelle, chômage, retraite), versé le 29-30 du mois, sans attendre le paiement client.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="simulation-detaillee">
+    <div class="container">
+      <div class="panel" style="align-items: flex-start">
+        <div class="panel__main" style="flex-basis: 320px">
+          <p class="eyebrow">/Simulation détaillée/</p>
+          <h2 class="h3">Recevez votre simulation personnalisée.</h2>
+          <p class="lead" style="font-size: 17px">Nous l'établissons avec vos frais professionnels, votre situation et votre mutuelle, puis vous l'envoyons par e-mail.</p>
+        </div>
+        <form class="form panel__side" style="flex: 999 1 420px" data-form="simulation" novalidate>
+          <input type="hidden" name="type" value="simulation">
+          <input type="hidden" name="tjm" value="600" data-number>
+          <input type="hidden" name="jours" value="19" data-number>
+          <input type="hidden" name="net_estime" value="7638" data-number>
+          <p class="small" style="font-size: 15px">Votre simulation : <strong data-out="recap">TJM 600 € · 19 jours/mois</strong></p>
+          <div class="form__row">
+            <div class="field"><label for="s-nom">Nom et prénom</label><input class="input" id="s-nom" name="nom" autocomplete="name" required></div>
+            <div class="field"><label for="s-email">E-mail</label><input class="input" id="s-email" name="email" type="email" autocomplete="email" required></div>
+          </div>
+          <div class="field"><label for="s-tel">Téléphone <span class="hint">(facultatif)</span></label><input class="input" id="s-tel" name="telephone" type="tel" autocomplete="tel"></div>
+          <div class="field"><label for="s-msg">Précisions <span class="hint">(frais professionnels, date de démarrage…)</span></label><textarea class="textarea" id="s-msg" name="message"></textarea></div>
+          <div class="hp" aria-hidden="true"><label for="s-site">Site web</label><input id="s-site" name="site_web" tabindex="-1" autocomplete="off"></div>
+          <label class="check"><input type="checkbox" name="consentement" required>J'accepte que HT Portage utilise ces informations pour m'envoyer ma simulation et me recontacter. <a href="confidentialite.html">Politique de confidentialité</a></label>
+          <div><button class="btn btn--dark" type="submit">Recevoir ma simulation</button></div>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer__top">
+    <div class="footer__brand">
+      <div class="footer__logo"><img src="assets/img/favicon.svg" width="40" height="40" alt="Monogramme HT Portage"><span>HT Portage</span></div>
+      <p>L'indépendance connectée. Une filiale de Harington Technologies.</p>
+    </div>
+    <div class="footer__col">
+      <p>Le site</p>
+      <a href="index.html">Accueil</a>
+      <a href="ambassadeur.html">Programme Ambassadeur</a>
+      <a href="missions.html">Missions</a>
+    </div>
+    <div class="footer__col">
+      <p>Contact</p>
+      <a href="mailto:contact@htportage.fr">contact@htportage.fr</a>
+      <a href="https://harington.fr">harington.fr</a>
+    </div>
+  </div>
+  <div class="container footer__bottom">
+    <span>© <span data-year>2026</span> HT Portage</span>
+    <span>Garantie financière : [ORGANISME À COMPLÉTER]</span>
+    <a href="mentions-legales.html">Mentions légales</a>
+    <a href="confidentialite.html">Confidentialité</a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/simulateur.js"></script>
+</body>
+</html>
