@@ -69,6 +69,7 @@
   .tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .tag { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; background: var(--tint); color: var(--navy); }
   .tag.ok { background: #E3F1E6; color: #24603A; }
+  .tag.net { background: var(--navy); color: #fff; }
   .bottom { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--tint); }
   .score { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
   .score b { background: var(--navy-2); color: #fff; font-size: 15px; font-weight: 600; padding: 4px 8px; border-radius: 4px; }
@@ -77,6 +78,13 @@
   .price span { display: block; font-size: 12px; color: var(--muted); }
   .empty, .error { background: #fff; border: 1px dashed #9AA1A8; border-radius: 6px; padding: 40px 24px; text-align: center; color: var(--muted); }
   .error { border-color: #A12C3B; color: #A12C3B; }
+  .more-wrap { margin-top: 20px; display: flex; justify-content: center; }
+  .more { width: auto; padding: 0 28px; }
+  .credit { margin-top: 24px; font-size: 13px; color: var(--muted); }
+  .credit a, .site { color: var(--plum); }
+  .site { font-size: 13px; font-weight: 500; }
+  .price .na { font-size: 15px; color: var(--muted); font-weight: 400; }
+  .stars.na { color: var(--muted); font-size: 12px; letter-spacing: 0; }
 </style>
 </head>
 <body>
@@ -95,6 +103,16 @@
       <div class="f">
         <label class="t" for="q">Recherche</label>
         <input type="search" id="q" name="q" placeholder="Nom d'hôtel, quartier…" autocomplete="off">
+      </div>
+
+      <div class="f">
+        <label class="t" for="pays">Pays</label>
+        <select id="pays" name="pays"><option value="">Tous les pays</option></select>
+      </div>
+
+      <div class="f">
+        <label class="t" for="region">Région</label>
+        <select id="region" name="region"><option value="">Toutes les régions</option></select>
       </div>
 
       <div class="f">
@@ -131,6 +149,11 @@
         <div class="checks" id="equipements"></div>
       </fieldset>
 
+      <div class="f" id="reseau-field" hidden>
+        <label class="t" for="reseau">Réseau partenaire</label>
+        <select id="reseau" name="reseau"><option value="">Tous les hôtels</option></select>
+      </div>
+
       <fieldset class="f">
         <legend>Conditions</legend>
         <div class="checks">
@@ -156,6 +179,8 @@
       </select>
     </div>
     <div class="list" id="list"></div>
+    <div class="more-wrap"><button type="button" class="reset more" id="more" hidden>Afficher plus d'hôtels</button></div>
+    <p class="credit" id="credit" hidden>Données des hôtels importés : © les contributeurs d'<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> (licence ODbL). Prix et notes non disponibles pour ces hôtels.</p>
   </main>
 </div>
 
@@ -213,6 +238,9 @@ function readFilters() {
   const checked = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((i) => i.value);
   return {
     q: $('q').value.trim(),
+    pays: $('pays').value,
+    region: $('region').value,
+    reseau: $('reseau').value,
     ville: $('ville').value,
     etoiles: checked('etoiles').map(Number),
     pmin: $('pmin').value === '' ? null : Number($('pmin').value),
@@ -231,8 +259,12 @@ const SORTS = {
 };
 
 // --- Requête Supabase (filtrage côté base) ---
-async function fetchSupabase(f) {
-  let q = db.from('hotels').select('*');
+const PAGE = 30;
+async function fetchSupabase(f, page) {
+  let q = db.from('hotels').select('*', { count: 'exact' });
+  if (f.pays) q = q.eq('pays', f.pays);
+  if (f.region) q = q.eq('region', f.region);
+  if (f.reseau) q = q.eq('reseau', f.reseau);
   if (f.q) {
     const s = f.q.replace(/[%,()]/g, ' ');
     q = q.or(`nom.ilike.%${s}%,quartier.ilike.%${s}%,ville.ilike.%${s}%`);
@@ -246,10 +278,10 @@ async function fetchSupabase(f) {
   if (f.petitDej) q = q.eq('petit_dejeuner_inclus', true);
   if (f.annulation) q = q.eq('annulation_gratuite', true);
   const [col, asc] = SORTS[f.tri];
-  q = q.order(col, { ascending: asc, nullsFirst: false }).order('id');
-  const { data, error } = await q;
+  q = q.order(col, { ascending: asc, nullsFirst: false }).order('nom').range(page * PAGE, page * PAGE + PAGE - 1);
+  const { data, error, count } = await q;
   if (error) throw error;
-  return data;
+  return { rows: data, total: count };
 }
 
 // --- Même logique en local pour les données de démo ---
@@ -257,6 +289,9 @@ function filterDemo(f) {
   const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const nq = norm(f.q);
   const rows = DEMO.filter((h) =>
+    (!f.pays || f.pays === 'France') &&
+    (!f.region || f.region === DEMO_REGION[h.ville]) &&
+    !f.reseau &&
     (!nq || norm(h.nom).includes(nq) || norm(h.quartier).includes(nq) || norm(h.ville).includes(nq)) &&
     (!f.ville || h.ville === f.ville) &&
     (!f.etoiles.length || f.etoiles.includes(h.etoiles)) &&
@@ -268,7 +303,8 @@ function filterDemo(f) {
     (!f.annulation || h.annulation_gratuite)
   );
   const [col, asc] = SORTS[f.tri];
-  return rows.sort((a, b) => (asc ? a[col] - b[col] : b[col] - a[col]) || a.id - b.id);
+  rows.sort((a, b) => (asc ? a[col] - b[col] : b[col] - a[col]) || a.id - b.id);
+  return { rows, total: rows.length };
 }
 
 // --- Affichage ---
@@ -276,23 +312,29 @@ const PALETTE = ['#2F353D', '#2B7499', '#4A5560', '#3A6F86', '#21262D', '#55707E
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function initials(n) { return n.replace(/^(le|la|les|l'|hôtel|hotel)\s+/i, '').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase(); }
 
-function render(rows) {
-  const list = $('list'); list.textContent = '';
-  $('count').innerHTML = `<strong>${rows.length}</strong> hôtel${rows.length > 1 ? 's' : ''} trouvé${rows.length > 1 ? 's' : ''}`;
-  if (!rows.length) { list.append(el('p', 'empty', 'Aucun hôtel ne correspond à ces critères. Essayez d’élargir vos filtres.')); return; }
+function render(rows, total, append) {
+  const list = $('list'); if (!append) list.textContent = '';
+  $('count').innerHTML = `<strong>${fmt.format(total)}</strong> hôtel${total > 1 ? 's' : ''} trouvé${total > 1 ? 's' : ''}`;
+  if (!rows.length && !append) { list.append(el('p', 'empty', 'Aucun hôtel ne correspond à ces critères. Essayez d’élargir vos filtres.')); return; }
   rows.forEach((h) => {
     const card = el('article', 'card');
+    if (h.source === 'osm') card.dataset.osm = '1';
     const thumb = el('div', 'thumb', initials(h.nom));
     thumb.style.background = PALETTE[h.id % PALETTE.length];
     thumb.setAttribute('aria-hidden', 'true');
     const body = el('div', 'body');
     const top = el('div', 'top');
-    const title = el('div'); title.append(el('h2', null, h.nom), el('p', 'loc', `${h.quartier ? h.quartier + ', ' : ''}${h.ville}${h.distance_centre_km != null ? ' · ' + String(h.distance_centre_km).replace('.', ',') + ' km du centre' : ''}`));
-    const stars = el('span', 'stars', '★'.repeat(h.etoiles)); stars.setAttribute('aria-label', `${h.etoiles} étoile${h.etoiles > 1 ? 's' : ''}`);
+    const loc = [h.quartier, h.ville, h.province && h.province !== h.ville ? h.province : null, h.pays && h.pays !== 'France' ? h.pays : null].filter(Boolean).join(', ');
+    const title = el('div'); title.append(el('h2', null, h.nom), el('p', 'loc', `${loc}${h.distance_centre_km != null ? ' · ' + String(h.distance_centre_km).replace('.', ',') + ' km du centre' : ''}`));
+    let stars;
+    if (h.etoiles) { stars = el('span', 'stars', '★'.repeat(h.etoiles)); stars.setAttribute('aria-label', `${h.etoiles} étoile${h.etoiles > 1 ? 's' : ''}`); }
+    else stars = el('span', 'stars na', 'Étoiles n.c.');
     top.append(title, stars);
     body.append(top);
     if (h.description) body.append(el('p', 'desc', h.description));
+    else if (h.adresse) body.append(el('p', 'desc', h.adresse));
     const tags = el('div', 'tags');
+    if (h.reseau) tags.append(el('span', 'tag net', h.reseau));
     if (h.petit_dejeuner_inclus) tags.append(el('span', 'tag ok', 'Petit-déjeuner inclus'));
     if (h.annulation_gratuite) tags.append(el('span', 'tag ok', 'Annulation gratuite'));
     (h.equipements || []).forEach((e) => tags.append(el('span', 'tag', EQUIPEMENTS[e] || e)));
@@ -300,7 +342,10 @@ function render(rows) {
     const bottom = el('div', 'bottom');
     const score = el('div', 'score');
     if (h.note != null) { score.append(el('b', null, String(h.note).replace('.', ','))); score.append(`${fmt.format(h.nb_avis)} avis`); }
-    const price = el('div', 'price'); price.append(el('strong', null, fmt.format(h.prix_nuit) + ' €'), el('span', null, 'par nuit'));
+    else if (h.site_web) { const a = el('a', 'site', 'Site de l’hôtel ↗'); a.href = h.site_web; a.target = '_blank'; a.rel = 'noopener nofollow'; score.append(a); }
+    const price = el('div', 'price');
+    if (h.prix_nuit != null) price.append(el('strong', null, fmt.format(h.prix_nuit) + ' €'), el('span', null, 'par nuit'));
+    else price.append(el('strong', 'na', 'Prix non communiqué'));
     bottom.append(score, price);
     body.append(bottom);
     card.append(thumb, body);
@@ -308,14 +353,19 @@ function render(rows) {
   });
 }
 
-let seq = 0;
-async function refresh() {
+let seq = 0, page = 0;
+async function refresh(append) {
   const f = readFilters();
   $('note-val').textContent = f.note > 0 ? `${String(f.note).replace('.', ',')}+` : 'Toutes';
+  page = append ? page + 1 : 0;
   const my = ++seq;
   try {
-    const rows = db ? await fetchSupabase(f) : filterDemo(f);
-    if (my === seq) render(rows);
+    const res = db ? await fetchSupabase(f, page) : filterDemo(f);
+    if (my !== seq) return;
+    render(res.rows, res.total, append);
+    const shown = $('list').querySelectorAll('.card').length;
+    $('more').hidden = shown >= res.total;
+    $('credit').hidden = !$('list').querySelector('.card[data-osm]');
   } catch (err) {
     console.error(err);
     if (my !== seq) return;
@@ -328,21 +378,54 @@ async function refresh() {
 let t;
 function debounced() { clearTimeout(t); t = setTimeout(refresh, 250); }
 $('filters').addEventListener('input', (e) => (e.target.type === 'search' || e.target.type === 'number' ? debounced() : refresh()));
-$('filters').addEventListener('change', refresh);
-$('tri').addEventListener('change', refresh);
-$('btn-reset').addEventListener('click', () => { $('filters').reset(); refresh(); });
+$('filters').addEventListener('change', (e) => {
+  if (e.target.id === 'pays') { fillRegions(); fillVilles(); }
+  if (e.target.id === 'region') fillVilles();
+  refresh();
+});
+$('tri').addEventListener('change', () => refresh());
+$('more').addEventListener('click', () => refresh(true));
+$('btn-reset').addEventListener('click', () => { $('filters').reset(); fillRegions(); fillVilles(); refresh(); });
 
+const DEMO_REGION = { Paris: 'Île-de-France', Lyon: 'Auvergne-Rhône-Alpes', Nice: 'Provence-Alpes-Côte d\'Azur', Marseille: 'Provence-Alpes-Côte d\'Azur', Bordeaux: 'Nouvelle-Aquitaine' };
+let PLACES = []; // [{pays, region, ville, reseau}]
+function fillSelect(sel, values) {
+  const keep = sel.value;
+  sel.length = 1;
+  values.sort((a, b) => a.localeCompare(b, 'fr')).forEach((v) => { const o = el('option', null, v); o.value = v; sel.append(o); });
+  sel.value = values.includes(keep) ? keep : '';
+}
+function fillRegions() {
+  const pa = $('pays').value;
+  fillSelect($('region'), [...new Set(PLACES.filter((p) => !pa || p.pays === pa).map((p) => p.region).filter(Boolean))]);
+}
+function fillVilles() {
+  const pa = $('pays').value, r = $('region').value, sel = $('ville'), keep = sel.value;
+  sel.length = 1;
+  const villes = [...new Set(PLACES.filter((p) => (!pa || p.pays === pa) && (!r || p.region === r)).map((p) => p.ville).filter(Boolean))];
+  villes.sort((a, b) => a.localeCompare(b, 'fr')).forEach((v) => { const o = el('option', null, v); o.value = v; sel.append(o); });
+  sel.value = villes.includes(keep) ? keep : '';
+}
 async function init() {
-  let villes;
   if (db) {
     $('source').textContent = 'Données : Supabase';
-    const { data } = await db.from('hotels').select('ville');
-    villes = [...new Set((data || []).map((r) => r.ville))];
+    const all = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db.from('hotels').select('pays, region, ville, reseau').range(from, from + 999);
+      if (error || !data) break;
+      all.push(...data); if (data.length < 1000) break;
+    }
+    PLACES = all.map((p) => ({ pays: p.pays || 'France', region: p.region, ville: p.ville, reseau: p.reseau }));
   } else {
     $('source').textContent = 'Données de démo (Supabase non configuré)';
-    villes = [...new Set(DEMO.map((h) => h.ville))];
+    PLACES = DEMO.map((h) => ({ pays: 'France', region: DEMO_REGION[h.ville], ville: h.ville }));
   }
-  villes.sort((a, b) => a.localeCompare(b, 'fr')).forEach((v) => { const o = el('option', null, v); o.value = v; $('ville').append(o); });
+  fillSelect($('pays'), [...new Set(PLACES.map((p) => p.pays).filter(Boolean))]);
+  fillRegions();
+  const reseaux = [...new Set(PLACES.map((p) => p.reseau).filter(Boolean))].sort();
+  reseaux.forEach((v) => { const o = el('option', null, v); o.value = v; $('reseau').append(o); });
+  $('reseau-field').hidden = !reseaux.length;
+  fillVilles();
   refresh();
 }
 init();
