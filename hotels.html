@@ -3,43 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hôtels — démo filtres</title>
+<title>Hôtels — RED TREE</title>
 <meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2040%2040%22%3E%3Crect%20width%3D%2240%22%20height%3D%2240%22%20rx%3D%229%22%20fill%3D%22%231F2124%22/%3E%3Cpath%20transform%3D%22translate%2820%2017%29%20scale%281.05%29%22%20d%3D%22M0%20-14%20C6%20-6%209%200%209%206%20C9%2011%205%2014%200%2014%20C-5%2014%20-9%2011%20-9%206%20C-9%200%20-6%20-6%200%20-14Z%22%20fill%3D%22%23E0574B%22/%3E%3Crect%20x%3D%2218.7%22%20y%3D%2231%22%20width%3D%222.6%22%20height%3D%226%22%20fill%3D%22%23E0574B%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,400&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* Charte inspirée d'E. Clarke Travel : ardoise, bleu océan, Outfit + Cormorant Garamond */
-    --ink: #21262D; --muted: #5E656D; --line: #E2E4E6; --bg: #F5F6F4; --tint: #EEF1F3;
-    --navy: #2F353D; --navy-2: #2B7499; --rose: #3990B7; --rose-50: #E6F1F7; --plum: #2B7499; --star: #8A6A36;
-    --serif: 'Cormorant Garamond', Georgia, serif;
+    /* Charte RED TREE : gris pierre, un seul rouge par écran · Fraunces + Manrope */
+    --ink: #1F2124; --muted: #4A4743; --line: #DEDBD5; --bg: #F4F3F0; --tint: #ECEAE6;
+    --navy: #1F2124; --navy-2: #3A3D41; --rose: #6E6A64; --rose-50: #ECEAE6; --plum: #3A3D41; --star: #8A6A36;
+    --pierre: #6E6A64; --galet: #B8B3AB; --red: #C8382C; --red-dark-bg: #E0574B;
+    --serif: 'Fraunces', Georgia, serif;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: 'Outfit', system-ui, sans-serif; font-weight: 400; color: var(--ink); background: var(--bg); line-height: 1.5; }
+  body { margin: 0; font-family: 'Manrope', system-ui, sans-serif; font-weight: 400; color: var(--ink); background: var(--bg); line-height: 1.5; }
   :focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
   header { background: var(--navy); color: #fff; }
   .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
-  header .wrap { padding-top: 56px; padding-bottom: 52px; text-align: center; }
-  header h1 { margin: 0; font-size: clamp(30px, 5vw, 52px); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.1; }
-  header p { margin: 14px 0 0; color: #D9DDE1; font-family: var(--serif); font-style: italic; font-size: 21px; letter-spacing: 0.04em; }
-  .source { display: inline-block; margin-top: 18px; font-size: 13px; padding: 5px 14px; border-radius: 20px; background: rgba(255,255,255,.1); letter-spacing: 0.04em; }
+  header .bar { display: flex; align-items: center; gap: 14px; padding-top: 22px; padding-bottom: 22px; border-bottom: 1px solid #3A3D41; }
+  .brand { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; }
+  .brand span { font-family: var(--serif); font-weight: 500; font-size: 22px; letter-spacing: 0.06em; }
+  header .hero { padding-top: 48px; padding-bottom: 48px; }
+  header .eyebrow { margin: 0 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--galet); }
+  header h1 { margin: 0; font-family: var(--serif); font-size: clamp(32px, 5vw, 52px); font-weight: 500; letter-spacing: -0.015em; line-height: 1.1; }
+  header .lead { margin: 14px 0 0; color: #DCD8D2; font-family: var(--serif); font-style: italic; font-size: 20px; }
+  .source { display: inline-block; margin-top: 18px; font-size: 13px; padding: 5px 12px; border-radius: 2px; border: 1px solid #4A4743; color: var(--galet); }
 
   .layout { display: flex; flex-wrap: wrap; gap: 24px; padding-top: 28px; padding-bottom: 64px; align-items: flex-start; }
-  aside { flex: 1 1 280px; max-width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 22px; position: sticky; top: 16px; }
+  aside { flex: 1 1 280px; max-width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 22px; position: sticky; top: 16px; }
   main { flex: 999 1 560px; min-width: 0; }
   @media (max-width: 880px) { aside { position: static; } }
 
   .f { border: 0; padding: 0; margin: 0 0 22px; }
   .f:last-of-type { margin-bottom: 14px; }
-  .f > legend, .f > label.t { display: block; font-weight: 500; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; padding: 0; color: var(--navy); }
-  input[type=search], select, input[type=number] { width: 100%; min-height: 44px; padding: 10px 12px; font: inherit; font-size: 15px; border: 1px solid #9AA1A8; border-radius: 4px; background: #fff; color: var(--ink); }
+  .f > legend, .f > label.t { display: block; font-weight: 700; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 10px; padding: 0; color: var(--pierre); }
+  input[type=search], select, input[type=number] { width: 100%; min-height: 44px; padding: 10px 12px; font: inherit; font-size: 15px; border: 1px solid var(--galet); border-radius: 2px; background: #fff; color: var(--ink); }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .row2 label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { position: relative; }
   .chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-  .chip span { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 8px 14px; border-radius: 20px; border: 1px solid #9AA1A8; background: #fff; font-size: 14px; font-weight: 500; user-select: none; }
+  .chip span { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 8px 14px; border-radius: 2px; border: 1px solid var(--galet); background: #fff; font-size: 14px; font-weight: 500; user-select: none; }
   .chip input:checked + span { background: var(--navy-2); border-color: var(--navy-2); color: #fff; }
   .chip input:focus-visible + span { outline: 3px solid var(--rose); outline-offset: 2px; }
   .checks { display: grid; gap: 8px; }
@@ -47,8 +53,8 @@
   .check input { width: 18px; height: 18px; accent-color: var(--navy-2); }
   input[type=range] { width: 100%; accent-color: var(--navy-2); height: 28px; }
   .range-val { float: right; font-weight: 600; color: var(--plum); letter-spacing: 0; text-transform: none; font-size: 14px; }
-  .reset { width: 100%; min-height: 44px; border-radius: 20px; border: 0; background: var(--navy-2); color: #fff; font: inherit; font-weight: 500; letter-spacing: 0.03em; cursor: pointer; }
-  .reset:hover { background: #22617F; }
+  .reset { width: 100%; min-height: 44px; border-radius: 2px; border: 1px solid var(--navy-2); background: transparent; color: var(--navy-2); font: inherit; font-weight: 600; cursor: pointer; }
+  .reset:hover { background: var(--navy-2); color: #fff; }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .count { font-size: 15px; color: var(--muted); }
@@ -56,43 +62,50 @@
   .toolbar select { width: auto; min-width: 220px; }
 
   .list { display: grid; gap: 16px; }
-  .card { display: flex; flex-wrap: wrap; background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; transition: box-shadow .2s ease; }
+  .card { display: flex; flex-wrap: wrap; background: #fff; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; transition: box-shadow .2s ease; }
   .card:hover { box-shadow: 0 10px 30px rgba(33,38,45,.08); }
   .thumb { flex: 0 0 200px; min-height: 170px; display: flex; align-items: center; justify-content: center; color: #fff; font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 40px; letter-spacing: .06em; }
   @media (max-width: 560px) { .thumb { flex-basis: 100%; min-height: 120px; } }
   .body { flex: 1 1 280px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   .top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-  .card h2 { margin: 0; font-size: 21px; font-weight: 500; letter-spacing: 0.02em; line-height: 1.25; }
+  .card h2 { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -0.005em; line-height: 1.25; }
   .stars { color: var(--star); font-size: 15px; letter-spacing: 1px; white-space: nowrap; }
   .loc { font-size: 14px; color: var(--muted); }
-  .desc { font-family: var(--serif); font-size: 17px; color: var(--muted); margin: 0; line-height: 1.45; }
+  .desc { font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--muted); margin: 0; line-height: 1.5; }
   .tags { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tag { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; background: var(--tint); color: var(--navy); }
-  .tag.ok { background: #E3F1E6; color: #24603A; }
+  .tag { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 2px; background: var(--tint); color: var(--navy); }
+  .tag.ok { background: transparent; border: 1px solid var(--galet); color: var(--ink); }
   .tag.net { background: var(--navy); color: #fff; }
   .bottom { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--tint); }
   .score { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-  .score b { background: var(--navy-2); color: #fff; font-size: 15px; font-weight: 600; padding: 4px 8px; border-radius: 4px; }
+  .score b { background: var(--navy-2); color: #fff; font-size: 15px; font-weight: 600; padding: 4px 8px; border-radius: 2px; }
   .price { text-align: right; }
-  .price strong { font-size: 26px; font-weight: 500; }
+  .price strong { font-family: var(--serif); font-size: 26px; font-weight: 500; }
   .price span { display: block; font-size: 12px; color: var(--muted); }
-  .empty, .error { background: #fff; border: 1px dashed #9AA1A8; border-radius: 6px; padding: 40px 24px; text-align: center; color: var(--muted); }
+  .empty, .error { background: #fff; border: 1px dashed var(--galet); border-radius: 4px; padding: 40px 24px; text-align: center; color: var(--muted); }
   .error { border-color: #A12C3B; color: #A12C3B; }
   .more-wrap { margin-top: 20px; display: flex; justify-content: center; }
   .more { width: auto; padding: 0 28px; }
   .credit { margin-top: 24px; font-size: 13px; color: var(--muted); }
   .credit a, .site { color: var(--plum); }
   .site { font-size: 13px; font-weight: 500; }
-  .price .na { font-size: 15px; color: var(--muted); font-weight: 400; }
+  .price .na { font-family: 'Manrope', sans-serif; font-size: 14px; color: var(--muted); font-weight: 500; }
   .stars.na { color: var(--muted); font-size: 12px; letter-spacing: 0; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="wrap">
-    <h1>Trouver un hôtel</h1>
-    <p>Filtrez par étoiles, ville, prix, note et équipements.</p>
+  <div class="wrap bar">
+    <a class="brand" href="hotels.html" aria-label="RED TREE, accueil">
+      <svg width="40" height="29" viewBox="0 0 140 100" aria-hidden="true"><g fill="#B8B3AB"><circle cx="16" cy="20" r="9"/><circle cx="40" cy="20" r="9"/><circle cx="64" cy="20" r="9"/><circle cx="88" cy="20" r="9"/><circle cx="112" cy="20" r="9"/><circle cx="28" cy="50" r="9"/><circle cx="52" cy="50" r="9"/><circle cx="76" cy="50" r="9"/><circle cx="124" cy="50" r="9"/><circle cx="16" cy="80" r="9"/><circle cx="40" cy="80" r="9"/><circle cx="64" cy="80" r="9"/><circle cx="88" cy="80" r="9"/><circle cx="112" cy="80" r="9"/></g><circle cx="100" cy="50" r="9" fill="#E0574B"/></svg>
+      <span>RED TREE</span>
+    </a>
+  </div>
+  <div class="wrap hero">
+    <p class="eyebrow">Hôtels &amp; réseaux partenaires</p>
+    <h1>Trouvez l'exception.</h1>
+    <p class="lead">Dans une forêt d'hôtels, celui qui fera la différence pour votre client.</p>
     <span class="source" id="source">Chargement…</span>
   </div>
 </header>
@@ -308,7 +321,7 @@ function filterDemo(f) {
 }
 
 // --- Affichage ---
-const PALETTE = ['#2F353D', '#2B7499', '#4A5560', '#3A6F86', '#21262D', '#55707E'];
+const PALETTE = ['#3A3D41', '#4A4743', '#2B2D30', '#5A5650', '#1F2124', '#6E6A64'];
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function initials(n) { return n.replace(/^(le|la|les|l'|hôtel|hotel)\s+/i, '').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase(); }
 
