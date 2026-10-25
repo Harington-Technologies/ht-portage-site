@@ -203,9 +203,9 @@ a.etape:hover { box-shadow: 0 0 0 3px rgba(193,135,161,.35); }
 .recap div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .recap dt { font-size: 13px; color: var(--muted); }
 .recap dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
-.signataires { list-style: none; margin: 0; padding: 0; counter-reset: s; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
-.signataires li { counter-increment: s; display: flex; gap: 10px; align-items: flex-start; }
-.signataires li::before { content: counter(s); width: 22px; height: 22px; border-radius: 999px; background: var(--rose); color: var(--navy-900); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: none; }
+.signataires { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.signataires li { display: flex; gap: 10px; align-items: flex-start; }
+.signataires li::before { content: ""; width: 8px; height: 8px; margin-top: 6px; border-radius: 999px; background: var(--rose); flex: none; }
 
 /* Informations manquantes */
 .alerte--manque { background: #FFF4E5; color: #8A3F06; border: 1px solid #F3C98B; }

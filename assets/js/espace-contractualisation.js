@@ -211,9 +211,9 @@
       '<section class="box" aria-labelledby="t-docs"><h2 class="box__title" id="t-docs">Documents à signer</h2><ul class="list">' +
         (aCdi ? '' : '<li><span class="list__main"><strong>CDI de portage salarial</strong><span>Votre contrat de travail avec HT Portage</span></span></li>') +
         '<li><span class="list__main"><strong>Annexe 1 · Conditions de la prestation</strong><span>Une par mission</span></span></li></ul>' +
-        '<p class="small" style="font-size:14px;font-weight:600;color:var(--ink)">Ordre de signature</p><ol class="signataires">' +
+        '<p class="small" style="font-size:14px;font-weight:600;color:var(--ink)">Signataires</p><ul class="signataires">' +
           '<li>Vous : ' + (aCdi ? 'l’annexe' : 'le CDI et l’annexe') + '</li><li>' + esc(nomClient) + ' : l’annexe</li><li>HT Portage : ' + (aCdi ? 'l’annexe' : 'les deux documents') + '</li>' +
-        '</ol><p class="small" style="font-size:13px">Signature électronique sécurisée : chacun reçoit un e-mail avec un lien personnel.</p></section>';
+        '</ul><p class="small" style="font-size:13px">Signature électronique sécurisée : tout le monde reçoit en même temps un e-mail avec un lien personnel, sans attendre les autres.</p></section>';
   }
 
   rendre();

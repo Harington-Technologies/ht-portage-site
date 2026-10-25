@@ -272,7 +272,7 @@
     var b = e.target.closest('[data-contrat]');
     if (!b) return;
     var art = b.closest('[data-mission]'), status = art.querySelector('.form-status');
-    if (b.dataset.contrat === 'envoyer' && !confirm('Envoyer les contrats en signature ? Le consultant, puis le client, puis vous recevrez un e-mail de Yousign.')) return;
+    if (b.dataset.contrat === 'envoyer' && !confirm('Envoyer les contrats en signature ? Le consultant, le client et vous recevrez en même temps un e-mail de Yousign pour signer.')) return;
     art.querySelectorAll('[data-contrat]').forEach(function (x) { x.disabled = true; });
     E.setStatus(status, b.dataset.contrat === 'apercu' ? 'Génération des contrats…' : 'Envoi à Yousign…');
     try {

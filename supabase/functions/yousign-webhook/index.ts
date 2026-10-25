@@ -3,7 +3,8 @@
 // signature_request.declined / expired / canceled → statut « refusé » / « annulé »
 // Chaque notification est authentifiée (HMAC SHA-256, en-tête x-yousign-signature-256) et traitée une seule fois.
 //
-// Secrets : YOUSIGN_API_KEY, YOUSIGN_ENV, YOUSIGN_WEBHOOK_SECRET ; RESEND_API_KEY, NOTIFY_TO, NOTIFY_FROM (e-mail d'information).
+// Secrets : YOUSIGN_API_KEY, YOUSIGN_ENV, YOUSIGN_WEBHOOK_SECRET ; RESEND_API_KEY, NOTIFY_TO, NOTIFY_FROM.
+// E-mails : information de l'équipe (signé / refusé / expiré) et, une fois signé, e-mail au consultant.
 // Déploiement : « Verify JWT » désactivé (Yousign n'envoie pas de jeton Supabase ; la signature HMAC est vérifiée ici).
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -38,15 +39,72 @@ async function ys(path: string) {
   if (!r.ok) throw new Error("Yousign GET " + path + " → " + r.status + " " + (await r.text()).slice(0, 200));
   return r;
 }
-async function informer(sujet: string, html: string) {
-  const key = Deno.env.get("RESEND_API_KEY"), to = Deno.env.get("NOTIFY_TO"), from = Deno.env.get("NOTIFY_FROM");
-  if (!key || !to || !from) return;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: to.split(",").map((s) => s.trim()), subject: sujet, html }),
-  }).catch((e) => console.error("Resend", e));
+const SITE = "https://www.htportage.fr";
+const CONTACT = "contact@htportage.fr";
+const NOTIFY_TO = (Deno.env.get("NOTIFY_TO") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+const NOTIFY_FROM = Deno.env.get("NOTIFY_FROM") ?? "";
+export function esc(v: unknown): string {
+  return String(v ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
+  );
 }
-const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+const nl2br = (s: string) => esc(s).replace(/\r?\n/g, "<br>");
+
+// ---------------------------------------------------------------------------
+// Gabarit e-mail HT Portage (tables + styles en ligne : compatible Outlook / Gmail)
+// ---------------------------------------------------------------------------
+type Gabarit = { titre: string; corps: string; bouton?: { texte: string; url: string }; apercu?: string; interne?: boolean };
+export function gabarit(o: Gabarit): string {
+  const bouton = o.bouton
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 8px"><tr><td style="background:#21324E;border-radius:999px">
+        <a href="${esc(o.bouton.url)}" style="display:inline-block;padding:13px 26px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none">${esc(o.bouton.texte)}</a>
+      </td></tr></table>`
+    : "";
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(o.titre)}</title></head>
+<body style="margin:0;padding:0;background:#F3F1F4">
+<span style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(o.apercu ?? o.titre)}</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F1F4"><tr><td align="center" style="padding:32px 12px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden">
+    <tr><td style="background:#21324E;padding:22px 32px">
+      <span style="font-family:Arial,sans-serif;font-size:18px;font-weight:bold;letter-spacing:3px;color:#ffffff">HT PORTAGE</span>
+      <div style="width:36px;height:3px;background:#C187A1;margin-top:8px;border-radius:2px"></div>
+    </td></tr>
+    <tr><td style="padding:32px 32px 8px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1B1C1C">
+      <h1 style="margin:0 0 18px;font-size:21px;line-height:1.3;color:#21324E">${esc(o.titre)}</h1>
+      ${o.corps}
+      ${bouton}
+    </td></tr>
+    <tr><td style="padding:20px 32px 30px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1B1C1C">
+      <p style="margin:0">${o.interne ? "" : "Bien cordialement,<br>"}<strong style="color:#21324E">Service Administratif HT PORTAGE</strong><br>
+      <a href="mailto:${CONTACT}" style="color:#784E61">${CONTACT}</a> · <a href="${SITE}" style="color:#784E61">www.htportage.fr</a></p>
+    </td></tr>
+    <tr><td style="background:#F7F5F8;padding:16px 32px;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#6B7385">
+      ${o.interne ? "Notification interne envoyée automatiquement par le site HT Portage." : "HT Portage — portage salarial. Cet e-mail vous est adressé dans le cadre de votre espace consultant ; pour toute question, répondez simplement à ce message."}
+    </td></tr>
+  </table>
+</td></tr></table></body></html>`;
+}
+export function tableau(lignes: [string, unknown][]): string {
+  const l = lignes.filter(([, v]) => v !== null && v !== undefined && v !== "");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;margin:4px 0 8px">${
+    l.map(([k, v]) => `<tr><td style="padding:8px 14px 8px 0;border-bottom:1px solid #ECE8EE;color:#6B7385;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:8px 0;border-bottom:1px solid #ECE8EE;color:#1B1C1C">${nl2br(String(v))}</td></tr>`).join("")
+  }</table>`;
+}
+
+const adresseFrom = () => (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
+// externe = e-mail au consultant (expéditeur « Service Administratif HT PORTAGE », réponse vers contact@)
+async function envoyer(to: string[], sujet: string, html: string, externe = false) {
+  const key = Deno.env.get("RESEND_API_KEY");
+  if (!key || !NOTIFY_FROM || !to.length) return;
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: externe ? `Service Administratif HT PORTAGE <${adresseFrom()}>` : NOTIFY_FROM, to, subject: sujet, html,
+      ...(externe ? { reply_to: NOTIFY_TO[0] ?? CONTACT } : {}),
+    }),
+  }).catch((e) => { console.error("Resend", e); return null; });
+  if (r && !r.ok) console.error("Resend", r.status, await r.text());
+}
 
 async function traiter(evt: { event_id: string; event_name: string; data?: { signature_request?: { id: string; status?: string } } }) {
   const sr = evt.data?.signature_request;
@@ -84,13 +142,36 @@ async function appliquer(evt: { event_name: string }, sr: { id: string }) {
       if (row.type === "annexe" && row.mission_id) {
         await admin.from("consultant_missions").update({ statut: "active" }).eq("id", row.mission_id).eq("statut", "validee");
       }
-      await informer("Signé : " + row.titre + " — " + qui,
-        "<p>Le document <strong>" + esc(row.titre) + "</strong> de " + esc(qui) + " a été signé par toutes les parties.</p><p>Il est disponible dans l'espace du consultant et dans l'administration.</p>");
+      const estCdi = row.type === "cdi";
+      await envoyer(NOTIFY_TO, "Signé : " + row.titre + " — " + qui, gabarit({
+        interne: true, titre: (estCdi ? "CDI signé" : "Annexe signée") + " — " + qui,
+        corps: `<p style="margin:0 0 14px">Le document <strong>${esc(row.titre)}</strong> de <strong>${esc(qui)}</strong> a été signé par toutes les parties.</p>` +
+          `<p style="margin:0">Le PDF signé est rangé dans l'espace du consultant${!estCdi ? " et la mission est désormais active" : ""}.</p>`,
+        bouton: { texte: "Voir les signatures", url: SITE + "/espace/admin.html#signatures" },
+      }));
+      if (p?.email) {
+        await envoyer([p.email], estCdi ? "Votre contrat de travail HT Portage est signé" : "Votre mission est confirmée — annexe signée", gabarit({
+          titre: estCdi ? "Votre contrat de travail est signé" : "Votre mission est confirmée",
+          apercu: "Le document signé est disponible dans votre espace consultant.",
+          corps: `<p style="margin:0 0 14px">Bonjour ${esc(p.prenom ?? "")},</p>` +
+            (estCdi
+              ? `<p style="margin:0 0 14px">Votre contrat de travail à durée indéterminée en portage salarial a été signé par l'ensemble des parties. Bienvenue chez HT Portage !</p>`
+              : `<p style="margin:0 0 14px">L'annexe à votre contrat de travail, qui fixe les conditions de votre mission, a été signée par vous-même, votre client et HT Portage. Votre mission est désormais <strong>active</strong>.</p>`) +
+            `<p style="margin:0 0 14px">Vous trouverez le document signé, au format PDF, dans la rubrique « Contrats et missions » de votre espace consultant. Nous vous conseillons de le conserver précieusement.</p>` +
+            `<p style="margin:0">Notre équipe reste à votre disposition pour toute question : il vous suffit de répondre à cet e-mail.</p>`,
+          bouton: { texte: "Accéder à mes contrats", url: SITE + "/espace/contrats.html" },
+        }), true);
+      }
     } else if (["signature_request.declined", "signature_request.expired", "signature_request.canceled"].includes(evt.event_name)) {
       const statut = evt.event_name === "signature_request.declined" ? "refuse" : "annule";
       await admin.from("documents").update({ statut, yousign_statut: evt.event_name.split(".")[1] }).eq("id", row.id);
-      await informer((statut === "refuse" ? "Signature refusée : " : "Signature annulée ou expirée : ") + row.titre + " — " + qui,
-        "<p>La demande de signature <strong>" + esc(row.titre) + "</strong> de " + esc(qui) + " est " + (statut === "refuse" ? "refusée" : "annulée ou expirée") + ".</p>");
+      const quoi = statut === "refuse" ? "refusée" : evt.event_name.endsWith("expired") ? "expirée" : "annulée";
+      await envoyer(NOTIFY_TO, "Signature " + quoi + " : " + row.titre + " — " + qui, gabarit({
+        interne: true, titre: "Signature " + quoi,
+        corps: `<p style="margin:0 0 14px">La demande de signature <strong>${esc(row.titre)}</strong> de <strong>${esc(qui)}</strong> a été ${quoi}.</p>` +
+          `<p style="margin:0">${statut === "refuse" ? "Un des signataires a refusé de signer : prenez contact avec lui pour en connaître la raison, puis renvoyez les contrats depuis l'administration." : "Les contrats peuvent être renvoyés en signature depuis l'administration."}</p>`,
+        bouton: { texte: "Ouvrir l'administration", url: SITE + "/espace/admin.html#signatures" },
+      }));
     } else {
       await admin.from("documents").update({ yousign_statut: evt.event_name }).eq("id", row.id);
     }
