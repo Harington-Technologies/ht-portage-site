@@ -175,3 +175,27 @@ dialog.modal::backdrop { background: rgba(27, 28, 28, .45); }
 .row-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .table .select, .table .input { min-height: 40px; padding: 6px 10px; font-size: 14px; }
 pre.report { background: var(--bg); border-radius: 12px; padding: 12px 14px; font-size: 13px; white-space: pre-wrap; margin: 0; max-height: 220px; overflow: auto; }
+
+/* Étapes de la contractualisation */
+.etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.etape { background: var(--white); border: 1px solid var(--tint); border-radius: 14px; padding: 14px 16px; display: flex; gap: 10px; align-items: center; }
+.etape__num { width: 30px; height: 30px; border-radius: 999px; flex: none; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; background: var(--tint); color: var(--muted); }
+.etape__txt { display: flex; flex-direction: column; min-width: 0; }
+.etape__txt span { font-size: 12px; color: var(--muted); }
+.etape__txt strong { font-size: 14px; }
+.etape.is-done .etape__num { background: var(--navy-900); color: var(--white); }
+.etape.is-current { border: 2px solid var(--plum); padding: 13px 15px; }
+.etape.is-current .etape__num { background: var(--plum); color: var(--white); }
+.etape.is-current .etape__txt span { color: var(--plum); font-weight: 600; }
+.etape.is-todo { background: var(--bg); border-style: dashed; border-color: #A7B3C6; }
+.alerte { border-radius: 16px; padding: 16px 20px; font-size: 15px; display: flex; flex-direction: column; gap: 6px; }
+.alerte--rose { background: var(--rose-50); color: var(--plum); }
+.alerte--info { background: var(--tint); color: var(--navy-900); }
+.alerte strong { font-size: 16px; }
+.recap { margin: 0; display: grid; gap: 12px 20px; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+.recap div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recap dt { font-size: 13px; color: var(--muted); }
+.recap dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.signataires { list-style: none; margin: 0; padding: 0; counter-reset: s; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.signataires li { counter-increment: s; display: flex; gap: 10px; align-items: flex-start; }
+.signataires li::before { content: counter(s); width: 22px; height: 22px; border-radius: 999px; background: var(--rose); color: var(--navy-900); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: none; }

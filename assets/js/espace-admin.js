@@ -146,24 +146,76 @@
   // Missions à valider
   // =====================================================================
   var valEl = document.getElementById('liste-valider');
+  var dossiers = [];
+  async function prochainNumero() {
+    var an = new Date().getFullYear();
+    var r = await db.from('consultant_missions').select('numero_contrat').in('statut', ['validee', 'active', 'terminee']);
+    var max = 0;
+    (r.data || []).forEach(function (x) { var m = new RegExp('^HTP-' + an + '-(\\d+)$').exec(x.numero_contrat || ''); if (m) max = Math.max(max, Number(m[1])); });
+    return 'HTP-' + an + '-' + ('00' + (max + 1)).slice(-3);
+  }
   async function chargerValider() {
-    var r = await db.from('consultant_missions').select('*').eq('statut', 'a_valider').order('updated_at', { ascending: true });
-    var liste = r.data || [];
-    if (!liste.length) { valEl.innerHTML = '<p class="small" style="font-size:15px">Aucune mission en attente de validation.</p>'; return; }
-    valEl.innerHTML = '<ul class="list">' + liste.map(function (m) {
+    var r = await db.from('consultant_missions').select('*').eq('statut', 'a_valider').order('soumise_le', { ascending: true });
+    dossiers = r.data || [];
+    if (!dossiers.length) { valEl.innerHTML = '<p class="small" style="font-size:15px">Aucun dossier en attente de validation.</p>'; return; }
+    var numero = await prochainNumero();
+    var moi = st.profil;
+    function l(t, v) { return '<div><dt>' + esc(t) + '</dt><dd>' + (v ? esc(v) : '—') + '</dd></div>'; }
+    valEl.innerHTML = dossiers.map(function (m, i) {
       var p = profils.find(function (x) { return x.id === m.user_id; }) || { email: '?' };
-      return '<li data-id="' + m.id + '"><span class="list__main"><strong>' + esc(nomDe(p)) + ' · ' + esc(m.intitule) + '</strong><span>' +
-        esc([m.client, m.client_final, m.tjm ? E.eur(m.tjm) + ' HT' : '', E.date(m.date_debut) + ' → ' + E.date(m.date_fin)].filter(Boolean).join(' · ')) + '</span></span>' +
-        '<div class="row-actions"><button class="btn btn--light btn--sm" type="button" data-statut="brouillon">Renvoyer en brouillon</button>' +
-        '<button class="btn btn--dark btn--sm" type="button" data-statut="validee">Valider</button></div></li>';
-    }).join('') + '</ul>';
+      var complet = p.civilite && p.prenom && p.nom && p.date_naissance && p.lieu_naissance && p.num_secu && p.adresse && p.iban;
+      var id = m.id;
+      return '<article class="box" data-id="' + id + '" style="background:var(--bg);border:0">' +
+        '<div class="box__head"><h3 class="box__title">' + esc(nomDe(p)) + ' · ' + esc(m.client || 'Client ?') + '</h3>' +
+        '<span class="small">Envoyé le ' + E.date(m.soumise_le || m.updated_at) + '</span></div>' +
+        (complet ? '' : '<div class="alerte alerte--rose"><strong>Informations personnelles incomplètes</strong><span>Identité, n° de sécurité sociale, adresse ou RIB manquants : renvoyez le dossier.</span></div>') +
+        '<dl class="recap">' +
+          l('Consultant', [p.civilite, nomDe(p)].filter(Boolean).join(' ') + ' · ' + p.email) +
+          l('Né(e) le', p.date_naissance ? E.date(p.date_naissance) + (p.lieu_naissance ? ' à ' + p.lieu_naissance : '') : '') +
+          l('Adresse', [p.adresse, p.code_postal, p.ville].filter(Boolean).join(' ')) +
+          l('N° sécu / IBAN', (p.num_secu ? 'renseigné' : 'manquant') + ' / ' + (p.iban ? 'renseigné' : 'manquant')) +
+          l('Objet', m.intitule) + l('Compétences', m.competences) +
+          l('Période', E.date(m.date_debut) + (m.date_fin ? ' → ' + E.date(m.date_fin) : '')) + l('TJ', m.tjm ? E.eur(m.tjm) + ' HT' : '') +
+          l('Adresse d’exécution', m.adresse_execution) +
+          l('Client', [m.client, m.client_siret ? 'SIRET ' + m.client_siret : '', m.client_adresse].filter(Boolean).join(' · ')) +
+          l('Signataire client', [m.client_representant, m.client_representant_qualite, m.client_signataire_email].filter(Boolean).join(' · ')) +
+          l('Client final', m.client_final) +
+          l('Interlocuteur client', [m.interlocuteur_nom, m.interlocuteur_tel, m.interlocuteur_email].filter(Boolean).join(' · ')) +
+        '</dl>' +
+        '<form class="grid-form" data-form-dossier novalidate style="border-top:1px solid var(--line);padding-top:16px">' +
+          '<div class="field"><label for="n-' + id + '">N° du contrat commercial</label><input class="input" id="n-' + id + '" name="numero_contrat" maxlength="50" value="' + esc(m.numero_contrat || numero) + '"></div>' +
+          '<div class="field"><label for="f-' + id + '">Frais de gestion</label><input class="input" id="f-' + id + '" value="5 %" readonly></div>' +
+          '<div class="field"><label for="hn-' + id + '">Interlocuteur HT Portage</label><input class="input" id="hn-' + id + '" name="htp_interlocuteur_nom" maxlength="200" value="' + esc(m.htp_interlocuteur_nom || nomDe(moi)) + '"></div>' +
+          '<div class="field"><label for="ht-' + id + '">Téléphone</label><input class="input" id="ht-' + id + '" name="htp_interlocuteur_tel" maxlength="40" value="' + esc(m.htp_interlocuteur_tel || moi.telephone || '') + '"></div>' +
+          '<div class="field full"><label for="he-' + id + '">E-mail</label><input class="input" id="he-' + id + '" name="htp_interlocuteur_email" type="email" maxlength="254" value="' + esc(m.htp_interlocuteur_email || st.user.email) + '"></div>' +
+          '<div class="field full"><label for="c-' + id + '">Message au consultant <span class="hint">(obligatoire pour renvoyer le dossier)</span></label><textarea class="textarea" id="c-' + id + '" name="commentaire_admin" maxlength="2000" style="min-height:80px" placeholder="Ex. : merci de préciser l’adresse du client final"></textarea></div>' +
+          '<div class="full actions-row"><p class="form-status" role="status" aria-live="polite"></p><div class="row-actions">' +
+            '<button class="btn btn--light btn--sm" type="button" data-decision="renvoyer">Renvoyer au consultant</button>' +
+            '<button class="btn btn--dark btn--sm" type="button" data-decision="valider">Valider le dossier</button></div></div>' +
+        '</form></article>';
+    }).join('');
   }
   valEl.addEventListener('click', async function (e) {
-    var b = e.target.closest('[data-statut]');
+    var b = e.target.closest('[data-decision]');
     if (!b) return;
-    b.disabled = true;
-    var r = await db.from('consultant_missions').update({ statut: b.dataset.statut }).eq('id', b.closest('li').dataset.id);
-    if (r.error) alert(E.errText(r.error));
+    var art = b.closest('[data-id]'), form = art.querySelector('[data-form-dossier]'), status = form.querySelector('.form-status');
+    var maj;
+    if (b.dataset.decision === 'renvoyer') {
+      var c = form.commentaire_admin.value.trim();
+      if (!c) { form.commentaire_admin.focus(); E.setStatus(status, 'Écrivez au consultant ce qu’il doit corriger.', 'error'); return; }
+      maj = { statut: 'brouillon', commentaire_admin: c };
+    } else {
+      var num = form.numero_contrat.value.trim();
+      if (!num) { form.numero_contrat.focus(); E.setStatus(status, 'Indiquez le n° du contrat commercial.', 'error'); return; }
+      var em = form.htp_interlocuteur_email.value.trim();
+      if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { form.htp_interlocuteur_email.focus(); E.setStatus(status, 'E-mail de l’interlocuteur HT Portage invalide.', 'error'); return; }
+      maj = { statut: 'validee', commentaire_admin: null, numero_contrat: num, frais_gestion: 5,
+        htp_interlocuteur_nom: form.htp_interlocuteur_nom.value.trim() || null, htp_interlocuteur_tel: form.htp_interlocuteur_tel.value.trim() || null, htp_interlocuteur_email: em || null };
+    }
+    art.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+    E.setStatus(status, 'Enregistrement…');
+    var r = await db.from('consultant_missions').update(maj).eq('id', art.dataset.id);
+    if (r.error) { art.querySelectorAll('button').forEach(function (x) { x.disabled = false; }); E.setStatus(status, E.errText(r.error), 'error'); return; }
     chargerValider();
   });
 

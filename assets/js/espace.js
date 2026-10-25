@@ -98,7 +98,7 @@
   // Menu de l'administration (sections de admin.html)
   var PAGES_ADMIN = [
     ['ambassadeur', 'consultants', 'Consultants'],
-    ['valider', 'a-valider', 'Missions à valider'],
+    ['valider', 'a-valider', 'Dossiers à valider'],
     ['import', 'import', 'Import VSP'],
     ['demandes', 'demandes', 'Demandes reçues']
   ];

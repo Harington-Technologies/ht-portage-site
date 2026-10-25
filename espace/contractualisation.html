@@ -24,46 +24,20 @@
       </div>
     </header>
 
-    <ol class="list box" id="etapes" aria-label="Étapes de la contractualisation" style="gap:0">
-      <li data-etape="1"><span class="tag" data-etat>—</span><span class="list__main"><strong>1. Identité</strong><span>Civilité, nom, date et lieu de naissance, n° de sécurité sociale</span></span><a class="btn btn--light btn--sm" href="informations.html">Compléter</a></li>
-      <li data-etape="2"><span class="tag" data-etat>—</span><span class="list__main"><strong>2. Coordonnées et RIB</strong><span>Adresse et compte bancaire pour le versement du salaire</span></span><a class="btn btn--light btn--sm" href="informations.html">Compléter</a></li>
-      <li><span class="tag tag--muted">Bientôt</span><span class="list__main"><strong>3. Mission et client</strong><span>Objet de la prestation, dates, TJ, client et client final, interlocuteur</span></span></li>
-      <li><span class="tag tag--muted">Bientôt</span><span class="list__main"><strong>4. Validation HT Portage</strong><span>Nous vérifions votre dossier avant de préparer les documents</span></span></li>
-      <li><span class="tag tag--muted">Bientôt</span><span class="list__main"><strong>5. Signature en ligne</strong><span>CDI de portage (premier contrat) et annexe « Conditions de la prestation »</span></span></li>
-    </ol>
+    <ol class="etapes" id="etapes" aria-label="Étapes de la contractualisation"></ol>
 
-    <section class="banner" aria-label="En attendant">
-      <div class="banner__text">
-        <span class="banner__eyebrow">En cours de mise en place</span>
-        <span class="banner__title">La déclaration de mission en ligne arrive très bientôt.</span>
-        <span class="banner__desc">En attendant, complétez vos informations et envoyez-nous les détails de votre mission : nous préparons votre contrat avec vous.</span>
-      </div>
-      <a class="btn btn--rose" href="mailto:contact@htportage.fr?subject=Ma%20mission%20%E2%80%93%20contractualisation">Écrire à HT Portage</a>
-    </section>
+    <div id="retour" hidden></div>
+
+    <div class="split">
+      <div class="split__main" id="zone-mission"><p class="loading">Chargement…</p></div>
+      <aside class="split__side" id="zone-aside"></aside>
+    </div>
   </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/espace.js"></script>
-<script>
-(async function () {
-  'use strict';
-  var st = await window.ESPACE.guard();
-  if (!st) return;
-  var p = st.profil;
-  var ok = {
-    1: !!(p.civilite && p.prenom && p.nom && p.date_naissance && p.lieu_naissance && p.num_secu),
-    2: !!(p.adresse && p.code_postal && p.ville && p.iban)
-  };
-  [1, 2].forEach(function (n) {
-    var li = document.querySelector('[data-etape="' + n + '"]');
-    var t = li.querySelector('[data-etat]');
-    t.textContent = ok[n] ? 'Fait' : 'À faire';
-    t.className = 'tag' + (ok[n] ? '' : ' tag--rose');
-    if (ok[n]) li.querySelector('a').textContent = 'Modifier';
-  });
-})();
-</script>
+<script src="../assets/js/espace-contractualisation.js"></script>
 </body>
 </html>
