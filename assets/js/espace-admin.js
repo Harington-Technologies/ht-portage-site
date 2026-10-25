@@ -31,7 +31,7 @@
     listeEl.innerHTML = '<div class="table-wrap"><table class="table" style="min-width:860px"><thead><tr>' +
       '<th scope="col">Nom</th><th scope="col">E-mail</th><th scope="col">Dossier</th><th scope="col">Statut</th><th scope="col">ID VSP</th><th scope="col">Inscrit le</th><th scope="col"><span class="visually-hidden">Actions</span></th>' +
       '</tr></thead><tbody>' + liste.map(function (p) {
-        var complet = p.prenom && p.nom && p.adresse && p.date_naissance && p.num_secu && p.iban;
+        var mqc = E.manquants(p), complet = !mqc.identite.length && !mqc.coordonnees.length;
         return '<tr data-id="' + p.id + '"><td><strong>' + esc(nomDe(p)) + '</strong></td><td>' + esc(p.email) + '</td>' +
           '<td>' + (complet ? '<span class="tag">Complet</span>' : '<span class="tag tag--rose">Incomplet</span>') + '</td>' +
           '<td><label class="visually-hidden" for="s-' + p.id + '">Statut de ' + esc(nomDe(p)) + '</label><select class="select" id="s-' + p.id + '" data-champ="statut">' + options(STATUTS_PROFIL, p.statut) + '</select></td>' +
@@ -163,12 +163,12 @@
     function l(t, v) { return '<div><dt>' + esc(t) + '</dt><dd>' + (v ? esc(v) : '—') + '</dd></div>'; }
     valEl.innerHTML = dossiers.map(function (m, i) {
       var p = profils.find(function (x) { return x.id === m.user_id; }) || { email: '?' };
-      var complet = p.civilite && p.prenom && p.nom && p.date_naissance && p.lieu_naissance && p.num_secu && p.adresse && p.iban;
+      var mq = E.manquants(p), manq = mq.identite.concat(mq.coordonnees), complet = manq.length === 0;
       var id = m.id;
       return '<article class="box" data-id="' + id + '" style="background:var(--bg);border:0">' +
         '<div class="box__head"><h3 class="box__title">' + esc(nomDe(p)) + ' · ' + esc(m.client || 'Client ?') + '</h3>' +
         '<span class="small">Envoyé le ' + E.date(m.soumise_le || m.updated_at) + '</span></div>' +
-        (complet ? '' : '<div class="alerte alerte--rose"><strong>Informations personnelles incomplètes</strong><span>Identité, n° de sécurité sociale, adresse ou RIB manquants : renvoyez le dossier.</span></div>') +
+        (complet ? '' : '<div class="alerte alerte--manque"><strong>Informations personnelles incomplètes</strong><span>Manque : ' + esc(E.listeFr(manq)) + '. Renvoyez le dossier au consultant.</span></div>') +
         '<dl class="recap">' +
           l('Consultant', [p.civilite, nomDe(p)].filter(Boolean).join(' ') + ' · ' + p.email) +
           l('Né(e) le', p.date_naissance ? E.date(p.date_naissance) + (p.lieu_naissance ? ' à ' + p.lieu_naissance : '') : '') +

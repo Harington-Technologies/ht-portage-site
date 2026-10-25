@@ -25,18 +25,21 @@
       <span class="avatar" data-avatar aria-hidden="true"></span>
     </header>
 
+    <div id="etat-dossier" role="status" aria-live="polite"></div>
+
     <div class="split">
       <form class="split__main" id="form-profil" novalidate>
+        <p class="legende-requis"><span class="requis">*</span> Information obligatoire pour établir votre contrat.</p>
         <fieldset class="box">
           <legend>Identité</legend>
           <div class="grid-form">
-            <div class="field"><label for="civilite">Civilité</label><select class="select" id="civilite" name="civilite"><option value="">—</option><option value="M.">Monsieur</option><option value="Mme">Madame</option></select></div>
-            <div class="field"><label for="prenom">Prénom</label><input class="input" id="prenom" name="prenom" autocomplete="given-name" maxlength="100" required></div>
-            <div class="field"><label for="nom">Nom</label><input class="input" id="nom" name="nom" autocomplete="family-name" maxlength="100" required></div>
-            <div class="field"><label for="date_naissance">Date de naissance</label><input class="input" id="date_naissance" name="date_naissance" type="date" autocomplete="bday"></div>
-            <div class="field"><label for="lieu_naissance">Lieu de naissance</label><input class="input" id="lieu_naissance" name="lieu_naissance" maxlength="150" placeholder="Ville (département ou pays)"></div>
+            <div class="field"><label for="civilite">Civilité<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><select class="select" id="civilite" name="civilite"><option value="">—</option><option value="M.">Monsieur</option><option value="Mme">Madame</option></select></div>
+            <div class="field"><label for="prenom">Prénom<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="prenom" name="prenom" autocomplete="given-name" maxlength="100" required></div>
+            <div class="field"><label for="nom">Nom<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="nom" name="nom" autocomplete="family-name" maxlength="100" required></div>
+            <div class="field"><label for="date_naissance">Date de naissance<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="date_naissance" name="date_naissance" type="date" autocomplete="bday"></div>
+            <div class="field"><label for="lieu_naissance">Lieu de naissance<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="lieu_naissance" name="lieu_naissance" maxlength="150" placeholder="Ville (département ou pays)"></div>
             <div class="field"><label for="nationalite">Nationalité</label><input class="input" id="nationalite" name="nationalite" maxlength="100"></div>
-            <div class="field full"><label for="num_secu">N° de sécurité sociale <span class="hint">(13 ou 15 caractères)</span></label><input class="input" id="num_secu" name="num_secu" inputmode="numeric" autocomplete="off" maxlength="21" placeholder="1 85 07 75 123 456 78"></div>
+            <div class="field full"><label for="num_secu">N° de sécurité sociale <span class="hint">(13 ou 15 caractères)</span><span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="num_secu" name="num_secu" inputmode="numeric" autocomplete="off" maxlength="21" placeholder="1 85 07 75 123 456 78"></div>
           </div>
         </fieldset>
 
@@ -45,9 +48,9 @@
           <div class="grid-form">
             <div class="field"><label for="email">E-mail du compte</label><input class="input" id="email" name="email" type="email" readonly></div>
             <div class="field"><label for="telephone">Téléphone</label><input class="input" id="telephone" name="telephone" type="tel" autocomplete="tel" maxlength="40"></div>
-            <div class="field full"><label for="adresse">Adresse</label><input class="input" id="adresse" name="adresse" autocomplete="street-address" maxlength="300"></div>
-            <div class="field"><label for="code_postal">Code postal</label><input class="input" id="code_postal" name="code_postal" autocomplete="postal-code" maxlength="20"></div>
-            <div class="field"><label for="ville">Ville</label><input class="input" id="ville" name="ville" autocomplete="address-level2" maxlength="100"></div>
+            <div class="field full"><label for="adresse">Adresse<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="adresse" name="adresse" autocomplete="street-address" maxlength="300"></div>
+            <div class="field"><label for="code_postal">Code postal<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="code_postal" name="code_postal" autocomplete="postal-code" maxlength="20"></div>
+            <div class="field"><label for="ville">Ville<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="ville" name="ville" autocomplete="address-level2" maxlength="100"></div>
             <div class="field"><label for="pays">Pays</label><input class="input" id="pays" name="pays" autocomplete="country-name" maxlength="100"></div>
           </div>
         </fieldset>
@@ -56,7 +59,7 @@
           <legend>Coordonnées bancaires</legend>
           <p class="small" style="font-size:14px">Le compte sur lequel votre salaire sera versé.</p>
           <div class="grid-form">
-            <div class="field full"><label for="iban">IBAN</label><input class="input" id="iban" name="iban" autocomplete="off" maxlength="42" placeholder="FR76 …"></div>
+            <div class="field full"><label for="iban">IBAN<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire pour le contrat)</span></label><input class="input" id="iban" name="iban" autocomplete="off" maxlength="42" placeholder="FR76 …"></div>
             <div class="field"><label for="bic">BIC</label><input class="input" id="bic" name="bic" autocomplete="off" maxlength="11"></div>
           </div>
         </fieldset>

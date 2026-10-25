@@ -24,8 +24,9 @@
   ]);
   var missions = r[0].data || [], sim = (r[1].data || [])[0], contrats = r[2].data || [];
   var aCdi = contrats.some(function (d) { return d.type === 'cdi' && (d.statut === 'signe' || d.statut === 'a_signer'); });
-  var etape1 = !!(p.civilite && p.prenom && p.nom && p.date_naissance && p.lieu_naissance && p.num_secu);
-  var etape2 = !!(p.adresse && p.code_postal && p.ville && p.iban);
+  var manque = E.manquants(p);
+  var etape1 = manque.identite.length === 0;
+  var etape2 = manque.coordonnees.length === 0;
 
   var dossier = missions.find(function (m) { return m.statut === 'brouillon' || m.statut === 'a_valider'; }) || null;
   var derniereValidee = missions.find(function (m) { return ['validee', 'active', 'terminee'].indexOf(m.statut) >= 0; }) || null;
@@ -33,7 +34,8 @@
 
   function rendre() {
     var enCours = dossier || ((nouveau || !derniereValidee) ? {} : null);
-    var etat3 = dossier && dossier.statut === 'a_valider' ? 'done' : (enCours ? (etape1 && etape2 ? 'current' : 'todo') : 'done');
+    var renvoye = dossier && dossier.statut === 'brouillon' && dossier.commentaire_admin;
+    var etat3 = dossier && dossier.statut === 'a_valider' ? 'done' : (renvoye ? 'missing' : (enCours ? (etape1 && etape2 ? 'current' : 'todo') : 'done'));
     var etat4 = dossier && dossier.statut === 'a_valider' ? 'current' : (!enCours && derniereValidee ? 'done' : 'todo');
     var docsMission = derniereValidee ? contrats.filter(function (d) { return d.mission_id === derniereValidee.id; }) : [];
     var aSigner = docsMission.some(function (d) { return d.statut === 'a_signer'; });
@@ -41,16 +43,18 @@
     var etat5 = !enCours && derniereValidee ? (signe ? 'done' : 'current') : 'todo';
     var libelle5 = signe ? 'Signé' : (aSigner ? 'Signature en cours' : (etat5 === 'current' ? 'Contrats en préparation' : 'À venir'));
     var etapes = [
-      ['Identité', etape1 ? 'done' : 'current', etape1 ? 'Faite' : 'À compléter'],
-      ['Coordonnées et RIB', etape2 ? 'done' : (etape1 ? 'current' : 'todo'), etape2 ? 'Faite' : 'À compléter'],
-      ['Mission et client', etat3, etat3 === 'done' ? 'Envoyée' : 'En cours'],
+      ['Identité', etape1 ? 'done' : 'missing', etape1 ? 'Complète' : manque.identite.length + ' élément' + (manque.identite.length > 1 ? 's' : '') + ' à compléter', 'informations.html'],
+      ['Coordonnées et RIB', etape2 ? 'done' : 'missing', etape2 ? 'Complète' : manque.coordonnees.length + ' élément' + (manque.coordonnees.length > 1 ? 's' : '') + ' à compléter', 'informations.html'],
+      ['Mission et client', etat3, etat3 === 'done' ? 'Envoyée' : (etat3 === 'missing' ? 'À corriger' : (etat3 === 'todo' ? 'À venir' : 'En cours'))],
       ['Validation HT Portage', etat4, etat4 === 'done' ? 'Validée' : (etat4 === 'current' ? 'En cours' : 'À venir')],
       ['Signature en ligne', etat5, libelle5]
     ];
     document.getElementById('etapes').innerHTML = etapes.map(function (e, i) {
-      return '<li class="etape is-' + e[1] + '"' + (e[1] === 'current' ? ' aria-current="step"' : '') + '><span class="etape__num">' +
+      var tagOuvrant = e[3] && e[1] === 'missing' ? '<li><a class="etape is-' + e[1] + '" href="' + e[3] + '">' : '<li class="etape is-' + e[1] + '"' + (e[1] === 'current' ? ' aria-current="step"' : '') + '>';
+      var tagFermant = e[3] && e[1] === 'missing' ? '</a></li>' : '</li>';
+      return tagOuvrant + '<span class="etape__num">' +
         (e[1] === 'done' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : (i + 1)) +
-        '</span><span class="etape__txt"><span>Étape ' + (i + 1) + ' · ' + esc(e[2]) + '</span><strong>' + esc(e[0]) + '</strong></span></li>';
+        '</span><span class="etape__txt"><span>Étape ' + (i + 1) + ' · ' + esc(e[2]) + '</span><strong>' + esc(e[0]) + '</strong></span>' + tagFermant;
     }).join('');
 
     var retour = document.getElementById('retour');
@@ -61,7 +65,8 @@
 
     var zone = document.getElementById('zone-mission');
     if (!etape1 || !etape2) {
-      zone.innerHTML = '<div class="alerte alerte--info"><strong>Commencez par vos informations personnelles</strong><span>Identité, n° de sécurité sociale, adresse et RIB servent à établir votre contrat de travail.</span>' +
+      var tout = manque.identite.concat(manque.coordonnees);
+      zone.innerHTML = '<div class="alerte alerte--manque"><strong>Il manque ' + tout.length + ' information' + (tout.length > 1 ? 's' : '') + ' pour établir votre contrat</strong><span>' + esc(E.cap(E.listeFr(tout))) + '.</span>' +
         '<a class="btn btn--dark btn--sm" href="informations.html" style="align-self:flex-start;margin-top:6px">Compléter mes informations</a></div>' +
         (enCours ? formulaire(enCours) : '');
     } else if (dossier && dossier.statut === 'a_valider') {
@@ -83,12 +88,14 @@
     var tag = o.textarea ? '<textarea class="textarea" style="min-height:96px"' : '<input class="input" type="' + (o.type || 'text') + '"';
     var attrs = ' id="m-' + name + '" name="' + name + '"' + (o.max ? ' maxlength="' + o.max + '"' : '') + (o.min != null ? ' min="' + o.min + '"' : '') +
       (o.placeholder ? ' placeholder="' + esc(o.placeholder) + '"' : '') + (o.mode ? ' inputmode="' + o.mode + '"' : '') + (o.auto ? ' autocomplete="' + o.auto + '"' : '');
-    return '<div class="field' + (o.full ? ' full' : '') + '"><label for="m-' + name + '">' + esc(label) + (o.hint ? ' <span class="hint">(' + esc(o.hint) + ')</span>' : '') + '</label>' +
+    var requis = OBLIGATOIRES[name] ? '<span class="requis" aria-hidden="true"> *</span><span class="visually-hidden"> (obligatoire)</span>' : '';
+    return '<div class="field' + (o.full ? ' full' : '') + '"><label for="m-' + name + '">' + esc(label) + requis + (o.hint ? ' <span class="hint">(' + esc(o.hint) + ')</span>' : '') + '</label>' +
       (o.textarea ? tag + attrs + '></textarea>' : tag + attrs + '>') + '</div>';
   }
 
   function formulaire(m) {
     return '<form id="form-mission" novalidate style="display:flex;flex-direction:column;gap:16px">' +
+      '<p class="legende-requis"><span class="requis">*</span> Obligatoire pour envoyer votre dossier. Vous pouvez enregistrer un brouillon à tout moment.</p>' +
       '<fieldset class="box"><legend>La mission</legend><div class="grid-form">' +
         f('intitule', 'Objet de la prestation', { full: true, textarea: true, max: 300, placeholder: 'Ex. : développement d’une application de gestion des sinistres' }) +
         f('competences', 'Vos compétences', { full: true, max: 500, hint: 'article 3 du CDI', placeholder: 'Ex. : développement full stack .NET' }) +
@@ -121,7 +128,7 @@
       if (!form.competences.value && p.competences) form.competences.value = p.competences;
     }
     var status = form.querySelector('.form-status');
-    form.addEventListener('input', function (e) { e.target.removeAttribute('aria-invalid'); if (e.target.name === 'tjm') rendreAside(lire()); });
+    form.addEventListener('input', function (e) { e.target.removeAttribute('aria-invalid'); if (e.target.value) e.target.classList.remove('is-manquant'); if (e.target.name === 'tjm') rendreAside(lire()); });
 
     function lire() {
       var d = {};
@@ -144,8 +151,15 @@
       if (d.client_signataire_email && !EMAIL.test(d.client_signataire_email)) return erreur('client_signataire_email', 'L’e-mail du signataire n’est pas valide.');
       if (d.interlocuteur_email && !EMAIL.test(d.interlocuteur_email)) return erreur('interlocuteur_email', 'L’e-mail de l’interlocuteur n’est pas valide.');
       if (complet) {
-        for (var k in OBLIGATOIRES) if (!d[k]) return erreur(k, 'Il manque ' + OBLIGATOIRES[k] + '.');
-        if (!etape1 || !etape2) return erreur(null, 'Complétez d’abord vos informations personnelles (étapes 1 et 2).');
+        var vides = Object.keys(OBLIGATOIRES).filter(function (k) { return !d[k]; });
+        form.querySelectorAll('.is-manquant').forEach(function (el) { el.classList.remove('is-manquant'); });
+        if (vides.length) {
+          vides.forEach(function (k) { form[k].classList.add('is-manquant'); form[k].setAttribute('aria-invalid', 'true'); });
+          form[vides[0]].focus();
+          E.setStatus(status, 'Il manque ' + vides.length + ' information' + (vides.length > 1 ? 's' : '') + ' : ' + E.listeFr(vides.map(function (k) { return OBLIGATOIRES[k]; })) + '.', 'error');
+          return false;
+        }
+        if (!etape1 || !etape2) return erreur(null, 'Avant l’envoi, complétez dans « Mes informations » : ' + E.listeFr(manque.identite.concat(manque.coordonnees)) + '.');
       }
       return true;
     }

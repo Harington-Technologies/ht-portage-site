@@ -240,8 +240,20 @@
     return '<span class="tag ' + l[1] + '">' + esc(l[0]) + '</span>';
   }
 
+  // Informations obligatoires pour établir le contrat (mêmes règles que la fonction « contrats »)
+  var EXIGENCES = {
+    identite: [['civilite', 'civilité'], ['prenom', 'prénom'], ['nom', 'nom'], ['date_naissance', 'date de naissance'], ['lieu_naissance', 'lieu de naissance'], ['num_secu', 'n° de sécurité sociale']],
+    coordonnees: [['adresse', 'adresse'], ['code_postal', 'code postal'], ['ville', 'ville'], ['iban', 'IBAN']]
+  };
+  function manquants(p) {
+    p = p || {};
+    var f = function (liste) { return liste.filter(function (x) { return !p[x[0]]; }).map(function (x) { return x[1]; }); };
+    return { identite: f(EXIGENCES.identite), coordonnees: f(EXIGENCES.coordonnees) };
+  }
+  function listeFr(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1]; }
+
   var ESPACE = {
-    db: db, cfg: cfg, guard: guard, state: null, LIBELLES: LIBELLES, tag: tag,
+    db: db, cfg: cfg, guard: guard, state: null, LIBELLES: LIBELLES, tag: tag, EXIGENCES: EXIGENCES, manquants: manquants, listeFr: listeFr,
     esc: esc, num: num, eur: eur, n0: n0, date: date, parseDate: parseDate,
     moisCourt: moisCourt, moisLong: moisLong, cap: cap, initiales: initiales,
     setStatus: setStatus, errText: errText, urlSignee: urlSignee, brancherTelechargements: brancherTelechargements

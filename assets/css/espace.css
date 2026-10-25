@@ -183,7 +183,14 @@ pre.report { background: var(--bg); border-radius: 12px; padding: 12px 14px; fon
 .etape__txt { display: flex; flex-direction: column; min-width: 0; }
 .etape__txt span { font-size: 12px; color: var(--muted); }
 .etape__txt strong { font-size: 14px; }
-.etape.is-done .etape__num { background: var(--navy-900); color: var(--white); }
+.etape.is-done { background: #E8F4EC; border-color: #A8D5B8; }
+.etape.is-done .etape__num { background: #2F7A4D; color: var(--white); }
+.etape.is-done .etape__txt span { color: #2F6B3A; font-weight: 600; }
+.etape.is-missing { background: #FFF4E5; border: 2px solid #B45309; padding: 13px 15px; }
+.etape.is-missing .etape__num { background: #B45309; color: var(--white); }
+.etape.is-missing .etape__txt span { color: #8A3F06; font-weight: 600; }
+a.etape { text-decoration: none; color: inherit; }
+a.etape:hover { box-shadow: 0 0 0 3px rgba(193,135,161,.35); }
 .etape.is-current { border: 2px solid var(--plum); padding: 13px 15px; }
 .etape.is-current .etape__num { background: var(--plum); color: var(--white); }
 .etape.is-current .etape__txt span { color: var(--plum); font-weight: 600; }
@@ -199,3 +206,12 @@ pre.report { background: var(--bg); border-radius: 12px; padding: 12px 14px; fon
 .signataires { list-style: none; margin: 0; padding: 0; counter-reset: s; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
 .signataires li { counter-increment: s; display: flex; gap: 10px; align-items: flex-start; }
 .signataires li::before { content: counter(s); width: 22px; height: 22px; border-radius: 999px; background: var(--rose); color: var(--navy-900); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: none; }
+
+/* Informations manquantes */
+.alerte--manque { background: #FFF4E5; color: #8A3F06; border: 1px solid #F3C98B; }
+.alerte--ok { background: #E8F4EC; color: #2F6B3A; border: 1px solid #A8D5B8; }
+.alerte ul { margin: 4px 0 0; padding-left: 20px; }
+.input.is-manquant, .select.is-manquant { border-color: #B45309; background: #FFFBF5; }
+.requis { color: #B45309; font-weight: 700; }
+.legende-requis { font-size: 13px; color: var(--muted); }
+.etapes > li > a.etape { height: 100%; box-sizing: border-box; }

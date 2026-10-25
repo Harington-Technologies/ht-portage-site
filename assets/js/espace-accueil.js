@@ -19,13 +19,13 @@
   var comptes = r[0].data || [], missions = r[1].data || [], docs = r[2].data || [], recos = r[3].data || [], sim = (r[4].data || [])[0];
 
   // ---------- Bandeau d'action ----------
-  var infosOk = p.prenom && p.nom && p.adresse && p.code_postal && p.ville && p.date_naissance && p.num_secu && p.iban;
+  var mq = E.manquants(p), manq = mq.identite.concat(mq.coordonnees), infosOk = manq.length === 0;
   var enVerif = missions.some(function (m) { return m.statut === 'a_valider'; });
   var aMission = missions.some(function (m) { return ['validee', 'active', 'terminee'].indexOf(m.statut) >= 0; });
   var banner = '';
   if (!infosOk) {
     banner = bandeau('Contractualisation · étape 1', 'Complétez vos informations personnelles.',
-      'Identité, adresse, n° de sécurité sociale et RIB : ils servent à préparer votre contrat de travail.', 'informations.html', 'Compléter mes informations');
+      'Il manque : ' + E.listeFr(manq) + '. Ces informations servent à préparer votre contrat de travail.', 'informations.html', 'Compléter mes informations');
   } else if (enVerif) {
     banner = bandeau('Contractualisation', 'Votre dossier est en cours de vérification.',
       'HT Portage relit vos informations. Vous recevrez votre contrat à signer par e-mail.', null, null);

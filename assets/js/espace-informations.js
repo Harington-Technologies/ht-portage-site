@@ -15,6 +15,22 @@
   document.getElementById('code').textContent = p.code_parrainage || '—';
   document.getElementById('depuis').textContent = E.date(p.created_at);
 
+  // Ce qui manque pour le contrat : encadré en haut de page et champs signalés
+  function afficherManques() {
+    var mq = E.manquants(st.profil), tout = mq.identite.concat(mq.coordonnees);
+    E.EXIGENCES.identite.concat(E.EXIGENCES.coordonnees).forEach(function (x) {
+      var el = f[x[0]]; if (!el) return;
+      if (!st.profil[x[0]]) el.classList.add('is-manquant'); else el.classList.remove('is-manquant');
+    });
+    var box = document.getElementById('etat-dossier');
+    box.innerHTML = tout.length
+      ? '<div class="alerte alerte--manque"><strong>Il manque ' + tout.length + ' information' + (tout.length > 1 ? 's' : '') + ' pour établir votre contrat</strong>' +
+        '<ul>' + (mq.identite.length ? '<li>Identité : ' + E.esc(E.listeFr(mq.identite)) + '</li>' : '') + (mq.coordonnees.length ? '<li>Coordonnées et RIB : ' + E.esc(E.listeFr(mq.coordonnees)) + '</li>' : '') + '</ul>' +
+        '<span>Les champs concernés sont signalés en orange ci-dessous.</span></div>'
+      : '<div class="alerte alerte--ok"><strong>Vos informations sont complètes</strong><span>Vous pouvez passer à l’étape suivante : <a href="contractualisation.html">déclarer votre mission</a>.</span></div>';
+  }
+  afficherManques();
+
   function ibanValide(iban) {
     if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$/.test(iban)) return false;
     var r = (iban.slice(4) + iban.slice(0, 4)).replace(/[A-Z]/g, function (c) { return String(c.charCodeAt(0) - 55); });
@@ -57,6 +73,7 @@
     if (r.error) { E.setStatus(status, E.errText(r.error), 'error'); return; }
     E.setStatus(status, 'Informations enregistrées.', 'ok');
     Object.assign(st.profil, data);
+    afficherManques();
     document.querySelectorAll('[data-avatar]').forEach(function (a) { a.textContent = E.initiales(st.profil, st.user.email); });
     if (data.iban) f.iban.value = data.iban.replace(/(.{4})/g, '$1 ').trim();
   });

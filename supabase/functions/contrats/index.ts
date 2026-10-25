@@ -201,7 +201,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     const resultats = [];
     for (const f of fichiers) {
       const signataires = f.type === "cdi" ? [consultant, signataireHtp] : [consultant, client, signataireHtp];
-      const srId = await envoyerYousign(f.titre + " · " + nomComplet(p), f.contenu, f.nom, signataires, f.type + ":" + m.id);
+      const srId = await envoyerYousign(f.titre + " · " + nomComplet(p), f.contenu, f.nom, signataires, f.type + "-" + m.id);
       const { error } = await admin.from("documents").insert({
         user_id: m.user_id, mission_id: m.id, type: f.type, titre: f.titre, statut: "a_signer",
         yousign_sr_id: srId, yousign_statut: "ongoing", envoye_le: new Date().toISOString(),

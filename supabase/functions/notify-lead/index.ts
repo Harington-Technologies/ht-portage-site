@@ -54,6 +54,38 @@ Deno.serve(async (req) => {
   const payload = await req.json().catch(() => null);
   const table: string = payload?.table ?? "";
   const record: Record<string, unknown> = payload?.record ?? {};
+
+  // Espace consultant : un dossier de contractualisation vient d'être envoyé à HT Portage
+  if (table === "consultant_missions") {
+    const ancien = payload?.old_record ?? {};
+    if (record.statut !== "a_valider" || (payload?.type === "UPDATE" && ancien.statut === "a_valider")) {
+      return new Response("Ignored", { status: 200 });
+    }
+    let consultant = "";
+    if (admin && typeof record.user_id === "string") {
+      const { data: p } = await admin.from("profils").select("prenom, nom, email").eq("id", record.user_id).maybeSingle();
+      consultant = [p?.prenom, p?.nom].filter(Boolean).join(" ") || p?.email || "";
+    }
+    const lignes: [string, unknown][] = [
+      ["Consultant", consultant], ["Objet", record.intitule], ["Client", record.client], ["Client final", record.client_final],
+      ["Début", record.date_debut], ["Fin", record.date_fin], ["TJ (€ HT)", record.tjm],
+      ["Signataire client", [record.client_representant, record.client_signataire_email].filter(Boolean).join(" · ")],
+    ];
+    const sujet = `Dossier à valider — ${consultant}${record.client ? " · " + record.client : ""}`;
+    const corps = `<div style="font-family:Arial,sans-serif;color:#1B1C1C">
+      <h2 style="color:#21324E">${esc(sujet)}</h2>
+      <p>Un consultant vient d'envoyer son dossier de contractualisation. Vérifiez-le puis validez-le ou renvoyez-le avec un message.</p>
+      <table style="border-collapse:collapse;font-size:14px">${lignes.filter(([, v]) => v).map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#4A5468">${esc(k)}</td><td style="padding:6px 0">${esc(v)}</td></tr>`).join("")}</table>
+      <p style="margin-top:20px"><a href="https://www.htportage.fr/espace/admin.html#a-valider" style="background:#21324E;color:#fff;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold">Ouvrir le dossier</a></p>
+    </div>`;
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: NOTIFY_FROM, to: NOTIFY_TO, subject: sujet, html: corps }),
+    });
+    if (!r.ok) { console.error("Resend error", r.status, await r.text()); return new Response("Email failed", { status: 502 }); }
+    return new Response("OK", { status: 200 });
+  }
   if (payload?.type !== "INSERT" || !LABELS[table]) return new Response("Ignored", { status: 200 });
 
   let subject = LABELS[table];
