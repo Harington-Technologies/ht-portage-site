@@ -53,10 +53,25 @@
     if (r.data && r.data.session) location.replace(suite);
   });
 
+  // Anti-robot (Cloudflare Turnstile) : actif dès que la clé est renseignée dans config.js
+  var C = window.HTP_CAPTCHA || { monter: function () { return { actif: false, jeton: function () { return Promise.resolve(''); }, reinitialiser: function () {} }; } };
+  async function avecCaptcha(form, st, opts) {
+    var c = form._captcha || (form._captcha = C.monter(form));
+    if (!c.actif) return opts;
+    E.setStatus(st, 'Vérification anti-robot…');
+    var j = await c.jeton();
+    if (!j) throw new Error('La vérification anti-robot n’a pas abouti. Réessayez dans un instant.');
+    opts.captchaToken = j;
+    return opts;
+  }
+  function apres(form) { if (form._captcha) form._captcha.reinitialiser(); }
+
   function occuper(form, oui) {
     var b = form.querySelector('[type=submit]');
     if (b) b.disabled = oui;
   }
+
+  ['form-connexion', 'form-inscription', 'form-oubli'].forEach(function (id) { var f = document.getElementById(id); f._captcha = C.monter(f); });
 
   // ---------- Connexion ----------
   var fc = document.getElementById('form-connexion');
@@ -64,9 +79,14 @@
     e.preventDefault();
     var st = fc.querySelector('.form-status');
     if (!fc.checkValidity()) { fc.reportValidity(); E.setStatus(st, 'Indiquez votre e-mail et votre mot de passe.', 'error'); return; }
-    occuper(fc, true); E.setStatus(st, 'Connexion…');
-    var r = await db.auth.signInWithPassword({ email: fc.email.value.trim(), password: fc.password.value });
-    occuper(fc, false);
+    occuper(fc, true);
+    var r;
+    try {
+      var o = await avecCaptcha(fc, st, {});
+      E.setStatus(st, 'Connexion…');
+      r = await db.auth.signInWithPassword({ email: fc.email.value.trim(), password: fc.password.value, options: o });
+    } catch (err) { r = { error: err }; }
+    occuper(fc, false); apres(fc);
     if (r.error) { E.setStatus(st, E.errText(r.error), 'error'); return; }
     location.replace(suite);
   });
@@ -81,17 +101,18 @@
       E.setStatus(st, fi.password.value && fi.password.value.length < 10 ? 'Le mot de passe doit faire au moins 10 caractères.' : 'Merci de compléter tous les champs.', 'error');
       return;
     }
-    occuper(fi, true); E.setStatus(st, 'Création de votre espace…');
+    occuper(fi, true);
     var email = fi.email.value.trim();
-    var r = await db.auth.signUp({
-      email: email,
-      password: fi.password.value,
-      options: {
+    var r;
+    try {
+      var oi = await avecCaptcha(fi, st, {
         data: { prenom: fi.prenom.value.trim(), nom: fi.nom.value.trim(), parrain: ref || undefined },
         emailRedirectTo: base + 'index.html'
-      }
-    });
-    occuper(fi, false);
+      });
+      E.setStatus(st, 'Création de votre espace…');
+      r = await db.auth.signUp({ email: email, password: fi.password.value, options: oi });
+    } catch (err) { r = { error: err }; }
+    occuper(fi, false); apres(fi);
     if (r.error) { E.setStatus(st, E.errText(r.error), 'error'); return; }
     if (r.data && r.data.user && Array.isArray(r.data.user.identities) && r.data.user.identities.length === 0) {
       E.setStatus(st, 'Un compte existe déjà avec cette adresse : connectez-vous.', 'error');
@@ -110,9 +131,12 @@
     var st = fo.querySelector('.form-status');
     if (!fo.checkValidity()) { fo.reportValidity(); E.setStatus(st, 'Indiquez votre e-mail.', 'error'); return; }
     occuper(fo, true);
-    var r = await db.auth.resetPasswordForEmail(fo.email.value.trim(), { redirectTo: base + 'reset.html' });
-    occuper(fo, false);
-    if (r.error && /rate limit|too many/i.test(r.error.message || '')) { E.setStatus(st, E.errText(r.error), 'error'); return; }
+    var r;
+    try {
+      r = await db.auth.resetPasswordForEmail(fo.email.value.trim(), await avecCaptcha(fo, st, { redirectTo: base + 'reset.html' }));
+    } catch (err) { r = { error: err }; }
+    occuper(fo, false); apres(fo);
+    if (r.error && /rate limit|too many|captcha|anti-robot/i.test(r.error.message || '')) { E.setStatus(st, E.errText(r.error), 'error'); return; }
     E.setStatus(st, 'Si un compte existe pour cette adresse, un lien vient de vous être envoyé.', 'ok');
   });
 })();

@@ -54,6 +54,7 @@
     if (/already registered|already been registered/i.test(m)) return 'Un compte existe déjà avec cette adresse : connectez-vous.';
     if (/Password should be at least/i.test(m)) return 'Le mot de passe est trop court.';
     if (/rate limit|too many/i.test(m)) return 'Trop de tentatives : réessayez dans quelques minutes.';
+    if (/captcha/i.test(m)) return 'La vérification anti-robot a échoué : rechargez la page et réessayez.';
     if (/violates check constraint/i.test(m)) return 'Une valeur saisie n’est pas au bon format.';
     if (/row-level security|permission denied/i.test(m)) return "Action non autorisée.";
     return m || 'Une erreur est survenue. Réessayez.';

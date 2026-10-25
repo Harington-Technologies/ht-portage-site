@@ -38,13 +38,7 @@
   document.querySelectorAll('[data-year]').forEach(function (el) { el.textContent = new Date().getFullYear(); });
 
   // ---- Formulaires ----
-  // Chaque <form data-form="..."> est envoyé dans la table correspondante.
-  var TABLES = {
-    contact: 'contacts',
-    simulation: 'contacts',
-    candidature: 'candidatures',
-    recommandation: 'recommandations'
-  };
+  // Chaque <form data-form="..."> est envoyé à la fonction serveur « formulaire » (contact, simulation, candidature, recommandation).
   var MESSAGES = {
     contact: 'Merci ! Nous vous recontactons très vite.',
     simulation: 'Merci ! Votre simulation détaillée vous sera envoyée sous 24 h ouvrées.',
@@ -75,18 +69,14 @@
     return data;
   }
 
-  function safeName(name) {
-    return name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-80);
-  }
-
-  function uuid() {
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  // Envoi par la fonction serveur « formulaire » : piège à robots, captcha et limites y sont vérifiés.
+  async function messageErreur(err) {
+    try { var ctx = err && err.context; if (ctx && ctx.json) { var j = await ctx.json(); if (j && j.erreur) return j.erreur; } } catch (e) { /* message par défaut */ }
+    return "Désolé, l'envoi a échoué. Réessayez ou écrivez-nous à " + (cfg.contactEmail || 'contact@htportage.fr') + '.';
   }
 
   async function submitForm(form) {
     var kind = form.dataset.form;
-    var table = TABLES[kind];
     var button = form.querySelector('[type=submit]');
 
     var hp = form.querySelector('[name=site_web]');
@@ -113,27 +103,35 @@
     if (button) { button.disabled = true; }
     setStatus(form, 'Envoi en cours…');
     try {
-      var data = payloadFrom(form);
-      if (file) {
-        var path = uuid() + '/' + safeName(file.name);
-        var up = await db.storage.from('cv').upload(path, file, { contentType: file.type, upsert: false });
-        if (up.error) throw up.error;
-        data.cv_path = path;
+      var envoi = new FormData();
+      envoi.append('formulaire', kind);
+      envoi.append('donnees', JSON.stringify(payloadFrom(form)));
+      envoi.append('site_web', hp ? hp.value : '');
+      envoi.append('delai', String(Date.now() - (form._htpDebut || 0)));
+      if (form._htpCaptcha && form._htpCaptcha.actif) {
+        setStatus(form, 'Vérification anti-robot…');
+        envoi.append('cf-turnstile-response', await form._htpCaptcha.jeton());
+        setStatus(form, 'Envoi en cours…');
       }
-      var res = await db.from(table).insert(data);
-      if (res.error) throw res.error;
+      if (file) envoi.append('cv', file, file.name);
+      var res = await db.functions.invoke('formulaire', { body: envoi });
+      if (res.error) { setStatus(form, await messageErreur(res.error), 'error'); return; }
       form.reset();
       form.dispatchEvent(new CustomEvent('htp:sent'));
       setStatus(form, MESSAGES[kind], 'ok');
     } catch (err) {
       console.error(err);
-      setStatus(form, "Désolé, l'envoi a échoué. Réessayez ou écrivez-nous à " + (cfg.contactEmail || 'contact@htportage.fr') + '.', 'error');
+      setStatus(form, (err && err.message && /anti-robot/.test(err.message)) ? err.message : "Désolé, l'envoi a échoué. Réessayez ou écrivez-nous à " + (cfg.contactEmail || 'contact@htportage.fr') + '.', 'error');
     } finally {
+      if (form._htpCaptcha) form._htpCaptcha.reinitialiser();
+      form._htpDebut = Date.now() - 3000; // un 2e envoi par un humain ne doit pas être pris pour un robot
       if (button) { button.disabled = false; }
     }
   }
 
   document.querySelectorAll('form[data-form]').forEach(function (form) {
+    form._htpDebut = Date.now();
+    if (window.HTP_CAPTCHA) form._htpCaptcha = window.HTP_CAPTCHA.monter(form);
     form.addEventListener('submit', function (e) { e.preventDefault(); submitForm(form); });
   });
 })();

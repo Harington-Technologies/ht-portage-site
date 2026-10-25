@@ -206,6 +206,23 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   if (table === "consultant_missions") return await mission(payload);
   if (payload?.type !== "INSERT" || !LABELS[table]) return new Response("Ignored", { status: 200 });
 
+  // Plafond : 15 e-mails de demandes par heure. Au-delà, une seule alerte par heure (protège la boîte et le quota Resend).
+  if (admin) {
+    const { data: ok, error: el } = await admin.rpc("limiter", { p_cle: "mail-demandes", p_max: 15, p_fenetre: 3600 });
+    if (!el && ok === false) {
+      const { data: alerte } = await admin.rpc("limiter", { p_cle: "mail-alerte-volume", p_max: 1, p_fenetre: 3600 });
+      if (alerte === true) {
+        await envoyer(NOTIFY_TO, "Alerte : afflux inhabituel de demandes sur le site", gabarit({
+          interne: true, titre: "Afflux inhabituel de demandes",
+          corps: `<p style="margin:0 0 14px">Plus de 15 demandes sont arrivées par le site au cours de la dernière heure. Pour ne pas saturer votre boîte, les e-mails individuels sont suspendus pendant une heure.</p>` +
+            `<p style="margin:0">Toutes les demandes restent enregistrées et consultables dans l'administration. S'il s'agit d'envois automatiques, prévenez-nous : la protection anti-robot peut être renforcée.</p>`,
+          bouton: { texte: "Voir les demandes reçues", url: `${SITE}/espace/admin.html#demandes` },
+        }));
+      }
+      return new Response("Throttled", { status: 200 });
+    }
+  }
+
   let titre = LABELS[table];
   if (table === "contacts" && record.type === "simulation") titre = "Nouvelle demande de simulation";
   const qui = String(record.nom ?? record.ambassadeur_nom ?? "").trim();
