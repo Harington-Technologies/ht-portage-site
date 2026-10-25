@@ -97,6 +97,7 @@
   };
   // Menu de l'administration (sections de admin.html)
   var PAGES_ADMIN = [
+    ['accueil', 'apercu', 'Vue d’ensemble'],
     ['ambassadeur', 'consultants', 'Consultants'],
     ['valider', 'a-valider', 'Dossiers à valider'],
     ['contrats', 'signatures', 'Contrats et signatures'],
@@ -116,15 +117,27 @@
 
   function icon(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[name] + '</svg>'; }
 
+  function sectionAdmin() {
+    var h = (location.hash || '').slice(1);
+    return PAGES_ADMIN.some(function (p) { return p[1] === h; }) ? h : 'apercu';
+  }
+  // Pastille de compteur dans le menu de l'administration (0 = masquée)
+  function badge(section, n) {
+    var a = document.querySelector('#sidebar [data-section="' + section + '"] [data-pill]');
+    if (!a) return;
+    a.hidden = !n; a.textContent = n > 99 ? '99+' : String(n || '');
+    a.setAttribute('aria-label', n + ' à traiter');
+  }
+
   function renderSidebar(state) {
     var el = document.getElementById('sidebar');
     if (!el) return;
     var current = document.body.dataset.page;
     var links;
     if (state.isAdmin) {
-      var section = (location.hash || '#consultants').slice(1);
+      var section = sectionAdmin();
       links = PAGES_ADMIN.map(function (p) {
-        return '<a href="admin.html#' + p[1] + '" data-section="' + p[1] + '"' + (p[1] === section ? ' aria-current="page"' : '') + '>' + icon(p[0]) + esc(p[2]) + '</a>';
+        return '<a href="admin.html#' + p[1] + '" data-section="' + p[1] + '"' + (p[1] === section ? ' aria-current="page"' : '') + '>' + icon(p[0]) + '<span>' + esc(p[2]) + '</span><span class="pill" data-pill hidden></span></a>';
       }).join('');
     } else {
       links = PAGES.map(function (p) {
@@ -157,7 +170,7 @@
     document.querySelectorAll('[data-avatar]').forEach(function (a) { a.textContent = initiales(state.profil, state.user.email); });
     if (state.isAdmin) {
       window.addEventListener('hashchange', function () {
-        var sec = (location.hash || '#consultants').slice(1);
+        var sec = sectionAdmin();
         el.querySelectorAll('[data-section]').forEach(function (a) {
           if (a.dataset.section === sec) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
         });
@@ -254,6 +267,7 @@
 
   var ESPACE = {
     db: db, cfg: cfg, guard: guard, state: null, LIBELLES: LIBELLES, tag: tag, EXIGENCES: EXIGENCES, manquants: manquants, listeFr: listeFr,
+    sectionAdmin: sectionAdmin, badge: badge, PAGES_ADMIN: PAGES_ADMIN,
     esc: esc, num: num, eur: eur, n0: n0, date: date, parseDate: parseDate,
     moisCourt: moisCourt, moisLong: moisLong, cap: cap, initiales: initiales,
     setStatus: setStatus, errText: errText, urlSignee: urlSignee, brancherTelechargements: brancherTelechargements

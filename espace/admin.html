@@ -18,33 +18,40 @@
   <main class="content">
     <header class="page-head">
       <div>
-        <p class="eyebrow">/Administration/</p>
-        <h1 class="page-title">Pilotage HT Portage</h1>
-        <p class="page-sub">Consultants, dossiers à valider, import des comptes d'activité VSP et demandes reçues par le site.</p>
+        <p class="eyebrow" id="sec-eyebrow">/Administration/</p>
+        <h1 class="page-title" id="sec-titre">Vue d'ensemble</h1>
+        <p class="page-sub" id="sec-sous"></p>
       </div>
     </header>
 
-
-    <section class="box" id="consultants" aria-labelledby="t-cons">
-      <div class="box__head"><h2 class="box__title" id="t-cons">Consultants et candidats</h2>
-        <div class="toolbar"><label class="visually-hidden" for="recherche">Rechercher</label><input class="input" id="recherche" type="search" placeholder="Nom ou e-mail" style="min-height:40px"></div>
+    <!-- Vue d'ensemble -->
+    <section class="admin-section" id="apercu" data-titre="Vue d'ensemble" data-sous="Ce qui demande votre attention, et une recherche sur tout l'espace." aria-label="Vue d'ensemble">
+      <div class="kpis" id="kpis"></div>
+      <div class="box">
+        <div class="box__head"><h2 class="box__title">Rechercher partout</h2></div>
+        <label class="visually-hidden" for="recherche-globale">Rechercher un consultant, un client, un n° de contrat, une demande</label>
+        <input class="input" id="recherche-globale" type="search" autocomplete="off" placeholder="Nom, e-mail, client, n° de contrat HTP-…">
+        <div id="resultats-globaux" aria-live="polite"></div>
       </div>
+      <div class="box">
+        <div class="box__head"><h2 class="box__title">À traiter</h2></div>
+        <div id="a-traiter"><p class="loading">Chargement…</p></div>
+      </div>
+    </section>
+
+    <section class="admin-section box" id="consultants" data-titre="Consultants et candidats" data-sous="Tous les comptes de l'espace : statut, dossier, ID VSP et fiche détaillée." aria-label="Consultants et candidats" hidden>
       <div id="liste-consultants"><p class="loading">Chargement…</p></div>
     </section>
 
-    <section class="box" id="a-valider" aria-labelledby="t-valider">
-      <h2 class="box__title" id="t-valider">Dossiers à valider</h2>
-      <div id="liste-valider" style="display:flex;flex-direction:column;gap:16px"><p class="loading">Chargement…</p></div>
+    <section class="admin-section box" id="a-valider" data-titre="Dossiers à valider" data-sous="Dossiers de contractualisation envoyés par les consultants, du plus ancien au plus récent." aria-label="Dossiers à valider" hidden>
+      <div id="liste-valider"><p class="loading">Chargement…</p></div>
     </section>
 
-    <section class="box" id="signatures" aria-labelledby="t-sign">
-      <h2 class="box__title" id="t-sign">Contrats et signatures</h2>
-      <p class="small" style="font-size:14px">Dossiers validés : prévisualisez les contrats remplis, puis envoyez-les en signature électronique (Yousign). Ordre : consultant, client, HT Portage.</p>
-      <div id="liste-signatures" style="display:flex;flex-direction:column;gap:12px"><p class="loading">Chargement…</p></div>
+    <section class="admin-section box" id="signatures" data-titre="Contrats et signatures" data-sous="Dossiers validés : prévisualisez les contrats, envoyez-les en signature électronique et suivez leur avancement. Tous les signataires reçoivent leur lien en même temps." aria-label="Contrats et signatures" hidden>
+      <div id="liste-signatures"><p class="loading">Chargement…</p></div>
     </section>
 
-    <section class="box" id="import" aria-labelledby="t-import">
-      <h2 class="box__title" id="t-import">Import des comptes d'activité (export VSP)</h2>
+    <section class="admin-section box" id="import" data-titre="Import VSP" data-sous="Import des comptes d'activité exportés de VSPortage." aria-label="Import VSP" hidden>
       <p style="font-size:15px;color:var(--muted)">Fichier CSV (séparateur « ; » ou « , »), une ligne par consultant et par mois. Colonnes reconnues :
         <code>email</code> ou <code>vsp_id</code>, <code>mois</code> (2026-09 ou 09/2026), <code>jours</code>, <code>ca_ht</code>, <code>frais_gestion</code>, <code>charges</code>, <code>reserve</code>, <code>net_verse</code>, <code>statut</code> (provisoire/definitif). Un mois déjà importé est mis à jour.</p>
       <form class="toolbar" id="form-import" novalidate>
@@ -56,14 +63,15 @@
       <pre class="report" id="rapport-import" hidden></pre>
     </section>
 
-    <section class="box" id="demandes" aria-labelledby="t-dem">
-      <h2 class="box__title" id="t-dem">Demandes reçues par le site</h2>
-      <h3 style="margin:0;font-size:16px">Candidatures</h3>
-      <div id="liste-candidatures"><p class="loading">Chargement…</p></div>
-      <h3 style="margin:8px 0 0;font-size:16px">Contacts et demandes de simulation</h3>
-      <div id="liste-contacts"><p class="loading">Chargement…</p></div>
-      <h3 style="margin:8px 0 0;font-size:16px">Recommandations ambassadeur</h3>
-      <div id="liste-recos"><p class="loading">Chargement…</p></div>
+    <section class="admin-section box" id="demandes" data-titre="Demandes reçues" data-sous="Candidatures, demandes de contact et de simulation, recommandations ambassadeur." aria-label="Demandes reçues" hidden>
+      <div class="onglets" role="tablist" aria-label="Type de demande">
+        <button type="button" role="tab" id="o-candidatures" aria-controls="p-candidatures" aria-selected="true" data-onglet="candidatures">Candidatures <span class="onglet-n"></span></button>
+        <button type="button" role="tab" id="o-contacts" aria-controls="p-contacts" aria-selected="false" data-onglet="contacts" tabindex="-1">Contacts et simulations <span class="onglet-n"></span></button>
+        <button type="button" role="tab" id="o-recos" aria-controls="p-recos" aria-selected="false" data-onglet="recos" tabindex="-1">Recommandations <span class="onglet-n"></span></button>
+      </div>
+      <div role="tabpanel" id="p-candidatures" aria-labelledby="o-candidatures"><div id="liste-candidatures"><p class="loading">Chargement…</p></div></div>
+      <div role="tabpanel" id="p-contacts" aria-labelledby="o-contacts" hidden><div id="liste-contacts"></div></div>
+      <div role="tabpanel" id="p-recos" aria-labelledby="o-recos" hidden><div id="liste-recos"></div></div>
     </section>
   </main>
 </div>
