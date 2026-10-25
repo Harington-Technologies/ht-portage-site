@@ -664,6 +664,7 @@
       aValider: D.missions.filter(function (m) { return m.statut === 'a_valider'; }).length,
       aEnvoyer: signes.filter(function (e) { return e.cle === 'a_envoyer'; }).length,
       enAttente: signes.filter(function (e) { return e.cle === 'en_attente'; }).length,
+      signes: signes.filter(function (e) { return e.cle === 'signe'; }).length,
       actives: D.missions.filter(function (m) { return m.statut === 'active'; }).length,
       cands: D.cands.filter(function (c) { return !c.statut || c.statut === 'nouvelle'; }).length,
       contacts: D.contacts.filter(function (c) { return !c.traite; }).length,
@@ -685,7 +686,7 @@
     document.getElementById('kpis').innerHTML =
       kpi('#consultants', 'Consultants portés', c.consultants, c.actives + ' mission' + (c.actives > 1 ? 's' : '') + ' active' + (c.actives > 1 ? 's' : '') + ' · ' + c.candidats + ' candidat' + (c.candidats > 1 ? 's' : ''), true) +
       kpi('#a-valider', 'Dossiers à valider', c.aValider, c.aValider ? 'Consultants en attente de votre retour' : 'Rien en attente') +
-      kpi('#signatures', 'Contrats', c.aEnvoyer + ' à envoyer', c.enAttente + ' en attente de signature') +
+      kpi('#signatures', 'Contrats', c.aEnvoyer + ' à envoyer', c.enAttente + ' en attente de signature · ' + c.signes + ' signé' + (c.signes > 1 ? 's' : '')) +
       kpi('#demandes', 'Demandes à traiter', c.cands + c.contacts + c.recos, c.cands + ' candidature' + (c.cands > 1 ? 's' : '') + ' · ' + c.contacts + ' contact' + (c.contacts > 1 ? 's' : '') + ' · ' + c.recos + ' reco.');
     afficherATraiter();
   }
@@ -803,7 +804,8 @@
   async function chargerProfils() {
     var r = await db.from('profils').select('*').order('created_at', { ascending: false });
     noterErreur('Comptes', r);
-    D.profils = r.data || [];
+    // Le compte administrateur connecté n'est ni candidat ni consultant
+    D.profils = (r.data || []).filter(function (p) { return p.id !== st.user.id; });
   }
   // Erreurs de chargement : affichées en haut de page plutôt que des listes vides trompeuses
   var erreurs = [];
