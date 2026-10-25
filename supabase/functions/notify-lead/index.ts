@@ -7,7 +7,8 @@
 //   NOTIFY_TO        destinataire(s), séparés par des virgules (ex. contact@htportage.fr)
 //   NOTIFY_FROM      expéditeur vérifié dans Resend (ex. "HT Portage <site@htportage.fr>")
 //   WEBHOOK_SECRET   chaîne aléatoire, à recopier dans l'en-tête x-webhook-secret du webhook
-// SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont fournis automatiquement par Supabase.
+// SUPABASE_URL et la clé serveur (SUPABASE_SERVICE_ROLE_KEY ou SUPABASE_SECRET_KEYS) sont fournis par Supabase.
+// Déploiement : désactiver « Verify JWT » (l'authentification se fait par l'en-tête x-webhook-secret).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -16,10 +17,19 @@ const NOTIFY_TO = (Deno.env.get("NOTIFY_TO") ?? "").split(",").map((s) => s.trim
 const NOTIFY_FROM = Deno.env.get("NOTIFY_FROM") ?? "";
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET") ?? "";
 
-const admin = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-);
+// Clé serveur : ancienne clé service_role si présente, sinon nouvelle clé secrète (SUPABASE_SECRET_KEYS, JSON).
+function serverKey(): string {
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacy) return legacy;
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    const vals = Array.isArray(keys) ? keys : Object.values(keys);
+    const first = vals.map((v: unknown) => typeof v === "string" ? v : (v as { key?: string })?.key).find(Boolean);
+    return first ?? "";
+  } catch { return ""; }
+}
+const SERVER_KEY = serverKey();
+const admin = SERVER_KEY ? createClient(Deno.env.get("SUPABASE_URL") ?? "", SERVER_KEY) : null;
 
 const LABELS: Record<string, string> = {
   contacts: "Nouvelle demande",
@@ -56,7 +66,7 @@ Deno.serve(async (req) => {
     .join("");
 
   let cvLink = "";
-  if (table === "candidatures" && typeof record.cv_path === "string" && record.cv_path) {
+  if (admin && table === "candidatures" && typeof record.cv_path === "string" && record.cv_path) {
     const { data } = await admin.storage.from("cv").createSignedUrl(record.cv_path, 60 * 60 * 24 * 7);
     if (data?.signedUrl) cvLink = `<p><a href="${esc(data.signedUrl)}">Télécharger le CV</a> (lien valable 7 jours)</p>`;
   }
