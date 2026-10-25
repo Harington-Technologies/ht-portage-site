@@ -140,7 +140,8 @@ async function appliquer(evt: { event_name: string }, sr: { id: string }) {
       const auj = new Date().toISOString();
       await admin.from("documents").update({ statut: "signe", storage_path: chemin, yousign_statut: "done", signe_le: auj, date_document: auj.slice(0, 10) }).eq("id", row.id);
       if (row.type === "annexe" && row.mission_id) {
-        await admin.from("consultant_missions").update({ statut: "active" }).eq("id", row.mission_id).eq("statut", "validee");
+        const { error: em } = await admin.from("consultant_missions").update({ statut: "active" }).eq("id", row.mission_id).eq("statut", "validee");
+        if (em) console.error("Mission non passée en active", row.mission_id, em.message);
       }
       const estCdi = row.type === "cdi";
       await envoyer(NOTIFY_TO, "Signé : " + row.titre + " — " + qui, gabarit({

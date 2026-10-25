@@ -802,31 +802,49 @@
   // =====================================================================
   async function chargerProfils() {
     var r = await db.from('profils').select('*').order('created_at', { ascending: false });
-    if (r.error) { listeEl.innerHTML = '<p class="form-status is-error">' + esc(E.errText(r.error)) + '</p>'; return; }
+    noterErreur('Comptes', r);
     D.profils = r.data || [];
   }
-  async function chargerMissions() {
+  // Erreurs de chargement : affichées en haut de page plutôt que des listes vides trompeuses
+  var erreurs = [];
+  function noterErreur(quoi, r) {
+    if (!r.error) return;
+    erreurs.push(quoi + ' : ' + E.errText(r.error));
+    var c = document.querySelector('.content'), el = document.getElementById('erreurs-chargement');
+    if (!el) { el = document.createElement('div'); el.id = 'erreurs-chargement'; el.className = 'alerte alerte--manque'; el.setAttribute('role', 'alert'); c.insertBefore(el, c.querySelector('.admin-section')); }
+    el.innerHTML = '<strong>Certaines données n’ont pas pu être chargées</strong><span>' + esc(erreurs.join(' · ')) + ' — rechargez la page.</span>';
+  }
+  function rendre(listes) {
+    listes.forEach(function (L) { try { L.maj(); } catch (e) { console.error(e); noterErreur('Affichage', { error: e }); } });
+    try { majCompteurs(); } catch (e) { console.error(e); noterErreur('Indicateurs', { error: e }); }
+  }
+  async function chargerMissions(sansRendu) {
     var r = await db.from('consultant_missions').select('*').order('created_at', { ascending: false });
+    noterErreur('Missions', r);
     D.missions = r.data || [];
     calculerNumero();
-    LV.maj(); LS.maj(); LC.maj(); majCompteurs();
+    if (!sansRendu) rendre([LV, LS, LC]);
   }
-  async function chargerDocs() {
+  async function chargerDocs(sansRendu) {
     var r = await db.from('documents').select('*').in('type', ['cdi', 'annexe']).order('created_at', { ascending: false });
+    noterErreur('Contrats', r);
     D.docs = r.data || [];
-    LS.maj(); majCompteurs();
+    if (!sansRendu) rendre([LS]);
   }
-  async function chargerDemandes() {
+  async function chargerDemandes(sansRendu) {
     var r = await Promise.all([
       db.from('candidatures').select('*').order('created_at', { ascending: false }).limit(1000),
       db.from('contacts').select('*').order('created_at', { ascending: false }).limit(1000),
       db.from('recommandations').select('*').order('created_at', { ascending: false }).limit(1000)
     ]);
+    noterErreur('Candidatures', r[0]); noterErreur('Contacts', r[1]); noterErreur('Recommandations', r[2]);
     D.cands = r[0].data || []; D.contacts = r[1].data || []; D.recos = r[2].data || [];
-    LCand.maj(); LCont.maj(); LReco.maj(); majCompteurs();
+    if (!sansRendu) rendre([LCand, LCont, LReco]);
   }
   async function toutRecharger() { await chargerMissions(); }
 
+  // Tout est chargé avant le premier affichage : pas d'indicateurs calculés sur des données partielles
   await chargerProfils();
-  await Promise.all([chargerMissions(), chargerDocs(), chargerDemandes()]);
+  await Promise.all([chargerMissions(true), chargerDocs(true), chargerDemandes(true)]);
+  rendre([LC, LV, LS, LCand, LCont, LReco]);
 })();
