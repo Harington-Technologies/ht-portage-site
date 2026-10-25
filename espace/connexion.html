@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Connexion — Espace consultant HT Portage</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/espace.css">
+</head>
+<body data-page="connexion">
+<div class="auth">
+  <aside class="auth__aside">
+    <a class="brand" href="../index.html" aria-label="Retour au site HT Portage"><span class="brand__mark">HT</span><span class="brand__word">PORTAGE</span></a>
+    <div style="display: flex; flex-direction: column; gap: 20px; max-width: 460px">
+      <p class="eyebrow" style="color: var(--rose); margin: 0">/Espace consultant/</p>
+      <h1 class="h3">Votre portage, au même endroit.</h1>
+      <p>Contrats, missions, comptes d'activité, recommandations : retrouvez tout votre suivi HT Portage, et démarrez votre contractualisation en ligne.</p>
+    </div>
+    <p class="small" style="color: var(--on-dark-2)">Besoin d'aide ? <a href="mailto:contact@htportage.fr" style="color: var(--rose-50)">contact@htportage.fr</a></p>
+  </aside>
+
+  <main class="auth__main">
+    <div class="auth__card">
+
+      <div class="tabs" role="tablist" aria-label="Connexion ou inscription" id="tabs">
+        <button type="button" role="tab" id="tab-connexion" aria-controls="panel-connexion" aria-selected="true">Se connecter</button>
+        <button type="button" role="tab" id="tab-inscription" aria-controls="panel-inscription" aria-selected="false">Créer mon espace</button>
+      </div>
+
+      <section id="panel-connexion" role="tabpanel" aria-labelledby="tab-connexion">
+        <form class="form" id="form-connexion" novalidate>
+          <h2 style="font-size: 22px; color: var(--navy-900)">Bon retour parmi nous</h2>
+          <div class="field"><label for="c-email">E-mail</label><input class="input" id="c-email" name="email" type="email" autocomplete="email" required></div>
+          <div class="field"><label for="c-mdp">Mot de passe</label><input class="input" id="c-mdp" name="password" type="password" autocomplete="current-password" required></div>
+          <button class="btn btn--dark" type="submit">Se connecter</button>
+          <button class="link-btn" type="button" data-vue="oubli" style="justify-self: start">Mot de passe oublié ?</button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="panel-inscription" role="tabpanel" aria-labelledby="tab-inscription" hidden>
+        <form class="form" id="form-inscription" novalidate>
+          <h2 style="font-size: 22px; color: var(--navy-900)">Créez votre espace</h2>
+          <p class="sim-recap" id="sim-recap" hidden></p>
+          <div class="form__row">
+            <div class="field"><label for="i-prenom">Prénom</label><input class="input" id="i-prenom" name="prenom" autocomplete="given-name" required maxlength="100"></div>
+            <div class="field"><label for="i-nom">Nom</label><input class="input" id="i-nom" name="nom" autocomplete="family-name" required maxlength="100"></div>
+          </div>
+          <div class="field"><label for="i-email">E-mail</label><input class="input" id="i-email" name="email" type="email" autocomplete="email" required></div>
+          <div class="field"><label for="i-mdp">Mot de passe <span class="hint">(10 caractères minimum)</span></label><input class="input" id="i-mdp" name="password" type="password" autocomplete="new-password" required minlength="10"></div>
+          <label class="check"><input type="checkbox" name="consentement" required>J'accepte que HT Portage conserve mes informations pour gérer mon espace et ma contractualisation. <a href="../confidentialite.html">Politique de confidentialité</a></label>
+          <button class="btn btn--rose" type="submit">Créer mon espace</button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="panel-oubli" hidden>
+        <form class="form" id="form-oubli" novalidate>
+          <h2 style="font-size: 22px; color: var(--navy-900)">Mot de passe oublié</h2>
+          <p class="small" style="font-size: 15px">Indiquez votre e-mail : vous recevrez un lien pour choisir un nouveau mot de passe.</p>
+          <div class="field"><label for="o-email">E-mail</label><input class="input" id="o-email" name="email" type="email" autocomplete="email" required></div>
+          <button class="btn btn--dark" type="submit">Recevoir le lien</button>
+          <button class="link-btn" type="button" data-vue="connexion" style="justify-self: start">Retour à la connexion</button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/espace.js"></script>
+<script src="../assets/js/espace-connexion.js"></script>
+</body>
+</html>

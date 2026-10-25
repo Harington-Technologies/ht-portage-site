@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Programme ambassadeur — Espace consultant HT Portage</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/espace.css">
+</head>
+<body data-page="ambassadeur">
+<div class="app">
+  <nav class="sidebar" id="sidebar" aria-label="Espace consultant"></nav>
+  <main class="content">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">/Programme ambassadeur/</p>
+        <h1 class="page-title">Recommandez, on s'occupe du reste</h1>
+        <p class="page-sub">Un consultant, une mission, un client ou une formation à animer : chaque recommandation qui aboutit vous rapporte une prime. <a href="../ambassadeur.html">Voir les conditions</a></p>
+      </div>
+    </header>
+
+    <div class="split">
+      <section class="split__main" aria-labelledby="t-recos">
+        <div class="kpis" id="compteurs"></div>
+        <h2 class="box__title" id="t-recos" style="font-size:20px;margin-top:8px">Mes recommandations</h2>
+        <div id="recos" style="display:flex;flex-direction:column;gap:16px"><p class="loading">Chargement…</p></div>
+      </section>
+
+      <aside class="split__side">
+        <form class="box" id="form-reco" novalidate aria-labelledby="t-form">
+          <h2 class="box__title" id="t-form">Nouvelle recommandation</h2>
+          <fieldset style="margin:0;padding:0;border:0">
+            <legend style="font-size:14px;font-weight:600;margin-bottom:8px">Vous recommandez</legend>
+            <div class="radio-pills">
+              <label><input type="radio" name="type" value="consultant" checked>Un consultant</label>
+              <label><input type="radio" name="type" value="mission">Une mission</label>
+              <label><input type="radio" name="type" value="client">Un client</label>
+              <label><input type="radio" name="type" value="formation">Une formation</label>
+            </div>
+          </fieldset>
+          <div class="field"><label for="contact_nom">Nom du contact ou de l'entreprise</label><input class="input" id="contact_nom" name="contact_nom" required maxlength="200"></div>
+          <div class="field"><label for="contact_email">E-mail du contact <span class="hint">(facultatif)</span></label><input class="input" id="contact_email" name="contact_email" type="email" maxlength="254"></div>
+          <div class="field"><label for="details">Détails</label><textarea class="textarea" id="details" name="details" required maxlength="5000" placeholder="Profil, besoin, contexte…" style="min-height:96px"></textarea></div>
+          <label class="check"><input type="checkbox" name="consentement" required>La personne recommandée est d'accord pour être contactée par HT Portage.</label>
+          <button class="btn btn--rose" type="submit">Envoyer ma recommandation</button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+
+        <section class="box box--dark" aria-labelledby="t-lien">
+          <h2 class="box__title" id="t-lien" style="font-size:16px">Votre lien de parrainage</h2>
+          <p style="font-size:14px;color:var(--on-dark)">Partagez-le : chaque inscription faite depuis ce lien vous est attribuée.</p>
+          <div style="display:flex;gap:8px;align-items:center;background:var(--navy-700);border-radius:12px;padding:6px 6px 6px 14px">
+            <span id="lien" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px"></span>
+            <button class="btn btn--sm" type="button" id="copier" style="background:var(--rose-50);color:var(--navy-900);border-radius:10px">Copier</button>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/espace.js"></script>
+<script src="../assets/js/espace-ambassadeur.js"></script>
+</body>
+</html>

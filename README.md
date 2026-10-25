@@ -77,3 +77,15 @@ Pour tester en local : `python3 -m http.server 8000` dans le dossier, puis ouvre
 
 ## Hypothèses du simulateur
 Le net est estimé à **67 % du chiffre d'affaires** (cible HT Portage), avec des frais de gestion fixes de **5 %**. La comparaison se fait avec un net de **~58 %** pour la moyenne du marché. Ces taux se règlent en haut de `assets/js/simulateur.js`. L'estimation est indicative et signalée comme telle sur la page.
+
+## Espace consultant (`/espace/`)
+
+Pages statiques + Supabase Auth (e-mail et mot de passe). Schéma : `supabase/espace.sql` (à exécuter après `schema.sql`).
+
+- `connexion.html` / `reset.html` : connexion, inscription (reprend la simulation et le code de parrainage), mot de passe oublié
+- `index.html` : tableau de bord · `informations.html` : profil (n° sécu, IBAN vérifiés)
+- `contrats.html`, `reporting.html`, `ambassadeur.html` : documents, missions, comptes d'activité, recommandations
+- `contractualisation.html`, `cv.html` : à venir (phases 2 et 4)
+- `admin.html` : réservé aux comptes de la table `admins` (consultants, validation des missions, import CSV des comptes d'activité VSP, dépôt de documents, demandes reçues)
+
+Sécurité : Row Level Security, chaque consultant ne voit que ses données ; fichiers dans le bucket privé `documents/<id du consultant>/`.

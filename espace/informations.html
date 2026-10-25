@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Mes informations — Espace consultant HT Portage</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/espace.css">
+</head>
+<body data-page="informations">
+<div class="app">
+  <nav class="sidebar" id="sidebar" aria-label="Espace consultant"></nav>
+  <main class="content">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">/Mon profil/</p>
+        <h1 class="page-title">Mes informations</h1>
+        <p class="page-sub">Elles servent à établir votre contrat de travail et vos bulletins de paie. Seuls vous et l'équipe HT Portage y avez accès.</p>
+      </div>
+      <span class="avatar" data-avatar aria-hidden="true"></span>
+    </header>
+
+    <div class="split">
+      <form class="split__main" id="form-profil" novalidate>
+        <fieldset class="box">
+          <legend>Identité</legend>
+          <div class="grid-form">
+            <div class="field"><label for="civilite">Civilité</label><select class="select" id="civilite" name="civilite"><option value="">—</option><option value="M.">Monsieur</option><option value="Mme">Madame</option></select></div>
+            <div class="field"><label for="prenom">Prénom</label><input class="input" id="prenom" name="prenom" autocomplete="given-name" maxlength="100" required></div>
+            <div class="field"><label for="nom">Nom</label><input class="input" id="nom" name="nom" autocomplete="family-name" maxlength="100" required></div>
+            <div class="field"><label for="date_naissance">Date de naissance</label><input class="input" id="date_naissance" name="date_naissance" type="date" autocomplete="bday"></div>
+            <div class="field"><label for="lieu_naissance">Lieu de naissance</label><input class="input" id="lieu_naissance" name="lieu_naissance" maxlength="150" placeholder="Ville (département ou pays)"></div>
+            <div class="field"><label for="nationalite">Nationalité</label><input class="input" id="nationalite" name="nationalite" maxlength="100"></div>
+            <div class="field full"><label for="num_secu">N° de sécurité sociale <span class="hint">(13 ou 15 caractères)</span></label><input class="input" id="num_secu" name="num_secu" inputmode="numeric" autocomplete="off" maxlength="21" placeholder="1 85 07 75 123 456 78"></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="box">
+          <legend>Coordonnées</legend>
+          <div class="grid-form">
+            <div class="field"><label for="email">E-mail du compte</label><input class="input" id="email" name="email" type="email" readonly></div>
+            <div class="field"><label for="telephone">Téléphone</label><input class="input" id="telephone" name="telephone" type="tel" autocomplete="tel" maxlength="40"></div>
+            <div class="field full"><label for="adresse">Adresse</label><input class="input" id="adresse" name="adresse" autocomplete="street-address" maxlength="300"></div>
+            <div class="field"><label for="code_postal">Code postal</label><input class="input" id="code_postal" name="code_postal" autocomplete="postal-code" maxlength="20"></div>
+            <div class="field"><label for="ville">Ville</label><input class="input" id="ville" name="ville" autocomplete="address-level2" maxlength="100"></div>
+            <div class="field"><label for="pays">Pays</label><input class="input" id="pays" name="pays" autocomplete="country-name" maxlength="100"></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="box">
+          <legend>Coordonnées bancaires</legend>
+          <p class="small" style="font-size:14px">Le compte sur lequel votre salaire sera versé.</p>
+          <div class="grid-form">
+            <div class="field full"><label for="iban">IBAN</label><input class="input" id="iban" name="iban" autocomplete="off" maxlength="42" placeholder="FR76 …"></div>
+            <div class="field"><label for="bic">BIC</label><input class="input" id="bic" name="bic" autocomplete="off" maxlength="11"></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="box">
+          <legend>Expertise</legend>
+          <div class="field"><label for="competences">Vos compétences <span class="hint">(reprises dans votre contrat)</span></label><input class="input" id="competences" name="competences" maxlength="500" placeholder="Ex. : développement full stack .NET"></div>
+        </fieldset>
+
+        <div class="actions-row">
+          <p class="form-status" id="profil-status" role="status" aria-live="polite"></p>
+          <button class="btn btn--dark" type="submit">Enregistrer mes informations</button>
+        </div>
+      </form>
+
+      <aside class="split__side">
+        <section class="box box--dark" aria-labelledby="t-compte">
+          <h2 class="box__title" id="t-compte">Mon compte</h2>
+          <dl class="dl" style="grid-template-columns: 1fr">
+            <div><dt style="color:var(--on-dark-2)">Statut</dt><dd id="statut">—</dd></div>
+            <div><dt style="color:var(--on-dark-2)">Code de parrainage</dt><dd id="code">—</dd></div>
+            <div><dt style="color:var(--on-dark-2)">Membre depuis</dt><dd id="depuis">—</dd></div>
+          </dl>
+        </section>
+        <form class="box" id="form-mdp" novalidate aria-labelledby="t-mdp">
+          <h2 class="box__title" id="t-mdp">Changer de mot de passe</h2>
+          <div class="field"><label for="mdp">Nouveau mot de passe <span class="hint">(10 caractères min.)</span></label><input class="input" id="mdp" name="password" type="password" autocomplete="new-password" minlength="10" required></div>
+          <button class="btn btn--ghost-dark btn--sm" type="submit" style="align-self:flex-start">Mettre à jour</button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/espace.js"></script>
+<script src="../assets/js/espace-informations.js"></script>
+</body>
+</html>

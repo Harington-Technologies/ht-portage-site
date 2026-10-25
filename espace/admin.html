@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Administration — Espace HT Portage</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/espace.css">
+</head>
+<body data-page="admin">
+<div class="app">
+  <nav class="sidebar" id="sidebar" aria-label="Espace consultant"></nav>
+  <main class="content">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">/Administration/</p>
+        <h1 class="page-title">Pilotage HT Portage</h1>
+        <p class="page-sub">Consultants, missions à valider, import des comptes d'activité VSP et demandes reçues par le site.</p>
+      </div>
+    </header>
+
+    <nav class="admin-tabs" aria-label="Sections">
+      <a class="btn btn--light btn--sm" href="#consultants">Consultants</a>
+      <a class="btn btn--light btn--sm" href="#a-valider">Missions à valider</a>
+      <a class="btn btn--light btn--sm" href="#import">Import VSP</a>
+      <a class="btn btn--light btn--sm" href="#demandes">Demandes reçues</a>
+    </nav>
+
+    <section class="box" id="consultants" aria-labelledby="t-cons">
+      <div class="box__head"><h2 class="box__title" id="t-cons">Consultants et candidats</h2>
+        <div class="toolbar"><label class="visually-hidden" for="recherche">Rechercher</label><input class="input" id="recherche" type="search" placeholder="Nom ou e-mail" style="min-height:40px"></div>
+      </div>
+      <div id="liste-consultants"><p class="loading">Chargement…</p></div>
+    </section>
+
+    <section class="box" id="a-valider" aria-labelledby="t-valider">
+      <h2 class="box__title" id="t-valider">Missions à valider</h2>
+      <div id="liste-valider"><p class="loading">Chargement…</p></div>
+    </section>
+
+    <section class="box" id="import" aria-labelledby="t-import">
+      <h2 class="box__title" id="t-import">Import des comptes d'activité (export VSP)</h2>
+      <p style="font-size:15px;color:var(--muted)">Fichier CSV (séparateur « ; » ou « , »), une ligne par consultant et par mois. Colonnes reconnues :
+        <code>email</code> ou <code>vsp_id</code>, <code>mois</code> (2026-09 ou 09/2026), <code>jours</code>, <code>ca_ht</code>, <code>frais_gestion</code>, <code>charges</code>, <code>reserve</code>, <code>net_verse</code>, <code>statut</code> (provisoire/definitif). Un mois déjà importé est mis à jour.</p>
+      <form class="toolbar" id="form-import" novalidate>
+        <label class="visually-hidden" for="fichier-csv">Fichier CSV</label>
+        <input class="input" id="fichier-csv" type="file" accept=".csv,text/csv" required style="max-width:360px;padding:9px 12px">
+        <button class="btn btn--dark btn--sm" type="submit">Vérifier le fichier</button>
+        <button class="btn btn--rose btn--sm" type="button" id="btn-importer" hidden>Importer</button>
+      </form>
+      <pre class="report" id="rapport-import" hidden></pre>
+    </section>
+
+    <section class="box" id="demandes" aria-labelledby="t-dem">
+      <h2 class="box__title" id="t-dem">Demandes reçues par le site</h2>
+      <h3 style="margin:0;font-size:16px">Candidatures</h3>
+      <div id="liste-candidatures"><p class="loading">Chargement…</p></div>
+      <h3 style="margin:8px 0 0;font-size:16px">Contacts et demandes de simulation</h3>
+      <div id="liste-contacts"><p class="loading">Chargement…</p></div>
+      <h3 style="margin:8px 0 0;font-size:16px">Recommandations ambassadeur</h3>
+      <div id="liste-recos"><p class="loading">Chargement…</p></div>
+    </section>
+  </main>
+</div>
+
+<dialog class="modal" id="fiche" aria-labelledby="fiche-titre">
+  <div class="modal__inner">
+    <div class="modal__head">
+      <div><p class="eyebrow" style="margin:0 0 4px">/Fiche consultant/</p><h2 id="fiche-titre" style="font-size:22px;color:var(--navy-900)"></h2><p class="small" id="fiche-sous" style="font-size:14px"></p></div>
+      <button class="icon-btn" type="button" data-fermer aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+
+    <div id="fiche-missions"></div>
+
+    <form class="box" id="form-mission" novalidate style="background:var(--bg);border:0">
+      <h3 class="box__title" style="font-size:16px">Ajouter une mission</h3>
+      <div class="grid-form">
+        <div class="field full"><label for="m-intitule">Intitulé</label><input class="input" id="m-intitule" name="intitule" required maxlength="300"></div>
+        <div class="field"><label for="m-client">Client</label><input class="input" id="m-client" name="client" maxlength="200"></div>
+        <div class="field"><label for="m-final">Client final</label><input class="input" id="m-final" name="client_final" maxlength="200"></div>
+        <div class="field"><label for="m-debut">Début</label><input class="input" id="m-debut" name="date_debut" type="date"></div>
+        <div class="field"><label for="m-fin">Fin</label><input class="input" id="m-fin" name="date_fin" type="date"></div>
+        <div class="field"><label for="m-tjm">TJ (€ HT)</label><input class="input" id="m-tjm" name="tjm" type="number" min="100" max="5000" step="1"></div>
+        <div class="field"><label for="m-statut">Statut</label><select class="select" id="m-statut" name="statut"><option value="active">Active</option><option value="validee">Validée</option><option value="terminee">Terminée</option></select></div>
+        <div class="field"><label for="m-vsp">ID VSP <span class="hint">(facultatif)</span></label><input class="input" id="m-vsp" name="vsp_id" maxlength="100"></div>
+      </div>
+      <div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><button class="btn btn--dark btn--sm" type="submit">Ajouter la mission</button></div>
+    </form>
+
+    <form class="box" id="form-doc" novalidate style="background:var(--bg);border:0">
+      <h3 class="box__title" style="font-size:16px">Déposer un document</h3>
+      <div class="grid-form">
+        <div class="field"><label for="d-type">Type</label><select class="select" id="d-type" name="type">
+          <option value="cdi">CDI de portage</option><option value="annexe">Annexe de mission</option><option value="avenant">Avenant</option>
+          <option value="bulletin">Bulletin de paie</option><option value="compte_activite">Compte d'activité</option><option value="attestation">Attestation</option><option value="autre">Autre</option></select></div>
+        <div class="field"><label for="d-statut">Statut</label><select class="select" id="d-statut" name="statut"><option value="disponible">Disponible</option><option value="signe">Signé</option><option value="a_signer">À signer</option><option value="en_preparation">En préparation</option></select></div>
+        <div class="field full"><label for="d-titre">Titre</label><input class="input" id="d-titre" name="titre" required maxlength="200" placeholder="Ex. : Bulletin de paie · septembre 2026"></div>
+        <div class="field"><label for="d-date">Date du document <span class="hint">(mois de paie)</span></label><input class="input" id="d-date" name="date_document" type="date"></div>
+        <div class="field"><label for="d-mission">Mission</label><select class="select" id="d-mission" name="mission_id"><option value="">—</option></select></div>
+        <div class="field full"><label for="d-fichier">Fichier (PDF, JPG ou PNG, 10 Mo max.)</label><input class="input" id="d-fichier" name="fichier" type="file" accept=".pdf,.jpg,.jpeg,.png" required style="padding:9px 12px"></div>
+      </div>
+      <div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><button class="btn btn--dark btn--sm" type="submit">Déposer</button></div>
+    </form>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/espace.js"></script>
+<script src="../assets/js/espace-admin.js"></script>
+</body>
+</html>

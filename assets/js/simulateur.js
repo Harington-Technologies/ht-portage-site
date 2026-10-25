@@ -43,6 +43,9 @@
     hidden('tjm', t);
     hidden('jours', j);
     hidden('net_estime', Math.round(t * j * TAUX_NET));
+
+    var lien = document.getElementById('lien-espace');
+    if (lien) lien.href = 'espace/connexion.html?inscription=1&tjm=' + t + '&jours=' + j + '&net=' + Math.round(t * j * TAUX_NET);
   }
 
   tjm.addEventListener('input', update);

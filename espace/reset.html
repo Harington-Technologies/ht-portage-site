@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nouveau mot de passe — Espace consultant HT Portage</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/espace.css">
+</head>
+<body data-page="reset">
+<div class="auth">
+  <aside class="auth__aside">
+    <a class="brand" href="../index.html" aria-label="Retour au site HT Portage"><span class="brand__mark">HT</span><span class="brand__word">PORTAGE</span></a>
+    <div style="display: flex; flex-direction: column; gap: 20px; max-width: 460px">
+      <p class="eyebrow" style="color: var(--rose); margin: 0">/Espace consultant/</p>
+      <h1 class="h3">Choisissez un nouveau mot de passe.</h1>
+    </div>
+    <p class="small" style="color: var(--on-dark-2)">Besoin d'aide ? <a href="mailto:contact@htportage.fr" style="color: var(--rose-50)">contact@htportage.fr</a></p>
+  </aside>
+  <main class="auth__main">
+    <div class="auth__card">
+      <form class="form" id="form-reset" novalidate>
+        <h2 style="font-size: 22px; color: var(--navy-900)">Nouveau mot de passe</h2>
+        <div class="field"><label for="r-mdp">Mot de passe <span class="hint">(10 caractères minimum)</span></label><input class="input" id="r-mdp" name="password" type="password" autocomplete="new-password" required minlength="10"></div>
+        <div class="field"><label for="r-mdp2">Confirmation</label><input class="input" id="r-mdp2" name="password2" type="password" autocomplete="new-password" required minlength="10"></div>
+        <button class="btn btn--dark" type="submit">Enregistrer et accéder à mon espace</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/espace.js"></script>
+<script>
+(function () {
+  'use strict';
+  var E = window.ESPACE, f = document.getElementById('form-reset'), st = f.querySelector('.form-status');
+  // Le lien reçu par e-mail ouvre une session de récupération (gérée par Supabase dans l'URL).
+  setTimeout(function () {
+    E.db.auth.getSession().then(function (r) {
+      if (!(r.data && r.data.session)) E.setStatus(st, 'Ce lien a expiré ou a déjà servi. Demandez-en un nouveau depuis la page de connexion.', 'error');
+    });
+  }, 1200);
+  f.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!f.checkValidity()) { f.reportValidity(); E.setStatus(st, 'Le mot de passe doit faire au moins 10 caractères.', 'error'); return; }
+    if (f.password.value !== f.password2.value) { E.setStatus(st, 'Les deux mots de passe ne correspondent pas.', 'error'); return; }
+    f.querySelector('[type=submit]').disabled = true;
+    var r = await E.db.auth.updateUser({ password: f.password.value });
+    f.querySelector('[type=submit]').disabled = false;
+    if (r.error) { E.setStatus(st, E.errText(r.error), 'error'); return; }
+    E.setStatus(st, 'Mot de passe enregistré.', 'ok');
+    location.replace('index.html');
+  });
+})();
+</script>
+</body>
+</html>
