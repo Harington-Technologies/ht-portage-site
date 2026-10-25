@@ -90,8 +90,18 @@
     ambassadeur: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.8 2.6 2.5 3 5.2"/>',
     cv: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M14.5 10h4M14.5 13.5h3"/>',
     informations: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.2 4.1-6.5 8-6.5s7 2.3 8 6.5"/>',
-    admin: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>'
+    admin: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    valider: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+    import: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+    demandes: '<path d="M4 5h16v11H8l-4 4z"/>'
   };
+  // Menu de l'administration (sections de admin.html)
+  var PAGES_ADMIN = [
+    ['ambassadeur', 'consultants', 'Consultants'],
+    ['valider', 'a-valider', 'Missions à valider'],
+    ['import', 'import', 'Import VSP'],
+    ['demandes', 'demandes', 'Demandes reçues']
+  ];
   var PAGES = [
     ['accueil', 'index.html', 'Tableau de bord'],
     ['contractualisation', 'contractualisation.html', 'Contractualisation'],
@@ -109,22 +119,28 @@
     var el = document.getElementById('sidebar');
     if (!el) return;
     var current = document.body.dataset.page;
-    var links = PAGES.map(function (p) {
-      return '<a href="' + p[1] + '"' + (p[0] === current ? ' aria-current="page"' : '') + '>' + icon(p[0]) + esc(p[2]) + '</a>';
-    }).join('');
+    var links;
     if (state.isAdmin) {
-      links += '<div class="sep" role="presentation"></div><a href="admin.html"' + (current === 'admin' ? ' aria-current="page"' : '') + '>' + icon('admin') + 'Administration</a>';
+      var section = (location.hash || '#consultants').slice(1);
+      links = PAGES_ADMIN.map(function (p) {
+        return '<a href="admin.html#' + p[1] + '" data-section="' + p[1] + '"' + (p[1] === section ? ' aria-current="page"' : '') + '>' + icon(p[0]) + esc(p[2]) + '</a>';
+      }).join('');
+    } else {
+      links = PAGES.map(function (p) {
+        return '<a href="' + p[1] + '"' + (p[0] === current ? ' aria-current="page"' : '') + '>' + icon(p[0]) + esc(p[2]) + '</a>';
+      }).join('');
     }
     el.innerHTML =
       '<div class="sidebar__top">' +
-        '<a class="sidebar__brand" href="index.html"><span class="sidebar__mark">' + LOGO + '</span>' +
-        '<span class="sidebar__name"><strong>HT Portage</strong><span>Espace consultant</span></span></a>' +
+        '<a class="sidebar__brand" href="' + (state.isAdmin ? 'admin.html' : 'index.html') + '"><span class="sidebar__mark">' + LOGO + '</span>' +
+        '<span class="sidebar__name"><strong>HT Portage</strong><span>' + (state.isAdmin ? 'Administration' : 'Espace consultant') + '</span></span></a>' +
         '<button class="sidebar__toggle" type="button" aria-expanded="false" aria-controls="sidebar-nav" aria-label="Ouvrir le menu">' +
         '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>' +
       '</div>' +
       '<div class="sidebar__nav" id="sidebar-nav">' + links + '</div>' +
       '<div class="sidebar__foot">' +
-        '<div class="contact-card"><span>Votre contact</span><strong>Équipe HT Portage</strong><a href="mailto:' + esc(cfg.contactEmail || 'contact@htportage.fr') + '">' + esc(cfg.contactEmail || 'contact@htportage.fr') + '</a></div>' +
+        (state.isAdmin ? '<div class="contact-card"><span>Connecté</span><strong>' + esc([state.profil.prenom, state.profil.nom].filter(Boolean).join(' ') || state.user.email) + '</strong><span style="text-transform:none;letter-spacing:0">Administrateur</span></div>' :
+        '<div class="contact-card"><span>Votre contact</span><strong>Équipe HT Portage</strong><a href="mailto:' + esc(cfg.contactEmail || 'contact@htportage.fr') + '">' + esc(cfg.contactEmail || 'contact@htportage.fr') + '</a></div>') +
         '<button class="logout" type="button" data-logout>Se déconnecter</button>' +
       '</div>';
     var toggle = el.querySelector('.sidebar__toggle');
@@ -138,6 +154,15 @@
       location.replace('connexion.html');
     });
     document.querySelectorAll('[data-avatar]').forEach(function (a) { a.textContent = initiales(state.profil, state.user.email); });
+    if (state.isAdmin) {
+      window.addEventListener('hashchange', function () {
+        var sec = (location.hash || '#consultants').slice(1);
+        el.querySelectorAll('[data-section]').forEach(function (a) {
+          if (a.dataset.section === sec) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+        });
+        el.classList.remove('is-open');
+      });
+    }
   }
 
   // ---------- Contrôle d'accès ----------
@@ -158,6 +183,8 @@
     ]);
     var state = { user: user, profil: res[0].data || { id: user.id, email: user.email }, isAdmin: res[1].data === true };
     if (opts.admin && !state.isAdmin) { location.replace('index.html'); return null; }
+    // Un administrateur n'a pas d'espace consultant : il va directement à l'administration.
+    if (!opts.admin && state.isAdmin) { location.replace('admin.html'); return null; }
     ESPACE.state = state;
     renderSidebar(state);
     await enregistrerSimulationEnAttente(state);
