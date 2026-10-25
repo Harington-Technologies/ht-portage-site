@@ -841,7 +841,7 @@
     D.cands = r[0].data || []; D.contacts = r[1].data || []; D.recos = r[2].data || [];
     if (!sansRendu) rendre([LCand, LCont, LReco]);
   }
-  async function toutRecharger() { await chargerMissions(); }
+  async function toutRecharger() { await chargerProfils(); await chargerMissions(); }
 
   // Tout est chargé avant le premier affichage : pas d'indicateurs calculés sur des données partielles
   await chargerProfils();
