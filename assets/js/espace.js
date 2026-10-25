@@ -146,8 +146,9 @@
     }
     el.innerHTML =
       '<div class="sidebar__top">' +
-        '<a class="sidebar__brand" href="' + (state.isAdmin ? 'admin.html' : 'index.html') + '"><span class="sidebar__mark">' + LOGO + '</span>' +
+        '<a class="sidebar__brand" href="' + (state.isAdmin ? 'admin.html' : 'index.html') + '">' +
         '<span class="sidebar__name"><strong>HT Portage</strong><span>' + (state.isAdmin ? 'Administration' : 'Espace consultant') + '</span></span></a>' +
+        '<span class="sidebar__logo" aria-hidden="true">' + LOGO + '</span>' +
         '<button class="sidebar__toggle" type="button" aria-expanded="false" aria-controls="sidebar-nav" aria-label="Ouvrir le menu">' +
         '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>' +
       '</div>' +
@@ -157,6 +158,11 @@
         '<div class="contact-card"><span>Votre contact</span><strong>Équipe HT Portage</strong><a href="mailto:' + esc(cfg.contactEmail || 'contact@htportage.fr') + '">' + esc(cfg.contactEmail || 'contact@htportage.fr') + '</a></div>') +
         '<button class="logout" type="button" data-logout>Se déconnecter</button>' +
       '</div>';
+    // Logo seul, en haut à droite du contenu (sur mobile : dans la barre du haut, à côté du menu)
+    var contenu = document.querySelector('.content');
+    if (contenu && !contenu.querySelector('.coin-logo')) {
+      contenu.insertAdjacentHTML('afterbegin', '<a class="coin-logo" href="../index.html" aria-label="Site HT Portage">' + LOGO + '</a>');
+    }
     var toggle = el.querySelector('.sidebar__toggle');
     toggle.addEventListener('click', function () {
       var open = el.classList.toggle('is-open');

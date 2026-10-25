@@ -12,6 +12,7 @@ body:not(.is-ready) .content { visibility: hidden; }
   padding: 24px 18px; display: flex; flex-direction: column; gap: 24px;
 }
 .sidebar__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sidebar__brand { padding: 6px 6px; }
 .sidebar__brand { display: flex; align-items: center; gap: 12px; color: var(--white); text-decoration: none; padding: 0 6px; }
 .sidebar__brand:hover { color: var(--white); }
 .sidebar__mark { width: 48px; height: 48px; border-radius: 14px; background: var(--navy-700); display: flex; align-items: center; justify-content: center; flex: none; }
@@ -276,4 +277,18 @@ a.etape:hover { box-shadow: 0 0 0 3px rgba(193,135,161,.35); }
   .liste-tri .select { flex: 1; }
   .dossier > summary { padding: 14px 16px; }
   .dossier__corps { padding: 0 16px 16px; }
+}
+
+/* ---------- Logo séparé du nom : en haut à droite ---------- */
+.content { position: relative; }
+.coin-logo { position: absolute; top: 28px; right: clamp(16px, 4vw, 48px); width: 52px; height: 52px; border-radius: 14px; background: var(--navy-900); display: flex; align-items: center; justify-content: center; }
+.coin-logo svg { width: 34px; height: 17px; }
+.coin-logo:focus-visible { outline: 3px solid var(--rose); outline-offset: 3px; }
+.content > .page-head { padding-right: 76px; }
+.sidebar__logo { display: none; }
+@media (max-width: 880px) {
+  .coin-logo { display: none; }
+  .content > .page-head { padding-right: 0; }
+  .sidebar__logo { display: flex; margin-left: auto; width: 44px; height: 44px; border-radius: 12px; background: var(--navy-700); align-items: center; justify-content: center; flex: none; }
+  .sidebar__logo svg { width: 30px; height: 15px; }
 }
