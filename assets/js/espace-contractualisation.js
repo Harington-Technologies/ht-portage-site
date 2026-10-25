@@ -20,9 +20,10 @@
   var r = await Promise.all([
     db.from('consultant_missions').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
     db.from('simulations').select('tjm').eq('user_id', uid).order('created_at', { ascending: false }).limit(1),
-    db.from('documents').select('id').eq('user_id', uid).eq('type', 'cdi').eq('statut', 'signe').limit(1)
+    db.from('documents').select('id, type, statut, mission_id').eq('user_id', uid).in('type', ['cdi', 'annexe'])
   ]);
-  var missions = r[0].data || [], sim = (r[1].data || [])[0], aCdi = (r[2].data || []).length > 0;
+  var missions = r[0].data || [], sim = (r[1].data || [])[0], contrats = r[2].data || [];
+  var aCdi = contrats.some(function (d) { return d.type === 'cdi' && (d.statut === 'signe' || d.statut === 'a_signer'); });
   var etape1 = !!(p.civilite && p.prenom && p.nom && p.date_naissance && p.lieu_naissance && p.num_secu);
   var etape2 = !!(p.adresse && p.code_postal && p.ville && p.iban);
 
@@ -34,13 +35,17 @@
     var enCours = dossier || ((nouveau || !derniereValidee) ? {} : null);
     var etat3 = dossier && dossier.statut === 'a_valider' ? 'done' : (enCours ? (etape1 && etape2 ? 'current' : 'todo') : 'done');
     var etat4 = dossier && dossier.statut === 'a_valider' ? 'current' : (!enCours && derniereValidee ? 'done' : 'todo');
-    var etat5 = !enCours && derniereValidee ? 'current' : 'todo';
+    var docsMission = derniereValidee ? contrats.filter(function (d) { return d.mission_id === derniereValidee.id; }) : [];
+    var aSigner = docsMission.some(function (d) { return d.statut === 'a_signer'; });
+    var signe = docsMission.length > 0 && docsMission.every(function (d) { return d.statut === 'signe'; });
+    var etat5 = !enCours && derniereValidee ? (signe ? 'done' : 'current') : 'todo';
+    var libelle5 = signe ? 'Signé' : (aSigner ? 'Signature en cours' : (etat5 === 'current' ? 'Contrats en préparation' : 'À venir'));
     var etapes = [
       ['Identité', etape1 ? 'done' : 'current', etape1 ? 'Faite' : 'À compléter'],
       ['Coordonnées et RIB', etape2 ? 'done' : (etape1 ? 'current' : 'todo'), etape2 ? 'Faite' : 'À compléter'],
       ['Mission et client', etat3, etat3 === 'done' ? 'Envoyée' : 'En cours'],
       ['Validation HT Portage', etat4, etat4 === 'done' ? 'Validée' : (etat4 === 'current' ? 'En cours' : 'À venir')],
-      ['Signature en ligne', etat5, etat5 === 'current' ? 'Contrats en préparation' : 'À venir']
+      ['Signature en ligne', etat5, libelle5]
     ];
     document.getElementById('etapes').innerHTML = etapes.map(function (e, i) {
       return '<li class="etape is-' + e[1] + '"' + (e[1] === 'current' ? ' aria-current="step"' : '') + '><span class="etape__num">' +
@@ -65,7 +70,7 @@
       zone.innerHTML = formulaire(enCours);
     } else {
       zone.innerHTML = '<div class="alerte alerte--info" role="status"><strong>Votre dernière mission a été validée' + (derniereValidee.validee_le ? ' le ' + E.date(derniereValidee.validee_le) : '') + '</strong>' +
-        '<span>' + esc(derniereValidee.intitule) + (derniereValidee.client ? ' · ' + esc(derniereValidee.client) : '') + '. Vos contrats sont en préparation : vous les recevrez par e-mail pour signature.</span></div>' +
+        '<span>' + esc(derniereValidee.intitule) + (derniereValidee.client ? ' · ' + esc(derniereValidee.client) : '') + '. ' + (signe ? 'Vos contrats sont signés : retrouvez-les dans « Contrats et missions ».' : aSigner ? 'Vos contrats vous ont été envoyés par e-mail par Yousign : signez-les depuis le lien reçu (pensez à vérifier vos courriers indésirables).' : 'Vos contrats sont en préparation : vous les recevrez par e-mail pour signature.') + '</span></div>' +
         '<button class="btn btn--ghost-dark btn--sm" type="button" id="btn-nouvelle" style="align-self:flex-start">Déclarer une nouvelle mission</button>';
       document.getElementById('btn-nouvelle').addEventListener('click', function () { nouveau = true; rendre(); });
     }

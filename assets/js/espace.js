@@ -99,6 +99,7 @@
   var PAGES_ADMIN = [
     ['ambassadeur', 'consultants', 'Consultants'],
     ['valider', 'a-valider', 'Dossiers à valider'],
+    ['contrats', 'signatures', 'Contrats et signatures'],
     ['import', 'import', 'Import VSP'],
     ['demandes', 'demandes', 'Demandes reçues']
   ];
@@ -221,7 +222,8 @@
       active: ['Active', ''], terminee: ['Terminée', 'tag--muted'], annulee: ['Annulée', 'tag--muted']
     },
     document: {
-      en_preparation: ['En préparation', 'tag--rose'], a_signer: ['À signer', 'tag--dark'], signe: ['Signé', ''], disponible: ['Disponible', '']
+      en_preparation: ['En préparation', 'tag--rose'], a_signer: ['À signer', 'tag--dark'], signe: ['Signé', ''], disponible: ['Disponible', ''],
+      refuse: ['Signature refusée', 'tag--rose'], annule: ['Annulé', 'tag--muted']
     },
     reco: {
       nouvelle: ['Reçue', ''], 'en cours': ['En discussion', 'tag--rose'], validee: ['Aboutie · prime à venir', 'tag--dark'],

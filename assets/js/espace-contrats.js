@@ -30,7 +30,7 @@
           '<td>' + esc(d.mission_id ? (missionNom[d.mission_id] || 'Mission') : (d.type === 'cdi' ? 'Contrat de travail HT Portage' : '—')) + '</td>' +
           '<td style="white-space:nowrap">' + E.date(d.date_document || d.created_at) + '</td>' +
           '<td>' + E.tag('document', d.statut) + '</td>' +
-          '<td class="num">' + (d.storage_path ? '<button class="link-btn" type="button" data-doc="' + esc(d.storage_path) + '">Télécharger<span class="visually-hidden"> ' + esc(d.titre) + '</span></button>' : '') + '</td></tr>';
+          '<td class="num">' + (d.storage_path ? '<button class="link-btn" type="button" data-doc="' + esc(d.storage_path) + '">Télécharger<span class="visually-hidden"> ' + esc(d.titre) + '</span></button>' : (d.statut === 'a_signer' ? '<span class="small">Lien de signature reçu par e-mail</span>' : '')) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   afficherDocs('');

@@ -217,6 +217,77 @@
     var r = await db.from('consultant_missions').update(maj).eq('id', art.dataset.id);
     if (r.error) { art.querySelectorAll('button').forEach(function (x) { x.disabled = false; }); E.setStatus(status, E.errText(r.error), 'error'); return; }
     chargerValider();
+    chargerSignatures();
+  });
+
+  // =====================================================================
+  // Contrats et signatures (dossiers validés)
+  // =====================================================================
+  var signEl = document.getElementById('liste-signatures');
+  async function chargerSignatures() {
+    var r = await Promise.all([
+      db.from('consultant_missions').select('*').in('statut', ['validee', 'active']).order('validee_le', { ascending: false }).limit(30),
+      db.from('documents').select('*').in('type', ['cdi', 'annexe']).order('created_at', { ascending: false })
+    ]);
+    var missions = r[0].data || [], docs = r[1].data || [];
+    if (!missions.length) { signEl.innerHTML = '<p class="small" style="font-size:15px">Aucun dossier validé pour le moment.</p>'; return; }
+    signEl.innerHTML = missions.map(function (m) {
+      var p = profils.find(function (x) { return x.id === m.user_id; }) || { email: '?' };
+      var sesDocs = docs.filter(function (d) { return d.mission_id === m.id || (d.type === 'cdi' && d.user_id === m.user_id); });
+      var annexe = sesDocs.find(function (d) { return d.type === 'annexe' && d.mission_id === m.id && ['a_signer', 'signe'].indexOf(d.statut) >= 0; });
+      var etat = sesDocs.length ? '<ul class="list">' + sesDocs.map(function (d) {
+        return '<li><span class="list__main"><strong>' + esc(d.titre) + '</strong><span>' + (d.envoye_le ? 'Envoyé le ' + E.date(d.envoye_le) : E.date(d.created_at)) +
+          (d.signe_le ? ' · signé le ' + E.date(d.signe_le) : '') + '</span></span>' + E.tag('document', d.statut) +
+          (d.storage_path ? ' <button class="link-btn" type="button" data-doc="' + esc(d.storage_path) + '">PDF</button>' : '') + '</li>';
+      }).join('') + '</ul>' : '';
+      return '<article class="box" data-mission="' + m.id + '" style="background:var(--bg);border:0;gap:12px">' +
+        '<div class="box__head"><h3 class="box__title" style="font-size:16px">' + esc(nomDe(p)) + ' · ' + esc(m.client || '') + ' · ' + esc(m.numero_contrat || '') + '</h3>' + E.tag('mission', m.statut) + '</div>' +
+        etat +
+        '<div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><div class="row-actions">' +
+          '<button class="btn btn--light btn--sm" type="button" data-contrat="apercu">Aperçu des contrats</button>' +
+          (annexe ? '' : '<button class="btn btn--dark btn--sm" type="button" data-contrat="envoyer">Envoyer en signature</button>') +
+        '</div></div></article>';
+    }).join('');
+  }
+  function telecharger(nom, base64) {
+    var bin = atob(base64), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([u], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+    var a = document.createElement('a'); a.href = url; a.download = nom; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  }
+  async function appelContrats(missionId, action) {
+    var r = await db.functions.invoke('contrats', { body: { mission_id: missionId, action: action } });
+    if (r.error) {
+      var msg = r.error.message;
+      try { var ctx = r.error.context; if (ctx && ctx.json) { var j = await ctx.json(); if (j && j.erreur) msg = j.erreur; } } catch (e) { /* message par défaut */ }
+      throw new Error(msg);
+    }
+    if (r.data && r.data.erreur) throw new Error(r.data.erreur);
+    return r.data;
+  }
+  E.brancherTelechargements(signEl);
+  signEl.addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-contrat]');
+    if (!b) return;
+    var art = b.closest('[data-mission]'), status = art.querySelector('.form-status');
+    if (b.dataset.contrat === 'envoyer' && !confirm('Envoyer les contrats en signature ? Le consultant, puis le client, puis vous recevrez un e-mail de Yousign.')) return;
+    art.querySelectorAll('[data-contrat]').forEach(function (x) { x.disabled = true; });
+    E.setStatus(status, b.dataset.contrat === 'apercu' ? 'Génération des contrats…' : 'Envoi à Yousign…');
+    try {
+      var data = await appelContrats(art.dataset.mission, b.dataset.contrat);
+      if (b.dataset.contrat === 'apercu') {
+        (data.fichiers || []).forEach(function (f) { telecharger(f.nom, f.base64); });
+        E.setStatus(status, (data.fichiers || []).length + ' document(s) téléchargé(s) pour relecture.', 'ok');
+      } else {
+        E.setStatus(status, 'Envoyé en signature : ' + (data.envoyes || []).map(function (x) { return x.type === 'cdi' ? 'CDI' : 'annexe'; }).join(' + ') + '.', 'ok');
+        setTimeout(chargerSignatures, 800);
+      }
+    } catch (err) {
+      E.setStatus(status, err.message || String(err), 'error');
+    } finally {
+      art.querySelectorAll('[data-contrat]').forEach(function (x) { x.disabled = false; });
+    }
   });
 
   // =====================================================================
@@ -358,5 +429,6 @@
 
   await chargerProfils();
   chargerValider();
+  chargerSignatures();
   chargerDemandes();
 })();
