@@ -249,12 +249,13 @@
         '</div></div></article>';
     }).join('');
   }
-  function telecharger(nom, base64) {
-    var bin = atob(base64), u = new Uint8Array(bin.length);
+  // Un lien par document : les navigateurs bloquent souvent le 2e téléchargement automatique simultané.
+  function lienDocx(f) {
+    var bin = atob(f.base64), u = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
     var url = URL.createObjectURL(new Blob([u], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
-    var a = document.createElement('a'); a.href = url; a.download = nom; document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    var libelle = /cdi/i.test(f.type || f.nom) ? 'CDI de portage' : 'Annexe 1 — conditions de la mission';
+    return '<a class="btn btn--light btn--sm" href="' + url + '" download="' + esc(f.nom) + '">Télécharger : ' + esc(libelle) + '</a>';
   }
   async function appelContrats(missionId, action) {
     var r = await db.functions.invoke('contrats', { body: { mission_id: missionId, action: action } });
@@ -277,8 +278,11 @@
     try {
       var data = await appelContrats(art.dataset.mission, b.dataset.contrat);
       if (b.dataset.contrat === 'apercu') {
-        (data.fichiers || []).forEach(function (f) { telecharger(f.nom, f.base64); });
-        E.setStatus(status, (data.fichiers || []).length + ' document(s) téléchargé(s) pour relecture.', 'ok');
+        var fichiers = data.fichiers || [], zone = art.querySelector('.apercu-liens');
+        if (!zone) { zone = document.createElement('div'); zone.className = 'apercu-liens row-actions'; zone.style.flexWrap = 'wrap'; art.appendChild(zone); }
+        zone.innerHTML = fichiers.map(lienDocx).join('');
+        E.setStatus(status, fichiers.length + ' document' + (fichiers.length > 1 ? 's' : '') + ' prêt' + (fichiers.length > 1 ? 's' : '') + ' pour relecture' +
+          (fichiers.length === 1 ? ' (le CDI a déjà été envoyé pour ce consultant, seule l’annexe est générée)' : '') + ' :', 'ok');
       } else {
         E.setStatus(status, 'Envoyé en signature : ' + (data.envoyes || []).map(function (x) { return x.type === 'cdi' ? 'CDI' : 'annexe'; }).join(' + ') + '.', 'ok');
         setTimeout(chargerSignatures, 800);
