@@ -26,7 +26,7 @@
     var max = Math.max(0, Math.floor(plafond / 10) * 10);
     frais.max = String(max);
     if (Number(frais.value) > max) frais.value = String(max);
-    var r = C.calculer({ tjm: t, jours: j, fraisPct: ca > 0 ? Number(frais.value) / ca : 0, pas: Number(pas.value) / 100 });
+    var r = C.calculer({ tjm: t, jours: j, frais: Number(frais.value), pas: Number(pas.value) / 100 });
     document.getElementById('frais-max-label').textContent = eur(max);
 
     var m = periode === 'an' ? 12 : 1;
@@ -57,12 +57,13 @@
 
     out('d-ca', eur(r.ca * m)); out('d-gestion', '− ' + eur(r.gestion * m)); out('d-frais', '− ' + eur(r.frais * m));
     out('d-cout', eur(r.coutEmployeur * m)); out('d-patronales', '− ' + eur(r.patronales * m)); out('d-brut', eur(r.brut * m));
+    out('d-base', eur(r.base * m)); out('d-apport', eur(r.apport * m)); out('d-reserve', eur(r.reserve * m)); out('d-cp', eur(r.cp * m));
     out('d-salariales', '− ' + eur(r.salariales * m)); out('d-net', eur(r.net * m)); out('d-impot', '− ' + eur(r.impot * m));
     out('d-net-apres', eur(r.netApresImpot * m)); out('d-frais2', '+ ' + eur(r.frais * m)); out('d-total', eur(r.totalPercu * m));
 
     var alerte = document.querySelector('[data-out="alerte"]');
     alerte.hidden = !r.sousMinimum;
-    alerte.textContent = r.sousMinimum ? 'Avec ce TJM et ce nombre de jours, le salaire brut serait inférieur au minimum de la convention du portage salarial (' + eur(r.brutMin) + ' brut pour ce temps de travail). Parlons-en ensemble.' : '';
+    alerte.textContent = r.sousMinimum ? 'Avec ce TJM et ce nombre de jours, le salaire de base serait inférieur au minimum de la convention du portage salarial (' + eur(r.baseMin) + ' par mois). Parlons-en ensemble : votre conseiller étudiera la meilleure solution.' : '';
 
     // Barre de répartition du chiffre d'affaires
     if (r.ca > 0) {
