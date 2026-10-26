@@ -275,3 +275,41 @@ input[type=range] { width: 100%; height: 28px; margin-top: 16px; accent-color: v
 /* Vérification anti-robot (Cloudflare Turnstile) : n'occupe de place que si une interaction est demandée */
 .captcha:empty { display: none; }
 .captcha { min-height: 0; }
+
+/* ---------- Simulateur v2 : frais, détail du calcul, fenêtre d'aide ---------- */
+.label-aide { display: inline-flex; align-items: center; gap: 8px; }
+.label-aide label { font-weight: 600; font-size: 17px; }
+.aide { width: 26px; height: 26px; border-radius: 999px; border: 1.5px solid var(--navy-700); background: var(--white); color: var(--navy-900); font: inherit; font-weight: 700; font-size: 14px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.aide:hover { background: var(--navy-900); color: var(--white); }
+.aide:focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
+.range-head .hint { font-weight: 400; font-size: 14px; color: var(--muted); }
+.sim__plus { margin-top: 10px; font-size: 15px; color: var(--on-dark); }
+.stack-bar span { transition: width .2s ease; }
+.stack-bar span:nth-child(1) { width: 52%; background: var(--rose); }
+.stack-bar span:nth-child(2) { width: 0; background: #7FB3A0; }
+.stack-bar span:nth-child(3) { width: 43%; background: var(--on-dark-2); }
+.stack-bar span:nth-child(4) { width: 5%; background: var(--white); }
+.calcul { border-top: 1px solid var(--navy-500); padding-top: 16px; }
+.calcul summary { cursor: pointer; font-weight: 600; color: var(--white); list-style: none; display: flex; align-items: center; gap: 10px; }
+.calcul summary::-webkit-details-marker { display: none; }
+.calcul summary::before { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--rose); border-bottom: 2px solid var(--rose); transform: rotate(-45deg); transition: transform .15s; }
+.calcul[open] summary::before { transform: rotate(45deg); }
+.calcul summary:focus-visible { outline: 3px solid var(--rose); outline-offset: 4px; border-radius: 6px; }
+.breakdown--detail { margin-top: 16px; font-size: 15px; gap: 10px; }
+.breakdown--detail div { padding-bottom: 10px; }
+.calcul__note { margin-top: 14px; font-size: 14px; background: rgba(255,255,255,.08); border-left: 3px solid var(--rose); padding: 12px 14px; border-radius: 8px; color: var(--on-dark); }
+.popup { border: 0; padding: 0; border-radius: 20px; width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 48px); color: var(--ink); background: var(--white); box-shadow: 0 30px 80px rgba(17,26,43,.35); }
+.popup::backdrop { background: rgba(17,26,43,.55); }
+.popup__inner { padding: clamp(20px, 4vw, 32px); display: flex; flex-direction: column; gap: 14px; font-size: 15px; line-height: 1.55; }
+.popup__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.popup__head h2 { margin: 0; font-size: 22px; color: var(--navy-900); }
+.popup h3 { margin: 8px 0 0; font-size: 16px; color: var(--navy-900); }
+.popup__fermer { border: 0; background: var(--tint); color: var(--navy-900); width: 40px; height: 40px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.popup__fermer:focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
+.popup__table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.popup__table th, .popup__table td { text-align: left; padding: 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.popup__table th { font-weight: 400; color: var(--muted); padding-right: 16px; width: 58%; }
+.popup__table td { font-weight: 600; white-space: nowrap; }
+.popup__encart { background: var(--tint); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.popup__actions { display: flex; justify-content: flex-end; }
+@media (max-width: 560px) { .popup__table td { white-space: normal; } }

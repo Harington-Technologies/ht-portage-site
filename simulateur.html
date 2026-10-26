@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulateur de revenus — HT Portage</title>
-<meta name="description" content="Simulez votre salaire net en portage salarial avec HT Portage : TJM, jours travaillés, frais fixes de 5 %.">
+<meta name="description" content="Simulez votre salaire net en portage salarial avec HT Portage : TJM, jours travaillés, frais professionnels, frais de gestion fixes de 5 %.">
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,7 +37,7 @@
     <div class="container">
       <p class="eyebrow">/Simulateur de revenus/</p>
       <h1 class="h1">Combien gagnerez-vous en portage ?</h1>
-      <p class="lead">Indiquez votre TJM et vos jours travaillés : votre salaire net estimé s'affiche instantanément, frais de gestion de 5 % compris.</p>
+      <p class="lead">Indiquez votre TJM, vos jours travaillés et vos frais professionnels : votre salaire net s'affiche instantanément, avec le détail complet du calcul.</p>
     </div>
   </section>
 
@@ -55,31 +55,64 @@
           <div class="range-scale"><span>5 jours</span><span>23 jours</span></div>
         </div>
         <div>
+          <div class="range-head">
+            <span class="label-aide"><label for="frais">Frais professionnels</label>
+              <button class="aide" type="button" id="aide-frais" aria-haspopup="dialog" aria-controls="popup-frais" aria-label="Comment fonctionnent les frais professionnels ?">?</button></span>
+            <output id="frais-out" for="frais">0 €</output>
+          </div>
+          <input id="frais" type="range" min="0" max="20" step="1" value="0" aria-describedby="frais-note">
+          <div class="range-scale"><span>0 %</span><span id="frais-max-label">20 % du CA</span></div>
+          <p class="small" id="frais-note" style="margin-top:8px">Remboursés sans cotisations ni impôt, dans la limite de 20 % de votre chiffre d'affaires mensuel. Le montant exact est défini avec votre conseiller HT Portage.</p>
+        </div>
+        <div>
+          <div class="range-head"><label for="pas">Taux de prélèvement à la source <span class="hint">(facultatif)</span></label><output id="pas-out" for="pas">—</output></div>
+          <input id="pas" type="range" min="0" max="30" step="0.5" value="0">
+          <div class="range-scale"><span>Non renseigné</span><span>30 %</span></div>
+        </div>
+        <div>
           <p style="margin: 0 0 12px; font-weight: 600; font-size: 17px" id="periode-label">Affichage</p>
           <div class="segmented" role="group" aria-labelledby="periode-label">
             <button type="button" data-periode="mois" aria-pressed="true">Par mois</button>
             <button type="button" data-periode="an" aria-pressed="false">Par an</button>
           </div>
         </div>
-        <p class="small" style="margin-top: auto">Estimation indicative fondée sur un net cible de 67 % du chiffre d'affaires, hors frais professionnels et avant prélèvement à la source. Votre simulation personnalisée est établie avant signature.</p>
+        <p class="small" style="margin-top: auto">Estimation indicative pour un consultant cadre en CDI de portage. Votre simulation personnalisée, avec vos frais réels, votre mutuelle et votre situation, est établie avec votre conseiller avant signature.</p>
       </div>
 
       <div class="sim__result" aria-live="polite">
         <div>
-          <p class="sim__net-label">Salaire net estimé <span data-out="periode">par mois</span></p>
-          <p class="sim__net" data-out="net">7 638 €</p>
+          <p class="sim__net-label">Salaire net <span data-out="libelle-net">avant impôt</span> <span data-out="periode">par mois</span></p>
+          <p class="sim__net" data-out="net-principal">—</p>
+          <p class="sim__plus" data-out="plus-frais" hidden></p>
         </div>
-        <div class="stack-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="stack-bar" aria-hidden="true"><span data-seg="net"></span><span data-seg="frais"></span><span data-seg="cotisations"></span><span data-seg="gestion"></span></div>
         <dl class="breakdown">
-          <div><dt>Chiffre d'affaires facturé</dt><dd data-out="ca">11 400 €</dd></div>
-          <div><dt><span class="swatch" style="background: var(--white)"></span>Frais de gestion fixes (5 %)</dt><dd data-out="gestion">− 570 €</dd></div>
-          <div><dt><span class="swatch" style="background: var(--on-dark-2)"></span>Cotisations sociales</dt><dd data-out="cotisations">− 3 192 €</dd></div>
-          <div class="total"><dt><span class="swatch" style="background: var(--rose)"></span>Votre salaire net</dt><dd data-out="net">7 638 €</dd></div>
+          <div><dt>Chiffre d'affaires facturé</dt><dd data-out="ca">—</dd></div>
+          <div><dt><span class="swatch" style="background: var(--white)"></span>Frais de gestion fixes (5 %)</dt><dd data-out="gestion">—</dd></div>
+          <div data-ligne="frais"><dt><span class="swatch" style="background: #7FB3A0"></span>Frais professionnels remboursés</dt><dd data-out="frais">—</dd></div>
+          <div><dt><span class="swatch" style="background: var(--on-dark-2)"></span>Cotisations sociales</dt><dd data-out="cotisations">—</dd></div>
+          <div class="total"><dt><span class="swatch" style="background: var(--rose)"></span>Salaire net avant impôt</dt><dd data-out="net">—</dd></div>
+          <div data-ligne="impot" hidden><dt>Prélèvement à la source</dt><dd data-out="impot">—</dd></div>
+          <div class="total" data-ligne="total"><dt>Total perçu (net + frais remboursés)</dt><dd data-out="total">—</dd></div>
         </dl>
-        <div class="gain">
-          <p>Par rapport à un net de ~58 % (moyenne du marché), vous gagnez environ</p>
-          <strong><span data-out="gain">+ 12 312 €</span> par an</strong>
-        </div>
+        <details class="calcul">
+          <summary>Voir le calcul détaillé</summary>
+          <dl class="breakdown breakdown--detail">
+            <div><dt>Chiffre d'affaires (TJM × jours)</dt><dd data-out="d-ca">—</dd></div>
+            <div><dt>− Frais de gestion HT Portage (5 %)</dt><dd data-out="d-gestion">—</dd></div>
+            <div><dt>− Frais professionnels remboursés</dt><dd data-out="d-frais">—</dd></div>
+            <div><dt>= Budget salaire (coût employeur)</dt><dd data-out="d-cout">—</dd></div>
+            <div><dt>− Cotisations patronales</dt><dd data-out="d-patronales">—</dd></div>
+            <div><dt>= Salaire brut</dt><dd data-out="d-brut">—</dd></div>
+            <div><dt>− Cotisations salariales</dt><dd data-out="d-salariales">—</dd></div>
+            <div><dt>= Salaire net avant impôt</dt><dd data-out="d-net">—</dd></div>
+            <div><dt>− Prélèvement à la source</dt><dd data-out="d-impot">—</dd></div>
+            <div><dt>= Salaire net après impôt</dt><dd data-out="d-net-apres">—</dd></div>
+            <div><dt>+ Frais professionnels remboursés</dt><dd data-out="d-frais2">—</dd></div>
+            <div class="total"><dt>= Total perçu</dt><dd data-out="d-total">—</dd></div>
+          </dl>
+          <p class="calcul__note" data-out="alerte" hidden></p>
+        </details>
         <a class="btn btn--rose" href="#simulation-detaillee">Recevoir ma simulation détaillée</a>
         <a class="btn btn--ghost-light" id="lien-espace" href="espace/connexion.html?inscription=1">Créer mon espace et démarrer</a>
       </div>
@@ -89,13 +122,54 @@
   <section class="section section--tint">
     <div class="container">
       <h2 class="h3">Comment votre net est calculé</h2>
-      <div class="grid grid--3" style="margin-top: 40px">
+      <div class="grid grid--4" style="margin-top: 40px">
         <div class="card card--flat"><h3 style="margin-top: 0">1. Votre chiffre d'affaires</h3><p>TJM × jours validés sur votre CRA. C'est le montant facturé à votre client.</p></div>
         <div class="card card--flat"><h3 style="margin-top: 0">2. 5 % de frais, point</h3><p>Un taux fixe, sans option payante ni marge arrière. Tout est visible sur votre compte d'activité.</p></div>
-        <div class="card card--flat"><h3 style="margin-top: 0">3. Votre salaire</h3><p>Après cotisations (mutuelle, chômage, retraite), versé le 29-30 du mois, sans attendre le paiement client.</p></div>
+        <div class="card card--flat"><h3 style="margin-top: 0">3. Vos frais remboursés</h3><p>Repas, déplacements, télétravail… remboursés sans cotisations ni impôt, selon les barèmes URSSAF.</p></div>
+        <div class="card card--flat"><h3 style="margin-top: 0">4. Votre salaire</h3><p>Après cotisations (retraite, chômage, santé), versé le 29-30 du mois, sans attendre le paiement client.</p></div>
       </div>
     </div>
   </section>
+
+  <dialog class="popup" id="popup-frais" aria-labelledby="popup-frais-titre">
+    <div class="popup__inner">
+      <div class="popup__head">
+        <h2 id="popup-frais-titre">Les frais professionnels en portage</h2>
+        <button class="popup__fermer" type="button" data-fermer aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <p>Les dépenses engagées pour votre mission vous sont remboursées sur votre chiffre d'affaires, <strong>sans cotisations sociales ni impôt sur le revenu</strong>. Elles doivent être réelles, liées à votre activité et respecter les barèmes de l'URSSAF.</p>
+      <h3>Allocations forfaitaires 2026 (plafonds URSSAF)</h3>
+      <table class="popup__table">
+        <tbody>
+          <tr><th scope="row">Repas pris hors des locaux (chez le client)</th><td>10,40 € / repas</td></tr>
+          <tr><th scope="row">Repas au restaurant (en déplacement)</th><td>21,40 € / repas</td></tr>
+          <tr><th scope="row">Télétravail</th><td>2,70 € / jour, 59,40 € / mois max.</td></tr>
+          <tr><th scope="row">Grand déplacement : repas</th><td>21,40 € / repas</td></tr>
+          <tr><th scope="row">Grand déplacement : hôtel et petit-déjeuner</th><td>76,60 € / nuit (Paris et petite couronne), 56,80 € ailleurs</td></tr>
+          <tr><th scope="row">Vélo personnel</th><td>0,25 € / km</td></tr>
+        </tbody>
+      </table>
+      <h3>Indemnités kilométriques (véhicule personnel)</h3>
+      <table class="popup__table">
+        <tbody>
+          <tr><th scope="row">3 CV et moins</th><td>0,529 € / km</td></tr>
+          <tr><th scope="row">4 CV</th><td>0,606 € / km</td></tr>
+          <tr><th scope="row">5 CV</th><td>0,636 € / km</td></tr>
+          <tr><th scope="row">6 CV</th><td>0,665 € / km</td></tr>
+          <tr><th scope="row">7 CV et plus</th><td>0,697 € / km</td></tr>
+        </tbody>
+      </table>
+      <p class="small">Jusqu'à 5 000 km par an ; + 20 % pour un véhicule électrique.</p>
+      <h3>Frais réels, sur justificatifs</h3>
+      <p>Train, avion, taxi, péages, parking, hôtel, matériel informatique, logiciels, part professionnelle du téléphone et d'internet, formations, coworking…</p>
+      <div class="popup__encart">
+        <strong>Un exemple</strong>
+        <span>18 repas chez le client (187 €) + 4 jours de télétravail (11 €) + 400 km avec une 5 CV (254 €) = <strong>452 € de frais par mois</strong>, remboursés sans cotisations.</span>
+      </div>
+      <p>Dans le simulateur, les frais sont limités à <strong>20 % de votre chiffre d'affaires mensuel</strong>, et votre salaire ne peut pas descendre sous le minimum de la convention du portage salarial. <strong>Le montant exact de vos frais est défini avec votre conseiller HT Portage</strong>, selon votre mission et vos déplacements.</p>
+      <div class="popup__actions"><a class="btn btn--dark" href="#simulation-detaillee" data-fermer>Faire le point avec un conseiller</a></div>
+    </div>
+  </dialog>
 
   <section class="section" id="simulation-detaillee">
     <div class="container">
@@ -110,6 +184,7 @@
           <input type="hidden" name="tjm" value="600" data-number>
           <input type="hidden" name="jours" value="19" data-number>
           <input type="hidden" name="net_estime" value="7638" data-number>
+          <input type="hidden" name="situation" value="">
           <p class="small" style="font-size: 15px">Votre simulation : <strong data-out="recap">TJM 600 € · 19 jours/mois</strong></p>
           <div class="form__row">
             <div class="field"><label for="s-nom">Nom et prénom</label><input class="input" id="s-nom" name="nom" autocomplete="name" required></div>
@@ -157,6 +232,7 @@
 <script src="assets/js/config.js?v=20261026g"></script>
 <script src="assets/js/captcha.js?v=20261026g"></script>
 <script src="assets/js/main.js?v=20261026g"></script>
-<script src="assets/js/simulateur.js?v=20261026g"></script>
+<script src="assets/js/calcul-portage.js?v=20261026h"></script>
+<script src="assets/js/simulateur.js?v=20261026h"></script>
 </body>
 </html>

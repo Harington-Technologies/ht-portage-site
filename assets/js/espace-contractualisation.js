@@ -206,7 +206,7 @@
         '<dl class="dl" style="grid-template-columns:1fr;gap:10px">' +
           '<div style="flex-direction:row;justify-content:space-between"><dt style="color:var(--on-dark)">CA mensuel (19 j)</dt><dd>' + (ca ? E.eur(ca) + ' HT' : '—') + '</dd></div>' +
           '<div style="flex-direction:row;justify-content:space-between"><dt style="color:var(--on-dark)">Frais de gestion</dt><dd>5 %</dd></div>' +
-          '<div style="flex-direction:row;justify-content:space-between;padding-top:10px;border-top:1px solid var(--navy-500)"><dt style="color:var(--on-dark)">Net estimé / mois</dt><dd style="font-size:20px;color:var(--rose-50)">' + (ca ? E.eur(ca * 0.67) : '—') + '</dd></div>' +
+          '<div style="flex-direction:row;justify-content:space-between;padding-top:10px;border-top:1px solid var(--navy-500)"><dt style="color:var(--on-dark)">Net estimé / mois <span style="font-size:12px">(sans frais)</span></dt><dd style="font-size:20px;color:var(--rose-50)">' + (ca ? E.eur(window.HTP_CALCUL ? window.HTP_CALCUL.calculer({ tjm: tjm, jours: 19 }).net : ca * 0.5) : '—') + '</dd></div>' +
         '</dl><a href="../simulateur.html" style="color:var(--rose-50);font-size:14px;font-weight:600">Refaire une simulation</a></section>' +
       '<section class="box" aria-labelledby="t-docs"><h2 class="box__title" id="t-docs">Documents à signer</h2><ul class="list">' +
         (aCdi ? '' : '<li><span class="list__main"><strong>CDI de portage salarial</strong><span>Votre contrat de travail avec HT Portage</span></span></li>') +
