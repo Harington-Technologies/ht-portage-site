@@ -1,9 +1,10 @@
-// HT Portage — moteur de calcul du portage salarial (partagé : simulateur, espace consultant).
+// HT Portage — moteur de calcul du portage salarial (partagé : simulateur, espace consultant, e-mail de simulation).
 // Calé sur les bulletins de paie HT Portage (VSP) d'août et septembre 2026 : cadre, échelon senior,
 // 151,67 h + 15,17 h majorées à 25 %, indemnité d'apport d'affaires 5 %, réserve financière 10 %, CP 10 %.
 //
 // Chaîne : CA → frais de gestion (5 %) → frais professionnels → budget salaire (coût global)
 //          → salaire de base → brut → cotisations → net avant impôt → impôt (PAS) → net payé.
+// Ce fichier est aussi recopié dans supabase/functions/notify-lead/index.ts (scripts/sync-calcul.mjs) : ne pas utiliser d'accent grave.
 (function () {
   'use strict';
 
@@ -21,57 +22,60 @@
     mutuelle: 63.60,             // complémentaire santé : part salariale = part patronale (si adhésion)
     minimumBase: 0.75,           // salaire minimum conventionnel (senior) : 75 % du PMSS, salaire de base
     joursTempsPlein: 218 / 12,
-    // Cotisations patronales : [taux, assiette] — assiette 'brut', 't1' (jusqu'au PMSS), 't2' (au-delà)
-    patronales: [
-      [0.13, 'brut'],      // maladie, maternité, invalidité, décès
-      [0.0097, 't1'],      // prévoyance (incapacité, invalidité, décès)
-      [0.007, 'brut'],     // accidents du travail
-      [0.0855, 't1'],      // vieillesse plafonnée
-      [0.0211, 'brut'],    // vieillesse déplafonnée
-      [0.0622, 't1'],      // retraite complémentaire tranche 1
-      [0.1478, 't2'],      // retraite complémentaire tranche 2
-      [0.0525, 'brut'],    // famille
-      [0.0425, 'brut'],    // chômage
-      [0.00036, 'brut'],   // APEC
-      [0.0005, 'brut'],    // cotisation conventionnelle
-      [0.02596, 'brut'],   // autres contributions employeur
-      [0.001, 't1']        // autres contributions employeur (plafonnées)
-    ],
-    salariales: [
-      [0.0096, 't1'],      // prévoyance
-      [0.069, 't1'],       // vieillesse plafonnée
-      [0.004, 'brut'],     // vieillesse déplafonnée
-      [0.0415, 't1'],      // retraite complémentaire tranche 1
-      [0.0986, 't2'],      // retraite complémentaire tranche 2
-      [0.00024, 'brut']    // APEC
+    // Cotisations : [rubrique, libellé, assiette ('brut', 't1' jusqu'au PMSS, 't2' au-delà), taux salarial, taux patronal]
+    cotisations: [
+      ['Santé', 'Sécurité Sociale - Mal. Mat. Inval. Décès', 'brut', 0, 0.13],
+      ['Santé', 'Complémentaire - Incap. Inval. Décès', 't1', 0.0096, 0.0097],
+      ['Santé', 'Accidents du travail & mal. professionnelles', 'brut', 0, 0.007],
+      ['Retraite', 'Sécurité Sociale plafonnée', 't1', 0.069, 0.0855],
+      ['Retraite', 'Sécurité Sociale déplafonnée', 'brut', 0.004, 0.0211],
+      ['Retraite', 'Complémentaire Tranche 1', 't1', 0.0415, 0.0622],
+      ['Retraite', 'Complémentaire Tranche 2', 't2', 0.0986, 0.1478],
+      ['Famille', 'Famille', 'brut', 0, 0.0525],
+      ['Assurance chômage', 'Chômage', 'brut', 0, 0.0425],
+      ['Assurance chômage', 'APEC', 'brut', 0.00024, 0.00036],
+      ['Autres', 'Cotisation conventionnelle', 'brut', 0, 0.0005],
+      ['Autres', 'Autres contributions dues par l’employeur', 'brut', 0, 0.02596],
+      ['Autres', 'Autres contributions dues par l’employeur', 't1', 0, 0.001]
     ],
     csgDeductible: 0.068, csgNonDeductible: 0.029, abattementCsg: 0.0175
   };
 
-  function assiettes(brut) {
-    var P = PARAMS;
-    return { brut: brut, t1: Math.min(brut, P.pmss), t2: Math.max(0, Math.min(brut, 8 * P.pmss) - P.pmss) };
-  }
-  function somme(liste, a) { return liste.reduce(function (s, x) { return s + x[0] * a[x[1]]; }, 0); }
-
-  // Bulletin complet à partir du salaire de base
+  // Bulletin complet à partir du salaire de base (lignes au format des bulletins HT Portage)
   function bulletin(base, mutuelle) {
     var P = PARAMS;
     var hs = base * (P.heuresMajorees * (1 + P.majoration)) / (P.heuresBase + P.heuresMajorees * (1 + P.majoration));
     var apport = base * P.apport, reserve = base * P.reserve, cp = (base + apport + reserve) * P.cp;
     var brut = base + apport + reserve + cp;
-    var a = assiettes(brut), sante = mutuelle ? P.mutuelle : 0;
-    var prevoyancePatronale = 0.0097 * a.t1;
-    var patronales = somme(P.patronales, a) + sante - P.deductionHsParHeure * P.heuresMajorees;
+    var a = { brut: brut, t1: Math.min(brut, P.pmss), t2: Math.max(0, Math.min(brut, 8 * P.pmss) - P.pmss) };
+    var sante = mutuelle ? P.mutuelle : 0;
+    var lignes = [], sal = 0, pat = 0, prevoyancePatronale = 0;
+    P.cotisations.forEach(function (c) {
+      var assiette = a[c[2]], s = assiette * c[3], p = assiette * c[4];
+      if (c[1].indexOf('Incap') >= 0) prevoyancePatronale = p;
+      sal += s; pat += p;
+      lignes.push({ rubrique: c[0], libelle: c[1], base: assiette, tauxSal: c[3], sal: s, tauxPat: c[4], pat: p });
+      if (c[1].indexOf('Incap') >= 0 && sante) {
+        lignes.push({ rubrique: 'Santé', libelle: 'Complémentaire - Santé', base: null, tauxSal: null, sal: sante, tauxPat: null, pat: sante });
+        sal += sante; pat += sante;
+      }
+    });
     var baseCsg = brut * (1 - P.abattementCsg) + prevoyancePatronale + sante;
-    var csgNonDed = baseCsg * P.csgNonDeductible;
-    var salariales = somme(P.salariales, a) + sante + baseCsg * P.csgDeductible + csgNonDed - hs * P.exoHsSalariale;
+    var csgDed = baseCsg * P.csgDeductible, csgNonDed = baseCsg * P.csgNonDeductible;
+    var exoSal = hs * P.exoHsSalariale, exoPat = P.deductionHsParHeure * P.heuresMajorees;
+    lignes.push({ rubrique: 'CSG', libelle: 'CSG déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgDeductible, sal: csgDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'CSG', libelle: 'CSG/CRDS non déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgNonDeductible, sal: csgNonDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonérations de cotisations employeur', base: null, tauxSal: null, sal: 0, tauxPat: null, pat: -exoPat });
+    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonération sociale sur HC/HS', base: hs, tauxSal: -P.exoHsSalariale, sal: -exoSal, tauxPat: null, pat: 0 });
+    var salariales = sal + csgDed + csgNonDed - exoSal, patronales = pat - exoPat;
     var netSalaire = brut - salariales;
+    var tauxHoraire = base / (P.heuresBase + P.heuresMajorees * (1 + P.majoration));
     return {
-      base: base, hs: hs, apport: apport, reserve: reserve, cp: cp, brut: brut,
+      base: base, hs: hs, tauxHoraire: tauxHoraire, apport: apport, reserve: reserve, cp: cp, brut: brut,
       patronales: patronales, salariales: salariales, coutSalaire: brut + patronales,
-      netSalaire: netSalaire,
-      netImposable: netSalaire + csgNonDed + sante - hs * P.hsNetFiscal
+      netSalaire: netSalaire, hsNetFiscal: hs * P.hsNetFiscal, reintegration: sante,
+      netImposable: netSalaire + csgNonDed + sante - hs * P.hsNetFiscal,
+      lignes: lignes
     };
   }
 
@@ -104,20 +108,23 @@
     var impot = b.netImposable * pas;
     var net = b.netSalaire;                         // net avant impôt, hors frais
     return {
-      ca: ca, gestion: gestion, frais: frais, fraisMax: fraisMax,
+      tjm: tjm, jours: jours, ca: ca, gestion: gestion, frais: frais, fraisMax: fraisMax,
       fraisMaxPct: ca > 0 ? fraisMax / ca : 0, fraisPct: ca > 0 ? frais / ca : 0,
       fraisLimiteParMinimum: fraisMax < ca * P.fraisMax - 0.5,
-      coutEmployeur: budgetTotal - frais, base: b.base, hs: b.hs, apport: b.apport, reserve: b.reserve, cp: b.cp,
+      coutEmployeur: budgetTotal - frais, base: b.base, hs: b.hs, tauxHoraire: b.tauxHoraire,
+      apport: b.apport, reserve: b.reserve, cp: b.cp,
       brut: b.brut, patronales: b.patronales, salariales: b.salariales,
-      net: net, netImposable: b.netImposable, impot: impot, pas: pas,
-      netApresImpot: net - impot,
+      net: net, netImposable: b.netImposable, hsNetFiscal: b.hsNetFiscal, reintegration: b.reintegration,
+      impot: impot, pas: pas, netApresImpot: net - impot,
       totalPercu: net - impot + frais,              // net payé (salaire + frais remboursés)
       sousMinimum: b.base + 0.5 < baseMin, baseMin: baseMin,
-      ratioNet: ca > 0 ? net / ca : 0
+      ratioNet: ca > 0 ? net / ca : 0,
+      lignes: b.lignes
     };
   }
 
   var api = { PARAMS: PARAMS, calculer: calculer, bulletin: bulletin };
+  if (typeof globalThis !== 'undefined') globalThis.HTP_CALCUL = api;
   if (typeof window !== 'undefined') window.HTP_CALCUL = api;
-  if (typeof module !== 'undefined') module.exports = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

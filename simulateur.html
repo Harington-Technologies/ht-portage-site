@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20261026i">
+<link rel="stylesheet" href="assets/css/style.css?v=20261026j">
 </head>
 <body>
 
@@ -180,8 +180,8 @@
       <div class="panel" style="align-items: flex-start">
         <div class="panel__main" style="flex-basis: 320px">
           <p class="eyebrow">/Simulation détaillée/</p>
-          <h2 class="h3">Recevez votre simulation personnalisée.</h2>
-          <p class="lead" style="font-size: 17px">Nous l'établissons avec vos frais professionnels, votre situation et votre mutuelle, puis vous l'envoyons par e-mail.</p>
+          <h2 class="h3">Recevez votre simulation et votre bulletin de salaire.</h2>
+          <p class="lead" style="font-size: 17px">Vous recevez tout de suite par e-mail votre simulation et un exemple de bulletin de salaire à vos chiffres. Un conseiller vous contacte ensuite pour l'affiner avec vos frais réels et votre situation.</p>
         </div>
         <form class="form panel__side" style="flex: 999 1 420px" data-form="simulation" novalidate>
           <input type="hidden" name="type" value="simulation">
@@ -189,6 +189,8 @@
           <input type="hidden" name="jours" value="19" data-number>
           <input type="hidden" name="net_estime" value="7638" data-number>
           <input type="hidden" name="situation" value="">
+          <input type="hidden" name="frais_pro" value="0" data-number>
+          <input type="hidden" name="taux_pas" value="0" data-number>
           <p class="small" style="font-size: 15px">Votre simulation : <strong data-out="recap">TJM 600 € · 19 jours/mois</strong></p>
           <div class="form__row">
             <div class="field"><label for="s-nom">Nom et prénom</label><input class="input" id="s-nom" name="nom" autocomplete="name" required></div>
@@ -233,10 +235,10 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="assets/js/config.js?v=20261026i"></script>
-<script src="assets/js/captcha.js?v=20261026i"></script>
-<script src="assets/js/main.js?v=20261026i"></script>
-<script src="assets/js/calcul-portage.js?v=20261026i"></script>
-<script src="assets/js/simulateur.js?v=20261026i"></script>
+<script src="assets/js/config.js?v=20261026j"></script>
+<script src="assets/js/captcha.js?v=20261026j"></script>
+<script src="assets/js/main.js?v=20261026j"></script>
+<script src="assets/js/calcul-portage.js?v=20261026j"></script>
+<script src="assets/js/simulateur.js?v=20261026j"></script>
 </body>
 </html>

@@ -76,6 +76,8 @@
     hidden('tjm', t);
     hidden('jours', j);
     hidden('net_estime', netMois);
+    hidden('frais_pro', Math.round(r.frais));
+    hidden('taux_pas', Math.round(r.pas * 1000) / 10);
     hidden('situation', ('Frais professionnels simulés : ' + eur(r.frais) + '/mois' + (r.pas > 0 ? ' · PAS ' + pct(r.pas) : '')).slice(0, 200));
 
     var lien = document.getElementById('lien-espace');

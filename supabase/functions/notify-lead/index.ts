@@ -1,3 +1,4 @@
+// @ts-nocheck — le moteur de calcul partagé (JavaScript) est recopié plus bas
 // HT Portage — e-mails automatiques déclenchés par la base (Database Webhooks / déclencheurs).
 //   • INSERT sur contacts, candidatures, recommandations  → e-mail à l'équipe (NOTIFY_TO)
 //   • consultant_missions passe à « a_valider »            → e-mail à l'équipe : dossier à valider
@@ -120,6 +121,7 @@ const CHAMPS: Record<string, string> = {
   jours: "Jours / mois", net: "Net estimé (€)", disponibilite: "Disponibilité", ville: "Ville", offre: "Offre",
   ambassadeur_nom: "Ambassadeur", ambassadeur_email: "E-mail ambassadeur", contact_nom: "Personne recommandée",
   contact_email: "E-mail de la personne", contact_telephone: "Téléphone de la personne", created_at: "Reçu le",
+  frais_pro: "Frais professionnels simulés (€/mois)", taux_pas: "Taux de prélèvement à la source (%)", net_estime: "Net estimé avant impôt (€/mois)", situation: "Situation",
 };
 const libelle = (k: string) => CHAMPS[k] ?? (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " "));
 
@@ -191,6 +193,226 @@ async function mission(payload: { type?: string; record?: Record<string, unknown
     return (await envoyer([p.email], "Votre dossier HT Portage est validé", html, true)) ? new Response("OK") : new Response("Email failed", { status: 502 });
   }
   return new Response("Ignored", { status: 200 });
+}
+
+// ---------------------------------------------------------------------------
+// Simulation : exemple de bulletin de salaire envoyé au candidat
+// ---------------------------------------------------------------------------
+// <calcul-portage> — généré par scripts/sync-calcul.mjs, ne pas modifier ici
+// HT Portage — moteur de calcul du portage salarial (partagé : simulateur, espace consultant, e-mail de simulation).
+// Calé sur les bulletins de paie HT Portage (VSP) d'août et septembre 2026 : cadre, échelon senior,
+// 151,67 h + 15,17 h majorées à 25 %, indemnité d'apport d'affaires 5 %, réserve financière 10 %, CP 10 %.
+//
+// Chaîne : CA → frais de gestion (5 %) → frais professionnels → budget salaire (coût global)
+//          → salaire de base → brut → cotisations → net avant impôt → impôt (PAS) → net payé.
+// Ce fichier est aussi recopié dans supabase/functions/notify-lead/index.ts (scripts/sync-calcul.mjs) : ne pas utiliser d'accent grave.
+(function () {
+  'use strict';
+
+  var PARAMS = {
+    gestion: 0.05,               // frais de gestion HT Portage (fixe)
+    fraisMax: 0.20,              // plafond interne des frais professionnels (jamais affiché en % sur le site)
+    pmss: 4005,                  // plafond mensuel de la Sécurité sociale 2026
+    apport: 0.05,                // indemnité d'apport d'affaires (% du salaire de base)
+    reserve: 0.10,               // réserve financière (% du salaire de base)
+    cp: 0.10,                    // indemnité compensatrice de congés payés
+    heuresBase: 151.67, heuresMajorees: 15.17, majoration: 0.25,
+    deductionHsParHeure: 1.50,   // déduction forfaitaire patronale sur heures supplémentaires
+    exoHsSalariale: 0.111,       // réduction de cotisations salariales sur heures supplémentaires
+    hsNetFiscal: 0.9332,         // part nette des heures supplémentaires exonérée d'impôt
+    mutuelle: 63.60,             // complémentaire santé : part salariale = part patronale (si adhésion)
+    minimumBase: 0.75,           // salaire minimum conventionnel (senior) : 75 % du PMSS, salaire de base
+    joursTempsPlein: 218 / 12,
+    // Cotisations : [rubrique, libellé, assiette ('brut', 't1' jusqu'au PMSS, 't2' au-delà), taux salarial, taux patronal]
+    cotisations: [
+      ['Santé', 'Sécurité Sociale - Mal. Mat. Inval. Décès', 'brut', 0, 0.13],
+      ['Santé', 'Complémentaire - Incap. Inval. Décès', 't1', 0.0096, 0.0097],
+      ['Santé', 'Accidents du travail & mal. professionnelles', 'brut', 0, 0.007],
+      ['Retraite', 'Sécurité Sociale plafonnée', 't1', 0.069, 0.0855],
+      ['Retraite', 'Sécurité Sociale déplafonnée', 'brut', 0.004, 0.0211],
+      ['Retraite', 'Complémentaire Tranche 1', 't1', 0.0415, 0.0622],
+      ['Retraite', 'Complémentaire Tranche 2', 't2', 0.0986, 0.1478],
+      ['Famille', 'Famille', 'brut', 0, 0.0525],
+      ['Assurance chômage', 'Chômage', 'brut', 0, 0.0425],
+      ['Assurance chômage', 'APEC', 'brut', 0.00024, 0.00036],
+      ['Autres', 'Cotisation conventionnelle', 'brut', 0, 0.0005],
+      ['Autres', 'Autres contributions dues par l’employeur', 'brut', 0, 0.02596],
+      ['Autres', 'Autres contributions dues par l’employeur', 't1', 0, 0.001]
+    ],
+    csgDeductible: 0.068, csgNonDeductible: 0.029, abattementCsg: 0.0175
+  };
+
+  // Bulletin complet à partir du salaire de base (lignes au format des bulletins HT Portage)
+  function bulletin(base, mutuelle) {
+    var P = PARAMS;
+    var hs = base * (P.heuresMajorees * (1 + P.majoration)) / (P.heuresBase + P.heuresMajorees * (1 + P.majoration));
+    var apport = base * P.apport, reserve = base * P.reserve, cp = (base + apport + reserve) * P.cp;
+    var brut = base + apport + reserve + cp;
+    var a = { brut: brut, t1: Math.min(brut, P.pmss), t2: Math.max(0, Math.min(brut, 8 * P.pmss) - P.pmss) };
+    var sante = mutuelle ? P.mutuelle : 0;
+    var lignes = [], sal = 0, pat = 0, prevoyancePatronale = 0;
+    P.cotisations.forEach(function (c) {
+      var assiette = a[c[2]], s = assiette * c[3], p = assiette * c[4];
+      if (c[1].indexOf('Incap') >= 0) prevoyancePatronale = p;
+      sal += s; pat += p;
+      lignes.push({ rubrique: c[0], libelle: c[1], base: assiette, tauxSal: c[3], sal: s, tauxPat: c[4], pat: p });
+      if (c[1].indexOf('Incap') >= 0 && sante) {
+        lignes.push({ rubrique: 'Santé', libelle: 'Complémentaire - Santé', base: null, tauxSal: null, sal: sante, tauxPat: null, pat: sante });
+        sal += sante; pat += sante;
+      }
+    });
+    var baseCsg = brut * (1 - P.abattementCsg) + prevoyancePatronale + sante;
+    var csgDed = baseCsg * P.csgDeductible, csgNonDed = baseCsg * P.csgNonDeductible;
+    var exoSal = hs * P.exoHsSalariale, exoPat = P.deductionHsParHeure * P.heuresMajorees;
+    lignes.push({ rubrique: 'CSG', libelle: 'CSG déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgDeductible, sal: csgDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'CSG', libelle: 'CSG/CRDS non déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgNonDeductible, sal: csgNonDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonérations de cotisations employeur', base: null, tauxSal: null, sal: 0, tauxPat: null, pat: -exoPat });
+    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonération sociale sur HC/HS', base: hs, tauxSal: -P.exoHsSalariale, sal: -exoSal, tauxPat: null, pat: 0 });
+    var salariales = sal + csgDed + csgNonDed - exoSal, patronales = pat - exoPat;
+    var netSalaire = brut - salariales;
+    var tauxHoraire = base / (P.heuresBase + P.heuresMajorees * (1 + P.majoration));
+    return {
+      base: base, hs: hs, tauxHoraire: tauxHoraire, apport: apport, reserve: reserve, cp: cp, brut: brut,
+      patronales: patronales, salariales: salariales, coutSalaire: brut + patronales,
+      netSalaire: netSalaire, hsNetFiscal: hs * P.hsNetFiscal, reintegration: sante,
+      netImposable: netSalaire + csgNonDed + sante - hs * P.hsNetFiscal,
+      lignes: lignes
+    };
+  }
+
+  // Salaire de base dont le coût (brut + charges patronales) égale le budget disponible
+  function baseDepuisBudget(budget, mutuelle) {
+    var lo = 0, hi = Math.max(0, budget);
+    for (var i = 0; i < 60; i++) {
+      var mid = (lo + hi) / 2;
+      if (bulletin(mid, mutuelle).coutSalaire > budget) hi = mid; else lo = mid;
+    }
+    return lo;
+  }
+
+  // o : { tjm, jours, fraisPct (part du CA), frais (montant €, prioritaire), pas (0 à 0,45), mutuelle (défaut : oui) }
+  function calculer(o) {
+    var P = PARAMS;
+    var tjm = Math.max(0, Number(o.tjm) || 0), jours = Math.max(0, Number(o.jours) || 0);
+    var mutuelle = o.mutuelle !== false;
+    var ca = tjm * jours, gestion = ca * P.gestion, budgetTotal = ca - gestion;
+
+    // Frais maximum : plafond interne, sans faire passer le salaire de base sous le minimum conventionnel
+    var baseMin = P.pmss * P.minimumBase * Math.min(1, jours / P.joursTempsPlein);
+    var coutMin = bulletin(baseMin, mutuelle).coutSalaire;
+    var fraisMax = Math.max(0, Math.min(ca * P.fraisMax, budgetTotal - coutMin));
+    var demande = o.frais != null ? Number(o.frais) || 0 : ca * (Number(o.fraisPct) || 0);
+    var frais = Math.min(Math.max(0, demande), fraisMax);
+
+    var b = bulletin(baseDepuisBudget(budgetTotal - frais, mutuelle), mutuelle);
+    var pas = Math.min(Math.max(0, Number(o.pas) || 0), 0.45);
+    var impot = b.netImposable * pas;
+    var net = b.netSalaire;                         // net avant impôt, hors frais
+    return {
+      tjm: tjm, jours: jours, ca: ca, gestion: gestion, frais: frais, fraisMax: fraisMax,
+      fraisMaxPct: ca > 0 ? fraisMax / ca : 0, fraisPct: ca > 0 ? frais / ca : 0,
+      fraisLimiteParMinimum: fraisMax < ca * P.fraisMax - 0.5,
+      coutEmployeur: budgetTotal - frais, base: b.base, hs: b.hs, tauxHoraire: b.tauxHoraire,
+      apport: b.apport, reserve: b.reserve, cp: b.cp,
+      brut: b.brut, patronales: b.patronales, salariales: b.salariales,
+      net: net, netImposable: b.netImposable, hsNetFiscal: b.hsNetFiscal, reintegration: b.reintegration,
+      impot: impot, pas: pas, netApresImpot: net - impot,
+      totalPercu: net - impot + frais,              // net payé (salaire + frais remboursés)
+      sousMinimum: b.base + 0.5 < baseMin, baseMin: baseMin,
+      ratioNet: ca > 0 ? net / ca : 0,
+      lignes: b.lignes
+    };
+  }
+
+  var api = { PARAMS: PARAMS, calculer: calculer, bulletin: bulletin };
+  if (typeof globalThis !== 'undefined') globalThis.HTP_CALCUL = api;
+  if (typeof window !== 'undefined') window.HTP_CALCUL = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})();
+// </calcul-portage>
+const CALCUL = (globalThis as { HTP_CALCUL?: any }).HTP_CALCUL;
+
+const n2 = (v: number) => (Math.round(v * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const t4 = (v: number | null) => v == null ? "" : (Math.round(v * 1e6) / 1e4).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const e0 = (v: number) => Math.round(v).toLocaleString("fr-FR") + " €";
+
+export function simulationDepuis(record: Record<string, unknown>) {
+  if (!CALCUL) return null;
+  const tjm = Number(record.tjm), jours = Number(record.jours);
+  if (!(tjm > 0 && jours > 0)) return null;
+  return CALCUL.calculer({ tjm, jours, frais: Number(record.frais_pro) || 0, pas: (Number(record.taux_pas) || 0) / 100 });
+}
+
+export function bulletinHtml(r: any, nom: string): string {
+  const td = "padding:5px 6px;border-bottom:1px solid #ECE8EE;font-size:12px;vertical-align:top";
+  const num = td + ";text-align:right;white-space:nowrap";
+  const ligne = (lib: string, base: string, taux: string, ded: string, payer: string, tp = "", mp = "", fort = false) =>
+    `<tr${fort ? ' style="background:#F7F5F8;font-weight:bold"' : ""}><td style="${td}">${lib}</td><td style="${num}">${base}</td><td style="${num}">${taux}</td><td style="${num}">${ded}</td><td style="${num}">${payer}</td><td style="${num};color:#6B7385">${tp}</td><td style="${num};color:#6B7385">${mp}</td></tr>`;
+  const titre = (t: string) => `<tr><td colspan="7" style="padding:8px 6px 4px;font-size:11px;font-weight:bold;color:#784E61;text-transform:uppercase;letter-spacing:.04em">${t}</td></tr>`;
+  const P = CALCUL.PARAMS;
+  const baseHeures = r.base - r.hs;
+  let rubrique = "";
+  const cot = r.lignes.map((l: any) => {
+    const t = l.rubrique !== rubrique ? titre(l.rubrique) : ""; rubrique = l.rubrique;
+    return t + ligne(esc(l.libelle), l.base == null ? "" : n2(l.base), l.tauxSal == null || !l.tauxSal ? "" : t4(l.tauxSal), l.sal ? n2(l.sal) : "", "",
+      l.tauxPat == null || !l.pat ? "" : t4(l.tauxPat), l.pat ? n2(l.pat) : "");
+  }).join("");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #D9D3DD;border-radius:10px;border-collapse:separate;overflow:hidden;font-family:Arial,sans-serif;color:#1B1C1C">
+  <tr><td style="background:#21324E;color:#fff;padding:12px 14px">
+    <div style="font-size:14px;font-weight:bold;letter-spacing:.06em">BULLETIN DE SALAIRE — EXEMPLE</div>
+    <div style="font-size:12px;color:#D9DEE8;margin-top:2px">Simulation indicative et non contractuelle · ${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", month: "long", year: "numeric" })}</div>
+  </td></tr>
+  <tr><td style="padding:10px 14px;font-size:12px;line-height:1.5;border-bottom:1px solid #ECE8EE">
+    <strong>HT PORTAGE</strong> · 34 rue Pasteur, 92270 Bois-Colombes<br>
+    Salarié : <strong>${esc(nom)}</strong> · Emploi : Salarié porté · Statut : Cadre · Échelon : Senior<br>
+    Convention collective : Salariés en portage salarial
+  </td></tr>
+  <tr><td style="padding:0">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
+    <tr style="background:#F3F1F4">${["Éléments de paie", "Base", "Taux", "À déduire", "À payer", "Taux patr.", "Charges patr."].map((h, i) => `<th style="padding:6px;font-size:10px;text-align:${i ? "right" : "left"};color:#6B7385;text-transform:uppercase">${h}</th>`).join("")}</tr>
+    ${ligne(`TJM ${e0(r.tjm)} × ${r.jours} jours`, n2(P.heuresBase), n2(r.tauxHoraire), "", n2(baseHeures))}
+    ${ligne("Heures mensuelles majorées 25 %", n2(P.heuresMajorees), n2(r.tauxHoraire * (1 + P.majoration)), "", n2(r.hs))}
+    ${ligne("Sous-total salaire de base", n2(P.heuresBase + P.heuresMajorees), "", "", n2(r.base), "", "", true)}
+    ${ligne("Indemnité d'apport d'affaires", n2(r.base), "5,00", "", n2(r.apport))}
+    ${ligne("Constitution de la réserve financière", n2(r.base), "10,00", "", n2(r.reserve))}
+    ${ligne("Indemnité compensatrice de CP", n2(r.base + r.apport + r.reserve), "10,00", "", n2(r.cp))}
+    ${ligne("Salaire brut", "", "", "", n2(r.brut), "", "", true)}
+    ${cot}
+    ${ligne("Total des cotisations et contributions", "", "", n2(r.salariales), "", "", n2(r.patronales), true)}
+    ${r.frais > 0 ? ligne("Remboursement de frais professionnels", "", "", "", n2(r.frais)) : ""}
+    ${ligne("Net à payer avant impôt sur le revenu", "", "", "", n2(r.net + r.frais), "", "", true)}
+    ${ligne("Impôt sur le revenu prélevé à la source", n2(r.netImposable), t4(r.pas), n2(r.impot), "")}
+    <tr style="background:#21324E;color:#fff"><td style="padding:8px 6px;font-weight:bold;font-size:13px" colspan="4">Net payé</td><td style="padding:8px 6px;text-align:right;font-weight:bold;font-size:15px;white-space:nowrap" colspan="3">${n2(r.totalPercu)} €</td></tr>
+  </table></td></tr>
+  <tr><td style="padding:10px 14px;font-size:11px;color:#6B7385;line-height:1.5">
+    Chiffre d'affaires facturé : ${n2(r.ca)} € · Frais de gestion HT Portage (5 %) : ${n2(r.gestion)} € · Coût global : ${n2(r.coutEmployeur + r.frais)} € · Net imposable : ${n2(r.netImposable)} €
+  </td></tr>
+</table>`;
+}
+
+export function mailSimulation(record: Record<string, unknown>, r: any) {
+  const prenom = prenomDe(record.nom);
+  const lien = `${SITE}/espace/connexion.html?inscription=1&tjm=${r.tjm}&jours=${r.jours}&net=${Math.round(r.net)}`;
+  return {
+    sujet: "Votre simulation de salaire HT Portage",
+    html: gabarit({
+      titre: "Votre simulation de salaire",
+      apercu: `Salaire net estimé : ${e0(r.pas > 0 ? r.netApresImpot : r.net)} par mois.`,
+      corps: `<p style="margin:0 0 14px">Bonjour${prenom ? " " + esc(prenom) : ""},</p>` +
+        `<p style="margin:0 0 14px">Merci pour votre demande. Voici votre simulation, calculée avec les taux de cotisations 2026 de nos bulletins de paie.</p>` +
+        tableau([
+          ["Taux journalier", e0(r.tjm)], ["Jours travaillés par mois", String(r.jours)],
+          ["Frais professionnels remboursés", e0(r.frais)],
+          ["Salaire net avant impôt", e0(r.net)],
+          ...(r.pas > 0 ? [["Salaire net après impôt", e0(r.netApresImpot)] as [string, unknown]] : []),
+          ["Total perçu chaque mois", e0(r.totalPercu)],
+        ]) +
+        `<p style="margin:18px 0 10px">Voici à quoi ressemblerait <strong>votre bulletin de salaire</strong> :</p>` + bulletinHtml(r, String(record.nom ?? "")) +
+        `<p style="margin:16px 0 0">Un conseiller HT Portage vous contacte sous 24 h ouvrées pour affiner cette simulation avec vous : vos frais professionnels réels, votre mutuelle et votre situation.</p>`,
+      bouton: { texte: "Créer mon espace consultant", url: lien },
+      pied: "Simulation indicative et non contractuelle, établie à partir des informations saisies sur le simulateur. Pour toute question, répondez simplement à cet e-mail.",
+    }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -370,6 +592,22 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   }
   if (payload?.type !== "INSERT" || !LABELS[table]) return new Response("Ignored", { status: 200 });
 
+  // Demande de simulation : le candidat reçoit sa simulation et un exemple de bulletin de salaire
+  let bulletinInterne = "";
+  if (table === "contacts" && record.type === "simulation") {
+    try {
+      const r = simulationDepuis(record);
+      const email = String(record.email ?? "").trim().toLowerCase();
+      if (r) {
+        bulletinInterne = `<p style="margin:18px 0 8px;font-weight:bold">Bulletin simulé envoyé au candidat</p>` + bulletinHtml(r, String(record.nom ?? ""));
+        if (email && await autorise("mail-simulation:" + email, 3, 86400)) {
+          const m = mailSimulation(record, r);
+          await envoyer([email], m.sujet, m.html, true);
+        }
+      }
+    } catch (e) { console.error("E-mail de simulation", e); }
+  }
+
   // Plafond : 15 e-mails de demandes par heure. Au-delà, une seule alerte par heure (protège la boîte et le quota Resend).
   if (admin) {
     const { data: ok, error: el } = await admin.rpc("limiter", { p_cle: "mail-demandes", p_max: 15, p_fenetre: 3600 });
@@ -404,7 +642,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
 
   const html = gabarit({
     interne: true, titre, apercu: sujet,
-    corps: `<p style="margin:0 0 14px">Une nouvelle demande vient d'arriver par le site.${record.email ? ` Vous pouvez répondre directement à <a href="mailto:${esc(record.email)}" style="color:#784E61">${esc(record.email)}</a>.` : ""}</p>` + tableau(lignes) + cv,
+    corps: `<p style="margin:0 0 14px">Une nouvelle demande vient d'arriver par le site.${record.email ? ` Vous pouvez répondre directement à <a href="mailto:${esc(record.email)}" style="color:#784E61">${esc(record.email)}</a>.` : ""}</p>` + tableau(lignes) + cv + bulletinInterne,
     bouton: { texte: "Voir les demandes reçues", url: `${SITE}/espace/admin.html#demandes` },
   });
   return (await envoyer(NOTIFY_TO, sujet, html)) ? new Response("OK", { status: 200 }) : new Response("Email failed", { status: 502 });

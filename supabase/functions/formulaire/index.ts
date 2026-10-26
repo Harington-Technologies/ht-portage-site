@@ -40,11 +40,12 @@ function cors(req: Request) {
 // Champs acceptés pour chaque formulaire (tout le reste est ignoré)
 export const FORMULAIRES: Record<string, { table: string; champs: string[]; email: string; fixes?: Record<string, unknown> }> = {
   contact: { table: "contacts", champs: ["nom", "email", "telephone", "situation", "message", "consentement"], email: "email", fixes: { type: "contact", traite: false } },
-  simulation: { table: "contacts", champs: ["nom", "email", "telephone", "message", "situation", "tjm", "jours", "net_estime", "consentement"], email: "email", fixes: { type: "simulation", traite: false } },
+  simulation: { table: "contacts", champs: ["nom", "email", "telephone", "message", "situation", "tjm", "jours", "net_estime", "frais_pro", "taux_pas", "consentement"], email: "email", fixes: { type: "simulation", traite: false } },
   candidature: { table: "candidatures", champs: ["nom", "email", "telephone", "mission_ref", "tjm_souhaite", "disponibilite", "message", "consentement"], email: "email", fixes: { statut: "nouvelle" } },
   recommandation: { table: "recommandations", champs: ["type", "ambassadeur_nom", "ambassadeur_email", "contact_nom", "contact_telephone", "contact_email", "details", "consentement"], email: "ambassadeur_email", fixes: { statut: "nouvelle" } },
 };
-const NOMBRES = new Set(["tjm", "jours", "net_estime", "tjm_souhaite"]);
+const NOMBRES = new Set(["tjm", "jours", "net_estime", "tjm_souhaite", "frais_pro"]);
+const DECIMAUX = new Set(["taux_pas"]);
 const CV_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 const CV_MAX = 5 * 1024 * 1024;
 export const DELAI_MIN_MS = 3000;
@@ -58,6 +59,7 @@ export function nettoyer(kind: string, brut: Record<string, unknown>): Record<st
     if (v === undefined || v === null || v === "") continue;
     if (k === "consentement") { d[k] = v === true || v === "true" || v === "on"; continue; }
     if (NOMBRES.has(k)) { const n = Number(v); if (Number.isFinite(n)) d[k] = Math.round(n); continue; }
+    if (DECIMAUX.has(k)) { const n = Number(v); if (Number.isFinite(n)) d[k] = Math.round(n * 10) / 10; continue; }
     v = String(v).trim().slice(0, 5000);
     if (v) d[k] = v;
   }
