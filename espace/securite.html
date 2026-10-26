@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Double authentification — Administration HT Portage</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css?v=20261026b">
+<link rel="stylesheet" href="../assets/css/espace.css?v=20261026b">
+</head>
+<body data-page="securite">
+<div class="auth">
+  <aside class="auth__aside">
+    <a class="brand" href="../index.html" aria-label="Retour au site HT Portage"><span class="brand__mark">HT</span><span class="brand__word">PORTAGE</span></a>
+    <div style="display: flex; flex-direction: column; gap: 20px; max-width: 460px">
+      <p class="eyebrow" style="color: var(--rose); margin: 0">/Administration/</p>
+      <h1 class="h3">Double authentification.</h1>
+      <p style="color: var(--on-dark)">L'administration donne accès aux données personnelles des consultants (identité, n° de sécurité sociale, IBAN, contrats). En plus du mot de passe, un code à 6 chiffres affiché par votre téléphone est demandé à chaque connexion.</p>
+    </div>
+    <p class="small" style="color: var(--on-dark-2)">Applications compatibles : Google Authenticator, Microsoft Authenticator, 1Password, Authy…</p>
+  </aside>
+  <main class="auth__main">
+    <div class="auth__card">
+      <p class="loading" id="chargement">Chargement…</p>
+
+      <!-- Première fois : enregistrer le téléphone -->
+      <form class="form" id="form-enrolement" novalidate hidden>
+        <h2 style="font-size: 22px; color: var(--navy-900)">Activez la double authentification</h2>
+        <ol class="mfa-etapes">
+          <li>Ouvrez votre application d'authentification et ajoutez un compte.</li>
+          <li>Scannez ce QR code avec l'application.</li>
+        </ol>
+        <div class="mfa-qr"><img id="qr" alt="QR code à scanner avec votre application d'authentification" width="200" height="200"></div>
+        <details class="mfa-cle"><summary>Impossible de scanner ? Saisir la clé à la main</summary><code id="cle-secrete"></code></details>
+        <ol class="mfa-etapes" start="3"><li>Saisissez le code à 6 chiffres affiché par l'application.</li></ol>
+        <div class="field"><label for="code-enrol">Code à 6 chiffres</label><input class="input mfa-code" id="code-enrol" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div>
+        <button class="btn btn--dark" type="submit">Activer et accéder à l'administration</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+
+      <!-- Connexions suivantes : saisir le code -->
+      <form class="form" id="form-code" novalidate hidden>
+        <h2 style="font-size: 22px; color: var(--navy-900)">Code de vérification</h2>
+        <p class="small" style="font-size: 15px">Saisissez le code à 6 chiffres affiché par votre application d'authentification.</p>
+        <div class="field"><label for="code-verif">Code à 6 chiffres</label><input class="input mfa-code" id="code-verif" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div>
+        <button class="btn btn--dark" type="submit">Valider</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+        <p class="small" style="font-size: 13px">Téléphone perdu ou changé ? Contactez l'équipe technique HT Portage pour réinitialiser votre double authentification.</p>
+      </form>
+
+      <button class="link-btn" type="button" id="deconnexion" style="align-self:flex-start;margin-top:8px">Se déconnecter</button>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js?v=20261026b"></script>
+<script src="../assets/js/espace.js?v=20261026b"></script>
+<script src="../assets/js/espace-securite.js?v=20261026b"></script>
+</body>
+</html>

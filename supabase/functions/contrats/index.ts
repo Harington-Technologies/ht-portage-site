@@ -192,6 +192,14 @@ function b64(u: Uint8Array) {
   return btoa(s);
 }
 
+// Niveau d'authentification (aal1 = mot de passe seul, aal2 = double authentification) lu dans le jeton
+export function niveauAuth(jwt: string): string {
+  try {
+    const p = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(p + "=".repeat((4 - p.length % 4) % 4))).aal ?? "";
+  } catch { return ""; }
+}
+
 if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erreur: "Méthode non autorisée" }, 405);
@@ -202,6 +210,8 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     if (!u?.user) return json({ erreur: "Session invalide : reconnectez-vous." }, 401);
     const { data: estAdmin } = await admin.from("admins").select("user_id").eq("user_id", u.user.id).maybeSingle();
     if (!estAdmin) return json({ erreur: "Réservé aux administrateurs HT Portage." }, 403);
+    // Double authentification obligatoire (jeton déjà validé par getUser ci-dessus)
+    if (niveauAuth(token) !== "aal2") return json({ erreur: "Validez d'abord votre code de double authentification (reconnectez-vous)." }, 403);
 
     const { mission_id, action } = await req.json().catch(() => ({}));
     if (!mission_id || !["apercu", "envoyer"].includes(action)) return json({ erreur: "Requête incomplète." }, 400);

@@ -200,9 +200,20 @@
     var user = session.user;
     var res = await Promise.all([
       db.from('profils').select('*').eq('id', user.id).maybeSingle(),
-      db.rpc('is_admin')
+      db.rpc('compte_admin')
     ]);
-    var state = { user: user, profil: res[0].data || { id: user.id, email: user.email }, isAdmin: res[1].data === true };
+    // compte_admin (v8) indique l'appartenance à l'équipe ; repli sur is_admin si le script n'est pas encore passé
+    var estAdmin = res[1].error ? (await db.rpc('is_admin')).data === true : res[1].data === true;
+    // Double authentification obligatoire pour un administrateur
+    if (estAdmin && !opts.sansDoubleAuth) {
+      var niv = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!niv.data || niv.data.currentLevel !== 'aal2') {
+        var cible = location.pathname.split('/').pop() + location.search + location.hash;
+        location.replace('securite.html?suite=' + encodeURIComponent(/^admin\.html/.test(cible) ? cible : 'admin.html'));
+        return null;
+      }
+    }
+    var state = { user: user, profil: res[0].data || { id: user.id, email: user.email }, isAdmin: estAdmin };
     if (opts.admin && !state.isAdmin) { location.replace('index.html'); return null; }
     // Un administrateur n'a pas d'espace consultant : il va directement à l'administration.
     if (!opts.admin && state.isAdmin) { location.replace('admin.html'); return null; }
