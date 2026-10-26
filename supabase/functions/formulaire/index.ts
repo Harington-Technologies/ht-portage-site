@@ -42,7 +42,7 @@ export const FORMULAIRES: Record<string, { table: string; champs: string[]; emai
   contact: { table: "contacts", champs: ["nom", "email", "telephone", "situation", "message", "consentement"], email: "email", fixes: { type: "contact", traite: false } },
   simulation: { table: "contacts", champs: ["nom", "email", "telephone", "message", "tjm", "jours", "net_estime", "consentement"], email: "email", fixes: { type: "simulation", traite: false } },
   candidature: { table: "candidatures", champs: ["nom", "email", "telephone", "mission_ref", "tjm_souhaite", "disponibilite", "message", "consentement"], email: "email", fixes: { statut: "nouvelle" } },
-  recommandation: { table: "recommandations", champs: ["type", "ambassadeur_nom", "ambassadeur_email", "contact_nom", "contact_email", "details", "consentement"], email: "ambassadeur_email", fixes: { statut: "nouvelle" } },
+  recommandation: { table: "recommandations", champs: ["type", "ambassadeur_nom", "ambassadeur_email", "contact_nom", "contact_telephone", "contact_email", "details", "consentement"], email: "ambassadeur_email", fixes: { statut: "nouvelle" } },
 };
 const NOMBRES = new Set(["tjm", "jours", "net_estime", "tjm_souhaite"]);
 const CV_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -119,6 +119,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   try { brut = JSON.parse(String(fd.get("donnees") ?? "{}")); } catch { return rep({ erreur: "Données illisibles." }, 400); }
   const d = nettoyer(kind, brut)!;
   if (d.consentement !== true) return rep({ erreur: "Merci d'accepter l'utilisation de vos données pour être recontacté." }, 400);
+  if (kind === "recommandation" && !d.contact_telephone) return rep({ erreur: "Indiquez le téléphone de la personne recommandée pour que nous puissions l'appeler." }, 400);
   const email = String(d[conf.email] ?? "").toLowerCase();
   if (!(await limite("ip:" + ip, 5, 600))) return rep({ erreur: "Trop d'envois depuis votre connexion. Réessayez dans quelques minutes." }, 429);
   if (email && !(await limite("email:" + email, 3, 3600))) return rep({ erreur: "Vous avez déjà envoyé plusieurs demandes avec cette adresse : notre équipe revient vers vous rapidement." }, 429);

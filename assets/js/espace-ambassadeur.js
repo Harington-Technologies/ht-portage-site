@@ -58,6 +58,7 @@
       ambassadeur_nom: nomAmb.length >= 2 ? nomAmb : st.user.email,
       ambassadeur_email: st.user.email,
       contact_nom: f.contact_nom.value.trim(),
+      contact_telephone: f.contact_telephone.value.trim(),
       contact_email: f.contact_email.value.trim() || null,
       details: f.details.value.trim(),
       consentement: true,

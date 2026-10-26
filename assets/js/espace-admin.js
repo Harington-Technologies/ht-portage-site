@@ -8,7 +8,7 @@
   if (!st) return;
 
   // Données chargées une fois puis filtrées localement
-  var D = { profils: [], missions: [], docs: [], cands: [], contacts: [], recos: [] };
+  var D = { profils: [], profilsTous: [], missions: [], docs: [], cands: [], contacts: [], recos: [] };
   var STATUTS_PROFIL = [['candidat', 'Candidat'], ['consultant', 'Consultant'], ['sorti', 'Sorti']];
   var STATUTS_MISSION = [['brouillon', 'Brouillon'], ['a_valider', 'À valider'], ['validee', 'Validée'], ['active', 'Active'], ['terminee', 'Terminée'], ['annulee', 'Annulée']];
   var STATUTS_CAND = [['nouvelle', 'Nouvelle'], ['en cours', 'En cours'], ['retenue', 'Retenue'], ['archivee', 'Archivée']];
@@ -550,6 +550,13 @@
       setTimeout(function () { e.target.classList.remove('is-saved'); majCompteurs(); }, 900);
     };
   }
+  // Téléphone et e-mail cliquables (appel ou e-mail en un clic)
+  function coordonnees(tel, email) {
+    var l = [];
+    if (tel) l.push('<a class="coord" href="tel:' + esc(String(tel).replace(/[^0-9+]/g, '')) + '">' + esc(tel) + '</a>');
+    if (email) l.push('<a class="coord" href="mailto:' + esc(email) + '">' + esc(email) + '</a>');
+    return '<span class="coords">' + (l.length ? l.join('') : '<span class="tag tag--manque">Coordonnées non fournies</span>') + '</span>';
+  }
   var candEl = document.getElementById('liste-candidatures'), contEl = document.getElementById('liste-contacts'), recoEl = document.getElementById('liste-recos');
   var LCand = Liste({
     el: candEl, unites: ['candidature', 'candidatures'], placeholder: 'Nom, e-mail, mission, compétence…',
@@ -571,7 +578,7 @@
     rendre: function (cands) {
       return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Candidat</th><th scope="col">Mission</th><th scope="col">TJM</th><th scope="col">CV</th><th scope="col">Statut</th></tr></thead><tbody>' +
         cands.map(function (c) {
-          return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td><strong>' + esc(c.nom) + '</strong><br><span class="small">' + esc(c.email) + (c.telephone ? ' · ' + esc(c.telephone) : '') + '</span></td>' +
+          return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td><strong>' + esc(c.nom) + '</strong>' + coordonnees(c.telephone, c.email) + '</td>' +
             '<td>' + esc(c.mission_ref || 'Spontanée') + '</td><td class="num">' + (c.tjm_souhaite ? E.eur(c.tjm_souhaite) : '—') + '</td>' +
             '<td>' + (c.cv_path ? '<button class="link-btn" type="button" data-doc="' + esc(c.cv_path) + '" data-bucket="cv">CV</button>' : '—') + '</td>' +
             '<td><label class="visually-hidden" for="c-' + c.id + '">Statut</label><select class="select" id="c-' + c.id + '" data-champ="statut">' + options(STATUTS_CAND, c.statut || 'nouvelle') + '</select></td></tr>';
@@ -599,7 +606,7 @@
         contacts.map(function (c) {
           var sim = c.type === 'simulation' ? 'TJM ' + E.eur(c.tjm) + ' · ' + c.jours + ' j · net ' + E.eur(c.net_estime) + '. ' : '';
           return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td>' + (c.type === 'simulation' ? 'Simulation' : 'Contact') + '</td>' +
-            '<td><strong>' + esc(c.nom) + '</strong><br><span class="small">' + esc(c.email) + (c.telephone ? ' · ' + esc(c.telephone) : '') + '</span></td>' +
+            '<td><strong>' + esc(c.nom) + '</strong>' + coordonnees(c.telephone, c.email) + '</td>' +
             '<td style="max-width:360px">' + esc(sim + (c.message || c.situation || '')) + '</td>' +
             '<td><label class="check" style="font-size:14px"><input type="checkbox" data-champ="traite"' + (c.traite ? ' checked' : '') + '>Traité</label></td></tr>';
         }).join('') + '</tbody></table></div>';
@@ -609,7 +616,7 @@
     el: recoEl, unites: ['recommandation', 'recommandations'], placeholder: 'Ambassadeur, personne recommandée…',
     vide: 'Aucune recommandation pour le moment.',
     items: function () { return D.recos; },
-    texte: function (x) { return [x.ambassadeur_nom, x.ambassadeur_email, x.contact_nom, x.contact_email, x.details, E.LIBELLES.typeReco[x.type]].join(' '); },
+    texte: function (x) { return [x.ambassadeur_nom, x.ambassadeur_email, x.contact_nom, x.contact_email, x.contact_telephone, x.details, E.LIBELLES.typeReco[x.type]].join(' '); },
     filtres: [
       { id: 'a_traiter', label: 'À traiter', prioritaire: true, test: function (x) { return !x.statut || x.statut === 'nouvelle' || x.statut === 'en cours'; } },
       { id: 'prime', label: 'Prime à verser', alerte: true, test: function (x) { return x.statut === 'validee'; } },
@@ -624,8 +631,8 @@
     rendre: function (recos) {
       return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Ambassadeur</th><th scope="col">Recommande</th><th scope="col">Statut</th><th scope="col">Prime (€)</th></tr></thead><tbody>' +
         recos.map(function (x) {
-          return '<tr data-id="' + x.id + '"><td style="white-space:nowrap">' + E.date(x.created_at) + '</td><td><strong>' + esc(x.ambassadeur_nom) + '</strong><br><span class="small">' + esc(x.ambassadeur_email) + (x.user_id ? ' · compte espace' : '') + '</span></td>' +
-            '<td><strong>' + esc(E.LIBELLES.typeReco[x.type] || x.type) + ' · ' + esc(x.contact_nom) + '</strong><br><span class="small">' + esc(x.details) + '</span></td>' +
+          return '<tr data-id="' + x.id + '"><td style="white-space:nowrap">' + E.date(x.created_at) + '</td><td><strong>' + esc(x.ambassadeur_nom) + '</strong>' + coordonnees(x.user_id ? (D.profilsTous.find(function (p) { return p.id === x.user_id; }) || {}).telephone : null, x.ambassadeur_email) + (x.user_id ? '<span class="small">Compte espace</span>' : '') + '</td>' +
+            '<td><strong>' + esc(E.LIBELLES.typeReco[x.type] || x.type) + ' · ' + esc(x.contact_nom) + '</strong>' + coordonnees(x.contact_telephone, x.contact_email) + '<span class="small">' + esc(x.details) + '</span></td>' +
             '<td><label class="visually-hidden" for="r-' + x.id + '">Statut</label><select class="select" id="r-' + x.id + '" data-champ="statut">' + options(STATUTS_RECO, x.statut || 'nouvelle') + '</select></td>' +
             '<td><label class="visually-hidden" for="rp-' + x.id + '">Prime</label><input class="input" id="rp-' + x.id + '" data-champ="prime_montant" type="number" min="0" step="1" value="' + (x.prime_montant == null ? '' : esc(x.prime_montant)) + '" style="width:110px"></td></tr>';
         }).join('') + '</tbody></table></div>';
@@ -807,7 +814,8 @@
     // Les comptes administrateurs ne sont ni candidats ni consultants
     var ia = await db.rpc('ids_admins');
     var admins = [st.user.id].concat((ia.data || []).map(function (x) { return typeof x === 'string' ? x : (x && x.ids_admins) || x; }));
-    D.profils = (r.data || []).filter(function (p) { return admins.indexOf(p.id) < 0; });
+    D.profilsTous = r.data || [];
+    D.profils = D.profilsTous.filter(function (p) { return admins.indexOf(p.id) < 0; });
   }
   // Erreurs de chargement : affichées en haut de page plutôt que des listes vides trompeuses
   var erreurs = [];
