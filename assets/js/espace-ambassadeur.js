@@ -66,6 +66,12 @@
     };
     f.querySelector('[type=submit]').disabled = true;
     var r = await db.from('recommandations').insert(data);
+    // Tant que la colonne contact_telephone n'existe pas encore en base (script v10), on l'ajoute aux détails
+    if (r.error && /contact_telephone/.test(r.error.message || '')) {
+      data.details = data.details + ' — Tél. : ' + data.contact_telephone;
+      delete data.contact_telephone;
+      r = await db.from('recommandations').insert(data);
+    }
     f.querySelector('[type=submit]').disabled = false;
     if (r.error) { E.setStatus(s, E.errText(r.error), 'error'); return; }
     f.reset();
