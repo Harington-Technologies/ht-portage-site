@@ -4,5 +4,7 @@
 window.HTP_CONFIG = {
   supabaseUrl: 'https://krcsbskmttgmzzqjfudo.supabase.co',
   supabaseAnonKey: 'sb_publishable_eOLYfFeFNzf-xzwGtcEP_g_SKCIRkqm',
+  // Clé publique Cloudflare Turnstile (anti-robot). La clé secrète est dans les secrets Supabase (TURNSTILE_SECRET).
+  turnstileSiteKey: '0x4AAAAAAFl5GPmaNQA6Z1Ol',
   contactEmail: 'contact@htportage.fr'
 };
