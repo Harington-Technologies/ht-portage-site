@@ -91,6 +91,19 @@ export function tableau(lignes: [string, unknown][]): string {
   }</table>`;
 }
 
+// Version texte de l'e-mail (les messageries pénalisent les e-mails envoyés uniquement en HTML)
+export function versionTexte(html: string): string {
+  return html
+    .replace(/<(style|title|head)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<span style="display:none[\s\S]*?<\/span>/i, "")
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, url, t) => { const l = t.replace(/<[^>]+>/g, "").trim(); return url.startsWith("mailto:") || l === url ? l : l + " (" + url + ")"; })
+    .replace(/<\/(p|h1|h2|h3|div|tr|table)>|<br\s*\/?>/gi, "\n")
+    .replace(/<\/td>/gi, "  ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).filter((l, i, t) => l || (t[i - 1] ?? "") !== "").join("\n").trim();
+}
+
 const adresseFrom = () => (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
 // externe = e-mail au consultant (expéditeur « Service Administratif HT PORTAGE », réponse vers contact@)
 async function envoyer(to: string[], sujet: string, html: string, externe = false) {
@@ -99,7 +112,7 @@ async function envoyer(to: string[], sujet: string, html: string, externe = fals
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: externe ? `Service Administratif HT PORTAGE <${adresseFrom()}>` : NOTIFY_FROM, to, subject: sujet, html,
+      from: `HT PORTAGE <${adresseFrom()}>`, to, subject: sujet, html, text: versionTexte(html),
       ...(externe ? { reply_to: NOTIFY_TO[0] ?? CONTACT } : {}),
     }),
   }).catch((e) => { console.error("Resend", e); return null; });

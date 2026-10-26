@@ -9,7 +9,7 @@
 // Secrets (Supabase › Edge Functions › Secrets) :
 //   RESEND_API_KEY   clé Resend
 //   NOTIFY_TO        destinataire(s) internes, séparés par des virgules (ex. contact@htportage.fr)
-//   NOTIFY_FROM      expéditeur vérifié dans Resend (ex. "HT Portage <site@htportage.fr>")
+//   NOTIFY_FROM      adresse d’expédition vérifiée dans Resend (ex. noreply@htportage.fr) ; le nom affiché est « HT PORTAGE »
 //   WEBHOOK_SECRET   chaîne aléatoire, recopiée dans l'en-tête x-webhook-secret des déclencheurs
 // SUPABASE_URL et la clé serveur (SUPABASE_SERVICE_ROLE_KEY ou SUPABASE_SECRET_KEYS) sont fournis par Supabase.
 // Déploiement : « Verify JWT » désactivé (l'authentification se fait par l'en-tête x-webhook-secret).
@@ -87,6 +87,19 @@ export function tableau(lignes: [string, unknown][]): string {
 }
 
 const adresseFrom = () => (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
+// Version texte de l'e-mail (les messageries pénalisent les e-mails envoyés uniquement en HTML)
+export function versionTexte(html: string): string {
+  return html
+    .replace(/<(style|title|head)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<span style="display:none[\s\S]*?<\/span>/i, "")
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, url, t) => { const l = t.replace(/<[^>]+>/g, "").trim(); return url.startsWith("mailto:") || l === url ? l : l + " (" + url + ")"; })
+    .replace(/<\/(p|h1|h2|h3|div|tr|table)>|<br\s*\/?>/gi, "\n")
+    .replace(/<\/td>/gi, "  ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).filter((l, i, t) => l || (t[i - 1] ?? "") !== "").join("\n").trim();
+}
+
 // externe : e-mail à un candidat / consultant / ambassadeur (réponses vers contact@)
 // repondreA : pour les notifications internes, « Répondre » écrit directement à la personne concernée
 async function envoyer(to: string[], sujet: string, html: string, externe = false, repondreA = "", pieces: { filename: string; content: string }[] = []) {
@@ -95,8 +108,8 @@ async function envoyer(to: string[], sujet: string, html: string, externe = fals
     method: "POST",
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: externe ? `HT PORTAGE <${adresseFrom()}>` : NOTIFY_FROM,
-      to, subject: sujet, html,
+      from: `HT PORTAGE <${adresseFrom()}>`,   // nom affiché fixe : NOTIFY_FROM peut ne contenir que l’adresse
+      to, subject: sujet, html, text: versionTexte(html),
       reply_to: reponse,
       ...(pieces.length ? { attachments: pieces } : {}),
     }),
