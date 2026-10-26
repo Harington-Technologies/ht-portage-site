@@ -86,14 +86,17 @@ export function tableau(lignes: [string, unknown][]): string {
 }
 
 const adresseFrom = () => (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
-async function envoyer(to: string[], sujet: string, html: string, externe = false) {
+// externe : e-mail à un candidat / consultant / ambassadeur (réponses vers contact@)
+// repondreA : pour les notifications internes, « Répondre » écrit directement à la personne concernée
+async function envoyer(to: string[], sujet: string, html: string, externe = false, repondreA = "") {
+  const reponse = externe ? (NOTIFY_TO[0] ?? CONTACT) : (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(repondreA) ? repondreA : (NOTIFY_TO[0] ?? CONTACT));
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from: externe ? `Service Administratif HT PORTAGE <${adresseFrom()}>` : NOTIFY_FROM,
       to, subject: sujet, html,
-      ...(externe ? { reply_to: NOTIFY_TO[0] ?? CONTACT } : {}),
+      reply_to: reponse,
     }),
   });
   if (!r.ok) { console.error("Resend error", r.status, await r.text()); return false; }
@@ -160,7 +163,7 @@ async function mission(payload: { type?: string; record?: Record<string, unknown
         ]),
       bouton: { texte: "Ouvrir le dossier", url: `${SITE}/espace/admin.html#a-valider` },
     });
-    return (await envoyer(NOTIFY_TO, sujet, html)) ? new Response("OK") : new Response("Email failed", { status: 502 });
+    return (await envoyer(NOTIFY_TO, sujet, html, false, String(p?.email ?? ""))) ? new Response("OK") : new Response("Email failed", { status: 502 });
   }
   if (!p?.email || avant !== "a_valider") return new Response("Ignored", { status: 200 });
 
@@ -570,7 +573,7 @@ async function profilModifie(payload: { type?: string; record?: Record<string, u
       (diff.some((d) => /sécurité|IBAN|BIC/.test(d.champ)) ? `<p style="margin:12px 0 0;font-size:13px;color:#6B7385">Par sécurité, le n° de sécurité sociale, l'IBAN et le BIC sont masqués : consultez-les dans l'administration.</p>` : ""),
     bouton: { texte: "Ouvrir l'administration", url: `${SITE}/espace/admin.html#consultants` },
   });
-  return (await envoyer(NOTIFY_TO, `Informations modifiées — ${nom}`, html)) ? new Response("OK") : new Response("Email failed", { status: 502 });
+  return (await envoyer(NOTIFY_TO, `Informations modifiées — ${nom}`, html, false, String(r.email ?? ""))) ? new Response("OK") : new Response("Email failed", { status: 502 });
 }
 
 if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
@@ -645,5 +648,5 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     corps: `<p style="margin:0 0 14px">Une nouvelle demande vient d'arriver par le site.${record.email ? ` Vous pouvez répondre directement à <a href="mailto:${esc(record.email)}" style="color:#784E61">${esc(record.email)}</a>.` : ""}</p>` + tableau(lignes) + cv + bulletinInterne,
     bouton: { texte: "Voir les demandes reçues", url: `${SITE}/espace/admin.html#demandes` },
   });
-  return (await envoyer(NOTIFY_TO, sujet, html)) ? new Response("OK", { status: 200 }) : new Response("Email failed", { status: 502 });
+  return (await envoyer(NOTIFY_TO, sujet, html, false, String(record.email ?? record.ambassadeur_email ?? ""))) ? new Response("OK", { status: 200 }) : new Response("Email failed", { status: 502 });
 });
