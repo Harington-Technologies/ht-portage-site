@@ -804,8 +804,10 @@
   async function chargerProfils() {
     var r = await db.from('profils').select('*').order('created_at', { ascending: false });
     noterErreur('Comptes', r);
-    // Le compte administrateur connecté n'est ni candidat ni consultant
-    D.profils = (r.data || []).filter(function (p) { return p.id !== st.user.id; });
+    // Les comptes administrateurs ne sont ni candidats ni consultants
+    var ia = await db.rpc('ids_admins');
+    var admins = [st.user.id].concat((ia.data || []).map(function (x) { return typeof x === 'string' ? x : (x && x.ids_admins) || x; }));
+    D.profils = (r.data || []).filter(function (p) { return admins.indexOf(p.id) < 0; });
   }
   // Erreurs de chargement : affichées en haut de page plutôt que des listes vides trompeuses
   var erreurs = [];
