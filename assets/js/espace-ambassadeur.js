@@ -18,8 +18,9 @@
   var ETAPES = ['Reçue', 'Contactée', 'Signée', 'Prime versée'];
   var NIVEAU = { nouvelle: 1, 'en cours': 2, validee: 3, 'prime versee': 4, refusee: 0 };
 
+  // Les règles de la base ne renvoient que les recommandations de l'ambassadeur (son compte ou son adresse e-mail)
   async function charger() {
-    var r = await db.from('recommandations').select('id, created_at, type, contact_nom, statut, prime_montant').eq('user_id', st.user.id).order('created_at', { ascending: false });
+    var r = await db.from('recommandations').select('id, created_at, type, contact_nom, statut, prime_montant').order('created_at', { ascending: false });
     var recos = r.data || [];
     var abouties = recos.filter(function (x) { return NIVEAU[x.statut] >= 3; });
     var aVenir = recos.filter(function (x) { return x.statut === 'validee'; }).reduce(function (s, x) { return s + (Number(x.prime_montant) || 0); }, 0);

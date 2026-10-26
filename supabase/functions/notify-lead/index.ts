@@ -46,7 +46,7 @@ const nl2br = (s: string) => esc(s).replace(/\r?\n/g, "<br>");
 // ---------------------------------------------------------------------------
 // Gabarit e-mail HT Portage (tables + styles en ligne : compatible Outlook / Gmail)
 // ---------------------------------------------------------------------------
-type Gabarit = { titre: string; corps: string; bouton?: { texte: string; url: string }; apercu?: string; interne?: boolean };
+type Gabarit = { titre: string; corps: string; bouton?: { texte: string; url: string }; apercu?: string; interne?: boolean; pied?: string };
 export function gabarit(o: Gabarit): string {
   const bouton = o.bouton
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 8px"><tr><td style="background:#21324E;border-radius:999px">
@@ -72,7 +72,7 @@ export function gabarit(o: Gabarit): string {
       <a href="mailto:${CONTACT}" style="color:#784E61">${CONTACT}</a> · <a href="${SITE}" style="color:#784E61">www.htportage.fr</a></p>
     </td></tr>
     <tr><td style="background:#F7F5F8;padding:16px 32px;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#6B7385">
-      ${o.interne ? "Notification interne envoyée automatiquement par le site HT Portage." : "HT Portage — portage salarial. Cet e-mail vous est adressé dans le cadre de votre espace consultant ; pour toute question, répondez simplement à ce message."}
+      ${o.pied ?? (o.interne ? "Notification interne envoyée automatiquement par le site HT Portage." : "HT Portage — portage salarial. Cet e-mail vous est adressé dans le cadre de votre espace consultant ; pour toute question, répondez simplement à ce message.")}
     </td></tr>
   </table>
 </td></tr></table></body></html>`;
@@ -193,6 +193,122 @@ async function mission(payload: { type?: string; record?: Record<string, unknown
   return new Response("Ignored", { status: 200 });
 }
 
+// ---------------------------------------------------------------------------
+// Programme ambassadeur : e-mails au coopteur (merci + suivi) et à la personne cooptée (prise de rendez-vous)
+// ---------------------------------------------------------------------------
+const prenomDe = (nom: unknown) => String(nom ?? "").trim().split(/\s+/)[0] ?? "";
+const bonjourDe = (nom: unknown) => { const p = prenomDe(nom); return `<p style="margin:0 0 14px">Bonjour${p ? " " + esc(p) : ""},</p>`; };
+const P = (t: string) => `<p style="margin:0 0 14px">${t}</p>`;
+const RDV = `mailto:${CONTACT}?subject=${encodeURIComponent("Rendez-vous HT Portage")}`;
+
+async function autorise(cle: string, max: number, fenetre: number) {
+  if (!admin) return true;
+  const { data, error } = await admin.rpc("limiter", { p_cle: cle, p_max: max, p_fenetre: fenetre });
+  return error ? true : data === true;
+}
+
+export function mailCoopteur(r: Record<string, unknown>, aUnCompte: boolean) {
+  const contact = esc(r.contact_nom);
+  const suivi = aUnCompte
+    ? P("Vous pouvez suivre l'état d'avancement de votre recommandation à tout moment depuis votre espace ambassadeur.")
+    : P(`Pour suivre l'état d'avancement de votre recommandation, créez votre espace HT Portage avec cette adresse e-mail (<strong>${esc(r.ambassadeur_email)}</strong>) : vous l'y retrouverez, ainsi que vos prochaines recommandations et vos primes.`);
+  return {
+    sujet: `Merci pour votre recommandation${prenomDe(r.ambassadeur_nom) ? ", " + prenomDe(r.ambassadeur_nom) : ""} !`,
+    html: gabarit({
+      titre: "Merci pour votre recommandation !",
+      apercu: `Nous avons bien reçu votre recommandation de ${String(r.contact_nom ?? "")} et nous nous en occupons.`,
+      corps: bonjourDe(r.ambassadeur_nom) +
+        P(`Merci d'avoir pensé à HT Portage et de nous avoir recommandé <strong>${contact}</strong>. Votre confiance compte beaucoup pour nous.`) +
+        P(`Nous avons bien reçu votre recommandation et notre équipe s'en occupe : nous allons prendre contact avec ${contact} très prochainement. Nous vous tiendrons au courant de chaque étape, jusqu'au versement de votre prime ambassadeur si la recommandation aboutit.`) +
+        tableau([["Personne recommandée", r.contact_nom], ["Type", ({ consultant: "Consultant", mission: "Mission", client: "Client", formation: "Formation" } as Record<string, string>)[String(r.type)] ?? r.type], ["Reçue le", dateFr(String(r.created_at ?? new Date().toISOString()).slice(0, 10))]]) +
+        suivi,
+      bouton: aUnCompte ? { texte: "Suivre ma recommandation", url: `${SITE}/espace/ambassadeur.html` } : { texte: "Créer mon espace ambassadeur", url: `${SITE}/espace/connexion.html?inscription=1` },
+      pied: "HT Portage — programme ambassadeur. Pour toute question, répondez simplement à cet e-mail.",
+    }),
+  };
+}
+
+export function mailCoopte(r: Record<string, unknown>) {
+  const amb = esc(r.ambassadeur_nom);
+  const type = String(r.type);
+  let intro: string, titre: string, sujet: string;
+  if (type === "consultant") {
+    sujet = `${String(r.ambassadeur_nom ?? "Un de nos ambassadeurs")} vous a recommandé à HT Portage`;
+    titre = "Nous avons bien reçu votre candidature";
+    intro = P(`<strong>${amb}</strong>, qui fait partie du réseau d'ambassadeurs HT Portage, nous a transmis votre candidature en nous indiquant que le portage salarial pourrait vous intéresser.`) +
+      P("Nous serions ravis d'échanger avec vous : votre projet, vos missions, le fonctionnement du portage avec HT Portage (statut salarié, frais de gestion fixes de 5 %, accompagnement) et, si vous le souhaitez, les missions du groupe Harington Technologies.");
+  } else if (type === "mission" || type === "client") {
+    sujet = `${String(r.ambassadeur_nom ?? "Un de nos ambassadeurs")} nous a parlé de vous`;
+    titre = "Échangeons sur vos besoins";
+    intro = P(`<strong>${amb}</strong>, qui fait partie du réseau d'ambassadeurs HT Portage, nous a indiqué que vous pourriez avoir besoin de consultants IT.`) +
+      P("Nous serions ravis d'échanger avec vous pour comprendre votre besoin et vous présenter les profils de consultants que nous accompagnons.");
+  } else {
+    sujet = `${String(r.ambassadeur_nom ?? "Un de nos ambassadeurs")} vous a recommandé à HT Portage`;
+    titre = "Prenons rendez-vous";
+    intro = P(`<strong>${amb}</strong>, qui fait partie du réseau d'ambassadeurs HT Portage, nous a transmis vos coordonnées.`) +
+      P("Nous serions ravis d'échanger avec vous pour mieux comprendre votre projet.");
+  }
+  return {
+    sujet,
+    html: gabarit({
+      titre, apercu: "Prenons rendez-vous pour en parler.",
+      corps: bonjourDe(r.contact_nom) + intro +
+        P("Pour convenir d'un rendez-vous (20 minutes, par téléphone ou en visio), il vous suffit de <strong>répondre à cet e-mail en nous indiquant vos disponibilités</strong>. Un membre de notre équipe vous recontactera rapidement.") +
+        (type === "consultant" ? P(`En attendant, vous pouvez estimer votre revenu net en portage avec notre <a href="${SITE}/simulateur.html" style="color:#784E61;font-weight:bold">simulateur</a>.`) : ""),
+      bouton: { texte: "Proposer un rendez-vous", url: RDV },
+      pied: `Vous recevez cet e-mail car ${amb} nous a transmis vos coordonnées avec votre accord. Si vous ne souhaitez pas être recontacté, répondez simplement « STOP » à cet e-mail : vos coordonnées seront supprimées.`,
+    }),
+  };
+}
+
+const SUIVI_RECO: Record<string, (r: Record<string, unknown>) => { sujet: string; titre: string; corps: string }> = {
+  "en cours": (r) => ({ sujet: `Votre recommandation de ${r.contact_nom} avance`, titre: "Votre recommandation avance",
+    corps: P(`Nous sommes en contact avec <strong>${esc(r.contact_nom)}</strong>. Nous vous tiendrons informé de la suite.`) }),
+  validee: (r) => ({ sujet: `Bonne nouvelle : votre recommandation de ${r.contact_nom} a abouti`, titre: "Votre recommandation a abouti !",
+    corps: P(`Bonne nouvelle : votre recommandation de <strong>${esc(r.contact_nom)}</strong> a abouti. Merci encore pour votre confiance !`) +
+      P(r.prime_montant ? `Votre prime ambassadeur de <strong>${Number(r.prime_montant).toLocaleString("fr-FR")} €</strong> vous sera versée prochainement.` : "Votre prime ambassadeur vous sera versée prochainement : nous vous confirmerons son montant.") }),
+  "prime versee": (r) => ({ sujet: "Votre prime ambassadeur a été versée", titre: "Votre prime a été versée",
+    corps: P(`Votre prime ambassadeur${r.prime_montant ? ` de <strong>${Number(r.prime_montant).toLocaleString("fr-FR")} €</strong>` : ""} pour la recommandation de <strong>${esc(r.contact_nom)}</strong> a été versée. Merci de faire grandir la communauté HT Portage !`) }),
+  refusee: (r) => ({ sujet: `Votre recommandation de ${r.contact_nom}`, titre: "Votre recommandation n'a pas abouti",
+    corps: P(`Malgré nos échanges, la recommandation de <strong>${esc(r.contact_nom)}</strong> n'a pas pu aboutir cette fois-ci. Merci sincèrement d'avoir pensé à nous : n'hésitez pas à nous recommander d'autres personnes de votre entourage.`) }),
+};
+
+async function recommandation(payload: { type?: string; record?: Record<string, unknown>; old_record?: Record<string, unknown> }) {
+  const r = payload.record ?? {};
+  const ambEmail = String(r.ambassadeur_email ?? "").trim().toLowerCase();
+  // Changement de statut → on tient l'ambassadeur au courant
+  if (payload.type === "UPDATE") {
+    const avant = payload.old_record?.statut;
+    const suivi = SUIVI_RECO[String(r.statut)];
+    if (!suivi || r.statut === avant || !ambEmail) return;
+    if (!(await autorise("mail-suivi-reco:" + String(r.id) + ":" + String(r.statut), 1, 86400 * 30))) return;
+    const m = suivi(r);
+    await envoyer([ambEmail], m.sujet, gabarit({
+      titre: m.titre, corps: bonjourDe(r.ambassadeur_nom) + m.corps + P("Vous pouvez suivre toutes vos recommandations depuis votre espace ambassadeur."),
+      bouton: { texte: "Voir mes recommandations", url: `${SITE}/espace/ambassadeur.html` },
+      pied: "HT Portage — programme ambassadeur. Pour toute question, répondez simplement à cet e-mail.",
+    }), true);
+    return;
+  }
+  if (payload.type !== "INSERT") return;
+  // 1. Merci au coopteur
+  if (ambEmail && await autorise("mail-amb:" + ambEmail, 10, 86400)) {
+    let aUnCompte = !!r.user_id;
+    if (!aUnCompte && admin) {
+      const { data } = await admin.from("profils").select("id").ilike("email", ambEmail).maybeSingle();
+      aUnCompte = !!data;
+    }
+    const m = mailCoopteur(r, aUnCompte);
+    await envoyer([ambEmail], m.sujet, m.html, true);
+  }
+  // 2. Prise de contact avec la personne cooptée (si son e-mail est connu ; une fois par semaine au plus)
+  const contactEmail = String(r.contact_email ?? "").trim().toLowerCase();
+  if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail) && contactEmail !== ambEmail && await autorise("mail-coopte:" + contactEmail, 1, 86400 * 7)) {
+    const m = mailCoopte(r);
+    await envoyer([contactEmail], m.sujet, m.html, true);
+  }
+}
+
 if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   if (!WEBHOOK_SECRET || req.headers.get("x-webhook-secret") !== WEBHOOK_SECRET) {
@@ -204,6 +320,11 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   const record: Record<string, unknown> = payload?.record ?? {};
 
   if (table === "consultant_missions") return await mission(payload);
+  // Recommandations : e-mails au coopteur et au coopté (création), suivi au coopteur (changement de statut)
+  if (table === "recommandations") {
+    try { await recommandation(payload); } catch (e) { console.error("E-mails ambassadeur", e); }
+    if (payload?.type === "UPDATE") return new Response("OK", { status: 200 });
+  }
   if (payload?.type !== "INSERT" || !LABELS[table]) return new Response("Ignored", { status: 200 });
 
   // Plafond : 15 e-mails de demandes par heure. Au-delà, une seule alerte par heure (protège la boîte et le quota Resend).
