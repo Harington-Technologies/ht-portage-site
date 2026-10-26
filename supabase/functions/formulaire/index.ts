@@ -40,7 +40,7 @@ function cors(req: Request) {
 // Champs acceptés pour chaque formulaire (tout le reste est ignoré)
 export const FORMULAIRES: Record<string, { table: string; champs: string[]; email: string; fixes?: Record<string, unknown> }> = {
   contact: { table: "contacts", champs: ["nom", "email", "telephone", "situation", "message", "consentement"], email: "email", fixes: { type: "contact", traite: false } },
-  simulation: { table: "contacts", champs: ["nom", "email", "telephone", "message", "tjm", "jours", "net_estime", "consentement"], email: "email", fixes: { type: "simulation", traite: false } },
+  simulation: { table: "contacts", champs: ["nom", "email", "telephone", "message", "situation", "tjm", "jours", "net_estime", "consentement"], email: "email", fixes: { type: "simulation", traite: false } },
   candidature: { table: "candidatures", champs: ["nom", "email", "telephone", "mission_ref", "tjm_souhaite", "disponibilite", "message", "consentement"], email: "email", fixes: { statut: "nouvelle" } },
   recommandation: { table: "recommandations", champs: ["type", "ambassadeur_nom", "ambassadeur_email", "contact_nom", "contact_telephone", "contact_email", "details", "consentement"], email: "ambassadeur_email", fixes: { statut: "nouvelle" } },
 };
