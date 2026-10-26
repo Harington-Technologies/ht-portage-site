@@ -15,6 +15,7 @@
 // Déploiement : « Verify JWT » désactivé (l'authentification se fait par l'en-tête x-webhook-secret).
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const NOTIFY_TO = (Deno.env.get("NOTIFY_TO") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -88,15 +89,16 @@ export function tableau(lignes: [string, unknown][]): string {
 const adresseFrom = () => (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
 // externe : e-mail à un candidat / consultant / ambassadeur (réponses vers contact@)
 // repondreA : pour les notifications internes, « Répondre » écrit directement à la personne concernée
-async function envoyer(to: string[], sujet: string, html: string, externe = false, repondreA = "") {
+async function envoyer(to: string[], sujet: string, html: string, externe = false, repondreA = "", pieces: { filename: string; content: string }[] = []) {
   const reponse = externe ? (NOTIFY_TO[0] ?? CONTACT) : (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(repondreA) ? repondreA : (NOTIFY_TO[0] ?? CONTACT));
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: externe ? `Service Administratif HT PORTAGE <${adresseFrom()}>` : NOTIFY_FROM,
+      from: externe ? `HT PORTAGE <${adresseFrom()}>` : NOTIFY_FROM,
       to, subject: sujet, html,
       reply_to: reponse,
+      ...(pieces.length ? { attachments: pieces } : {}),
     }),
   });
   if (!r.ok) { console.error("Resend error", r.status, await r.text()); return false; }
@@ -226,11 +228,11 @@ async function mission(payload: { type?: string; record?: Record<string, unknown
     mutuelle: 63.60,             // complémentaire santé : part salariale = part patronale (si adhésion)
     minimumBase: 0.75,           // salaire minimum conventionnel (senior) : 75 % du PMSS, salaire de base
     joursTempsPlein: 218 / 12,
-    // Cotisations : [rubrique, libellé, assiette ('brut', 't1' jusqu'au PMSS, 't2' au-delà), taux salarial, taux patronal]
+    // Cotisations : [rubrique du bulletin simplifié, libellé, assiette ('brut', 't1' jusqu'au PMSS, 't2' au-delà), taux salarial, taux patronal]
     cotisations: [
       ['Santé', 'Sécurité Sociale - Mal. Mat. Inval. Décès', 'brut', 0, 0.13],
       ['Santé', 'Complémentaire - Incap. Inval. Décès', 't1', 0.0096, 0.0097],
-      ['Santé', 'Accidents du travail & mal. professionnelles', 'brut', 0, 0.007],
+      ['Accidents du travail - maladies professionnelles', 'Accidents du travail & mal. professionnelles', 'brut', 0, 0.007],
       ['Retraite', 'Sécurité Sociale plafonnée', 't1', 0.069, 0.0855],
       ['Retraite', 'Sécurité Sociale déplafonnée', 'brut', 0.004, 0.0211],
       ['Retraite', 'Complémentaire Tranche 1', 't1', 0.0415, 0.0622],
@@ -238,9 +240,9 @@ async function mission(payload: { type?: string; record?: Record<string, unknown
       ['Famille', 'Famille', 'brut', 0, 0.0525],
       ['Assurance chômage', 'Chômage', 'brut', 0, 0.0425],
       ['Assurance chômage', 'APEC', 'brut', 0.00024, 0.00036],
-      ['Autres', 'Cotisation conventionnelle', 'brut', 0, 0.0005],
-      ['Autres', 'Autres contributions dues par l’employeur', 'brut', 0, 0.02596],
-      ['Autres', 'Autres contributions dues par l’employeur', 't1', 0, 0.001]
+      ['Cotisations statutaires ou prévues par la convention collective', 'Cotisation conventionnelle', 'brut', 0, 0.0005],
+      ['Autres contributions dues par l’employeur', 'Autres contributions dues par l’employeur', 'brut', 0, 0.02596],
+      ['Autres contributions dues par l’employeur', 'Autres contributions dues par l’employeur', 't1', 0, 0.001]
     ],
     csgDeductible: 0.068, csgNonDeductible: 0.029, abattementCsg: 0.0175
   };
@@ -267,10 +269,10 @@ async function mission(payload: { type?: string; record?: Record<string, unknown
     var baseCsg = brut * (1 - P.abattementCsg) + prevoyancePatronale + sante;
     var csgDed = baseCsg * P.csgDeductible, csgNonDed = baseCsg * P.csgNonDeductible;
     var exoSal = hs * P.exoHsSalariale, exoPat = P.deductionHsParHeure * P.heuresMajorees;
-    lignes.push({ rubrique: 'CSG', libelle: 'CSG déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgDeductible, sal: csgDed, tauxPat: null, pat: 0 });
-    lignes.push({ rubrique: 'CSG', libelle: 'CSG/CRDS non déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgNonDeductible, sal: csgNonDed, tauxPat: null, pat: 0 });
-    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonérations de cotisations employeur', base: null, tauxSal: null, sal: 0, tauxPat: null, pat: -exoPat });
-    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonération sociale sur HC/HS', base: hs, tauxSal: -P.exoHsSalariale, sal: -exoSal, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'CSG déductible de l’impôt sur le revenu', libelle: 'CSG déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgDeductible, sal: csgDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'CSG/CRDS non déductible de l’impôt sur le revenu', libelle: 'CSG/CRDS non déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgNonDeductible, sal: csgNonDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'Exonérations et allègements de cotisations', libelle: 'Exonérations de cotisations employeur', base: null, tauxSal: null, sal: 0, tauxPat: null, pat: -exoPat });
+    lignes.push({ rubrique: 'Exonérations et allègements de cotisations', libelle: 'Exonération sociale sur HC/HS', base: hs, tauxSal: -P.exoHsSalariale, sal: -exoSal, tauxPat: null, pat: 0 });
     var salariales = sal + csgDed + csgNonDed - exoSal, patronales = pat - exoPat;
     var netSalaire = brut - salariales;
     var tauxHoraire = base / (P.heuresBase + P.heuresMajorees * (1 + P.majoration));
@@ -346,51 +348,109 @@ export function simulationDepuis(record: Record<string, unknown>) {
   return CALCUL.calculer({ tjm, jours, frais: Number(record.frais_pro) || 0, pas: (Number(record.taux_pas) || 0) / 100 });
 }
 
-export function bulletinHtml(r: any, nom: string): string {
-  const td = "padding:5px 6px;border-bottom:1px solid #ECE8EE;font-size:12px;vertical-align:top";
-  const num = td + ";text-align:right;white-space:nowrap";
-  const ligne = (lib: string, base: string, taux: string, ded: string, payer: string, tp = "", mp = "", fort = false) =>
-    `<tr${fort ? ' style="background:#F7F5F8;font-weight:bold"' : ""}><td style="${td}">${lib}</td><td style="${num}">${base}</td><td style="${num}">${taux}</td><td style="${num}">${ded}</td><td style="${num}">${payer}</td><td style="${num};color:#6B7385">${tp}</td><td style="${num};color:#6B7385">${mp}</td></tr>`;
-  const titre = (t: string) => `<tr><td colspan="7" style="padding:8px 6px 4px;font-size:11px;font-weight:bold;color:#784E61;text-transform:uppercase;letter-spacing:.04em">${t}</td></tr>`;
-  const P = CALCUL.PARAMS;
-  const baseHeures = r.base - r.hs;
-  let rubrique = "";
-  const cot = r.lignes.map((l: any) => {
-    const t = l.rubrique !== rubrique ? titre(l.rubrique) : ""; rubrique = l.rubrique;
-    return t + ligne(esc(l.libelle), l.base == null ? "" : n2(l.base), l.tauxSal == null || !l.tauxSal ? "" : t4(l.tauxSal), l.sal ? n2(l.sal) : "", "",
-      l.tauxPat == null || !l.pat ? "" : t4(l.tauxPat), l.pat ? n2(l.pat) : "");
-  }).join("");
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #D9D3DD;border-radius:10px;border-collapse:separate;overflow:hidden;font-family:Arial,sans-serif;color:#1B1C1C">
-  <tr><td style="background:#21324E;color:#fff;padding:12px 14px">
-    <div style="font-size:14px;font-weight:bold;letter-spacing:.06em">BULLETIN DE SALAIRE — EXEMPLE</div>
-    <div style="font-size:12px;color:#D9DEE8;margin-top:2px">Simulation indicative et non contractuelle · ${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", month: "long", year: "numeric" })}</div>
-  </td></tr>
-  <tr><td style="padding:10px 14px;font-size:12px;line-height:1.5;border-bottom:1px solid #ECE8EE">
-    <strong>HT PORTAGE</strong> · 34 rue Pasteur, 92270 Bois-Colombes<br>
-    Salarié : <strong>${esc(nom)}</strong> · Emploi : Salarié porté · Statut : Cadre · Échelon : Senior<br>
-    Convention collective : Salariés en portage salarial
-  </td></tr>
-  <tr><td style="padding:0">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
-    <tr style="background:#F3F1F4">${["Éléments de paie", "Base", "Taux", "À déduire", "À payer", "Taux patr.", "Charges patr."].map((h, i) => `<th style="padding:6px;font-size:10px;text-align:${i ? "right" : "left"};color:#6B7385;text-transform:uppercase">${h}</th>`).join("")}</tr>
-    ${ligne(`TJM ${e0(r.tjm)} × ${r.jours} jours`, n2(P.heuresBase), n2(r.tauxHoraire), "", n2(baseHeures))}
-    ${ligne("Heures mensuelles majorées 25 %", n2(P.heuresMajorees), n2(r.tauxHoraire * (1 + P.majoration)), "", n2(r.hs))}
-    ${ligne("Sous-total salaire de base", n2(P.heuresBase + P.heuresMajorees), "", "", n2(r.base), "", "", true)}
-    ${ligne("Indemnité d'apport d'affaires", n2(r.base), "5,00", "", n2(r.apport))}
-    ${ligne("Constitution de la réserve financière", n2(r.base), "10,00", "", n2(r.reserve))}
-    ${ligne("Indemnité compensatrice de CP", n2(r.base + r.apport + r.reserve), "10,00", "", n2(r.cp))}
-    ${ligne("Salaire brut", "", "", "", n2(r.brut), "", "", true)}
-    ${cot}
-    ${ligne("Total des cotisations et contributions", "", "", n2(r.salariales), "", "", n2(r.patronales), true)}
-    ${r.frais > 0 ? ligne("Remboursement de frais professionnels", "", "", "", n2(r.frais)) : ""}
-    ${ligne("Net à payer avant impôt sur le revenu", "", "", "", n2(r.net + r.frais), "", "", true)}
-    ${ligne("Impôt sur le revenu prélevé à la source", n2(r.netImposable), t4(r.pas), n2(r.impot), "")}
-    <tr style="background:#21324E;color:#fff"><td style="padding:8px 6px;font-weight:bold;font-size:13px" colspan="4">Net payé</td><td style="padding:8px 6px;text-align:right;font-weight:bold;font-size:15px;white-space:nowrap" colspan="3">${n2(r.totalPercu)} €</td></tr>
-  </table></td></tr>
-  <tr><td style="padding:10px 14px;font-size:11px;color:#6B7385;line-height:1.5">
-    Chiffre d'affaires facturé : ${n2(r.ca)} € · Frais de gestion HT Portage (5 %) : ${n2(r.gestion)} € · Coût global : ${n2(r.coutEmployeur + r.frais)} € · Net imposable : ${n2(r.netImposable)} €
-  </td></tr>
-</table>`;
+// Bulletin de salaire simplifié (format officiel : cotisations regroupées par rubrique), en PDF A4
+const txt = (v: unknown) => String(v ?? "").replace(/[  ]/g, " ").replace(/−/g, "-").replace(/[^\x20-\x7E -ÿ’€–—«»]/g, "");
+export async function bulletinPdf(r: any, nom: string): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle("Bulletin de salaire simplifié — simulation HT Portage");
+  doc.setAuthor("HT Portage");
+  const page = doc.addPage([595.28, 841.89]);
+  const f = await doc.embedFont(StandardFonts.Helvetica), fb = await doc.embedFont(StandardFonts.HelveticaBold);
+  const NAVY = rgb(0.129, 0.196, 0.306), ROSE = rgb(0.757, 0.529, 0.631), PLUM = rgb(0.471, 0.306, 0.380), GRIS = rgb(0.42, 0.45, 0.52), FOND = rgb(0.957, 0.945, 0.957), LIGNE = rgb(0.85, 0.83, 0.87);
+  const W = 595.28, M = 40;
+  const ecrire = (t: unknown, x: number, y: number, o: { size?: number; bold?: boolean; color?: any; right?: boolean } = {}) => {
+    const s = txt(t), font = o.bold ? fb : f, size = o.size ?? 9;
+    page.drawText(s, { x: o.right ? x - font.widthOfTextAtSize(s, size) : x, y, size, font, color: o.color ?? rgb(0.106, 0.11, 0.11) });
+  };
+  const eur2 = (v: number) => txt((Math.round(v * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const pct = (v: number) => txt((Math.round(v * 1e6) / 1e4).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }));
+
+  // En-tête
+  page.drawRectangle({ x: 0, y: 841.89 - 92, width: W, height: 92, color: NAVY });
+  ecrire("HT PORTAGE", M, 841.89 - 42, { size: 18, bold: true, color: rgb(1, 1, 1) });
+  page.drawRectangle({ x: M, y: 841.89 - 52, width: 34, height: 3, color: ROSE });
+  ecrire("BULLETIN DE SALAIRE SIMPLIFIÉ", W - M, 841.89 - 40, { size: 12, bold: true, color: rgb(1, 1, 1), right: true });
+  ecrire("Exemple établi à partir de votre simulation — non contractuel", W - M, 841.89 - 56, { size: 8.5, color: rgb(0.85, 0.87, 0.91), right: true });
+  ecrire(new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long", year: "numeric" }), W - M, 841.89 - 70, { size: 8.5, color: rgb(0.85, 0.87, 0.91), right: true });
+
+  // Employeur / salarié
+  let y = 841.89 - 120;
+  ecrire("EMPLOYEUR", M, y, { size: 7.5, bold: true, color: PLUM }); ecrire("SALARIÉ", 320, y, { size: 7.5, bold: true, color: PLUM });
+  y -= 14;
+  ecrire("HT PORTAGE", M, y, { bold: true }); ecrire(nom || "Votre nom", 320, y, { bold: true });
+  y -= 12; ecrire("34 rue Pasteur, 92270 Bois-Colombes", M, y, { color: GRIS }); ecrire("Salarié porté · Cadre · Échelon senior", 320, y, { color: GRIS });
+  y -= 12; ecrire("Convention collective : salariés en portage salarial", M, y, { color: GRIS }); ecrire(`Mission : TJM ${eur2(r.tjm)} € × ${r.jours} jours`, 320, y, { color: GRIS });
+
+  // Tableau
+  y -= 26;
+  const col = { lib: M + 6, base: 300, taux: 350, sal: 440, pat: W - M - 6 };
+  page.drawRectangle({ x: M, y: y - 6, width: W - 2 * M, height: 20, color: FOND });
+  ecrire("Éléments de paie", col.lib, y, { size: 8, bold: true, color: GRIS });
+  ecrire("Base", col.base, y, { size: 8, bold: true, color: GRIS, right: true });
+  ecrire("Taux", col.taux, y, { size: 8, bold: true, color: GRIS, right: true });
+  ecrire("Part salarié", col.sal, y, { size: 8, bold: true, color: GRIS, right: true });
+  ecrire("Part employeur", col.pat, y, { size: 8, bold: true, color: GRIS, right: true });
+  y -= 20;
+  const ligne = (lib: string, o: { base?: string; taux?: string; sal?: string; pat?: string; fort?: boolean; fond?: boolean; indent?: boolean } = {}) => {
+    if (o.fond) page.drawRectangle({ x: M, y: y - 5, width: W - 2 * M, height: 17, color: FOND });
+    ecrire(lib, col.lib + (o.indent ? 10 : 0), y, { bold: o.fort, size: o.indent ? 8.5 : 9 });
+    if (o.base) ecrire(o.base, col.base, y, { right: true, color: GRIS });
+    if (o.taux) ecrire(o.taux, col.taux, y, { right: true, color: GRIS });
+    if (o.sal) ecrire(o.sal, col.sal, y, { right: true, bold: o.fort });
+    if (o.pat) ecrire(o.pat, col.pat, y, { right: true, bold: o.fort, color: o.fort ? undefined : GRIS });
+    page.drawLine({ start: { x: M, y: y - 6 }, end: { x: W - M, y: y - 6 }, thickness: 0.4, color: LIGNE });
+    y -= 17;
+  };
+  const sousTitre = (t: string) => { y -= 4; ecrire(t, col.lib, y, { size: 7.5, bold: true, color: PLUM }); y -= 14; };
+
+  sousTitre("RÉMUNÉRATION");
+  ligne("Salaire de base (dont heures majorées à 25 %)", { base: eur2(166.84), sal: eur2(r.base) });
+  ligne("Indemnité d'apport d'affaires", { base: eur2(r.base), taux: "5,00", sal: eur2(r.apport) });
+  ligne("Réserve financière", { base: eur2(r.base), taux: "10,00", sal: eur2(r.reserve) });
+  ligne("Indemnité compensatrice de congés payés", { base: eur2(r.base + r.apport + r.reserve), taux: "10,00", sal: eur2(r.cp) });
+  ligne("SALAIRE BRUT", { sal: eur2(r.brut), fort: true, fond: true });
+
+  sousTitre("COTISATIONS ET CONTRIBUTIONS SOCIALES");
+  const groupes: Record<string, { sal: number; pat: number }> = {}, ordre: string[] = [];
+  r.lignes.forEach((l: any) => { if (!groupes[l.rubrique]) { groupes[l.rubrique] = { sal: 0, pat: 0 }; ordre.push(l.rubrique); } groupes[l.rubrique].sal += l.sal; groupes[l.rubrique].pat += l.pat; });
+  ordre.forEach((g) => ligne(g, { sal: groupes[g].sal ? eur2(groupes[g].sal) : "", pat: groupes[g].pat ? eur2(groupes[g].pat) : "" }));
+  ligne("TOTAL DES COTISATIONS ET CONTRIBUTIONS", { sal: eur2(r.salariales), pat: eur2(r.patronales), fort: true, fond: true });
+
+  sousTitre("NET");
+  ligne("Net social", { sal: eur2(r.brut - r.salariales) });
+  if (r.frais > 0) ligne("Remboursement de frais professionnels", { sal: eur2(r.frais) });
+  ligne("NET À PAYER AVANT IMPÔT SUR LE REVENU", { sal: eur2(r.net + r.frais), fort: true, fond: true });
+  ligne("Impôt sur le revenu prélevé à la source", { base: eur2(r.netImposable), taux: r.pas > 0 ? pct(r.pas) : "0,00", sal: r.impot ? "- " + eur2(r.impot) : "0,00" });
+
+  // Net payé
+  y -= 6;
+  page.drawRectangle({ x: M, y: y - 10, width: W - 2 * M, height: 30, color: NAVY });
+  ecrire("NET PAYÉ", col.lib, y, { size: 11, bold: true, color: rgb(1, 1, 1) });
+  ecrire(eur2(r.totalPercu) + " €", W - M - 10, y, { size: 13, bold: true, color: rgb(1, 1, 1), right: true });
+  y -= 40;
+
+  // Récapitulatif employeur
+  ecrire("RÉCAPITULATIF", M, y, { size: 7.5, bold: true, color: PLUM }); y -= 14;
+  const recap: [string, string][] = [
+    ["Chiffre d'affaires facturé", eur2(r.ca) + " €"], ["Frais de gestion HT Portage (5 %)", eur2(r.gestion) + " €"],
+    ["Coût global (salaire, cotisations et frais)", eur2(r.coutEmployeur + r.frais) + " €"], ["Net imposable", eur2(r.netImposable) + " €"],
+  ];
+  recap.forEach(([k, v]) => { ecrire(k, M, y, { color: GRIS }); ecrire(v, 300, y, { right: true }); y -= 13; });
+
+  // Mentions
+  y -= 10;
+  [
+    "Exemple indicatif et non contractuel, calculé avec les taux de cotisations 2026 de nos bulletins de paie (mutuelle d'entreprise",
+    "comprise). Le montant de vos frais professionnels et votre situation sont à affiner avec votre conseiller HT Portage.",
+    "Un vrai bulletin de paie est établi chaque mois à partir du compte rendu d'activité validé par votre client.",
+  ].forEach((l) => { ecrire(l, M, y, { size: 7.5, color: GRIS }); y -= 10; });
+  ecrire("HT Portage · contact@htportage.fr · www.htportage.fr", W / 2 + 90, 28, { size: 7.5, color: GRIS, right: true });
+  return await doc.save();
+}
+
+const b64 = (u: Uint8Array) => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+export async function pieceBulletin(r: any, nom: string) {
+  return { filename: "Simulation-bulletin-de-salaire-HT-Portage.pdf", content: b64(await bulletinPdf(r, nom)) };
 }
 
 export function mailSimulation(record: Record<string, unknown>, r: any) {
@@ -410,7 +470,7 @@ export function mailSimulation(record: Record<string, unknown>, r: any) {
           ...(r.pas > 0 ? [["Salaire net après impôt", e0(r.netApresImpot)] as [string, unknown]] : []),
           ["Total perçu chaque mois", e0(r.totalPercu)],
         ]) +
-        `<p style="margin:18px 0 10px">Voici à quoi ressemblerait <strong>votre bulletin de salaire</strong> :</p>` + bulletinHtml(r, String(record.nom ?? "")) +
+        `<p style="margin:18px 0 0">Vous trouverez en <strong>pièce jointe</strong> un exemple de bulletin de salaire simplifié établi à partir de votre simulation.</p>` +
         `<p style="margin:16px 0 0">Un conseiller HT Portage vous contacte sous 24 h ouvrées pour affiner cette simulation avec vous : vos frais professionnels réels, votre mutuelle et votre situation.</p>`,
       bouton: { texte: "Créer mon espace consultant", url: lien },
       pied: "Simulation indicative et non contractuelle, établie à partir des informations saisies sur le simulateur. Pour toute question, répondez simplement à cet e-mail.",
@@ -596,36 +656,20 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   if (payload?.type !== "INSERT" || !LABELS[table]) return new Response("Ignored", { status: 200 });
 
   // Demande de simulation : le candidat reçoit sa simulation et un exemple de bulletin de salaire
-  let bulletinInterne = "";
+  let pieceInterne: { filename: string; content: string }[] = [];
   if (table === "contacts" && record.type === "simulation") {
     try {
       const r = simulationDepuis(record);
       const email = String(record.email ?? "").trim().toLowerCase();
       if (r) {
-        bulletinInterne = `<p style="margin:18px 0 8px;font-weight:bold">Bulletin simulé envoyé au candidat</p>` + bulletinHtml(r, String(record.nom ?? ""));
+        const piece = await pieceBulletin(r, String(record.nom ?? ""));
+        pieceInterne = [piece];
         if (email && await autorise("mail-simulation:" + email, 3, 86400)) {
           const m = mailSimulation(record, r);
-          await envoyer([email], m.sujet, m.html, true);
+          await envoyer([email], m.sujet, m.html, true, "", [piece]);
         }
       }
     } catch (e) { console.error("E-mail de simulation", e); }
-  }
-
-  // Plafond : 15 e-mails de demandes par heure. Au-delà, une seule alerte par heure (protège la boîte et le quota Resend).
-  if (admin) {
-    const { data: ok, error: el } = await admin.rpc("limiter", { p_cle: "mail-demandes", p_max: 15, p_fenetre: 3600 });
-    if (!el && ok === false) {
-      const { data: alerte } = await admin.rpc("limiter", { p_cle: "mail-alerte-volume", p_max: 1, p_fenetre: 3600 });
-      if (alerte === true) {
-        await envoyer(NOTIFY_TO, "Alerte : afflux inhabituel de demandes sur le site", gabarit({
-          interne: true, titre: "Afflux inhabituel de demandes",
-          corps: `<p style="margin:0 0 14px">Plus de 15 demandes sont arrivées par le site au cours de la dernière heure. Pour ne pas saturer votre boîte, les e-mails individuels sont suspendus pendant une heure.</p>` +
-            `<p style="margin:0">Toutes les demandes restent enregistrées et consultables dans l'administration. S'il s'agit d'envois automatiques, prévenez-nous : la protection anti-robot peut être renforcée.</p>`,
-          bouton: { texte: "Voir les demandes reçues", url: `${SITE}/espace/admin.html#demandes` },
-        }));
-      }
-      return new Response("Throttled", { status: 200 });
-    }
   }
 
   let titre = LABELS[table];
@@ -645,8 +689,8 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
 
   const html = gabarit({
     interne: true, titre, apercu: sujet,
-    corps: `<p style="margin:0 0 14px">Une nouvelle demande vient d'arriver par le site.${record.email ? ` Vous pouvez répondre directement à <a href="mailto:${esc(record.email)}" style="color:#784E61">${esc(record.email)}</a>.` : ""}</p>` + tableau(lignes) + cv + bulletinInterne,
+    corps: `<p style="margin:0 0 14px">Une nouvelle demande vient d'arriver par le site.${record.email ? ` Vous pouvez répondre directement à <a href="mailto:${esc(record.email)}" style="color:#784E61">${esc(record.email)}</a>.` : ""}</p>` + tableau(lignes) + cv + (pieceInterne.length ? `<p style="margin:16px 0 0">Le bulletin simplifié envoyé au candidat est en pièce jointe.</p>` : ""),
     bouton: { texte: "Voir les demandes reçues", url: `${SITE}/espace/admin.html#demandes` },
   });
-  return (await envoyer(NOTIFY_TO, sujet, html, false, String(record.email ?? record.ambassadeur_email ?? ""))) ? new Response("OK", { status: 200 }) : new Response("Email failed", { status: 502 });
+  return (await envoyer(NOTIFY_TO, sujet, html, false, String(record.email ?? record.ambassadeur_email ?? ""), pieceInterne)) ? new Response("OK", { status: 200 }) : new Response("Email failed", { status: 502 });
 });

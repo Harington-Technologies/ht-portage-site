@@ -148,7 +148,7 @@ async function creerDemande(nom: string, externalId: string) {
   // Personnalisation : expéditeur « Service Administratif HT PORTAGE » + relances tous les 2 jours (3 max).
   // Si l'offre Yousign ne permet pas une option, on réessaie sans elle plutôt que de bloquer l'envoi.
   const essais = [
-    { ...base, email_notification: { sender: { type: "custom", custom_name: "Service Administratif HT PORTAGE" } }, reminder_settings: { interval_in_days: 2, max_occurrences: 3 } },
+    { ...base, email_notification: { sender: { type: "custom", custom_name: "HT PORTAGE" } }, reminder_settings: { interval_in_days: 2, max_occurrences: 3 } },
     { ...base, reminder_settings: { interval_in_days: 2, max_occurrences: 3 } },
     base,
   ];

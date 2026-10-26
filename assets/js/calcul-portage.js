@@ -22,11 +22,11 @@
     mutuelle: 63.60,             // complémentaire santé : part salariale = part patronale (si adhésion)
     minimumBase: 0.75,           // salaire minimum conventionnel (senior) : 75 % du PMSS, salaire de base
     joursTempsPlein: 218 / 12,
-    // Cotisations : [rubrique, libellé, assiette ('brut', 't1' jusqu'au PMSS, 't2' au-delà), taux salarial, taux patronal]
+    // Cotisations : [rubrique du bulletin simplifié, libellé, assiette ('brut', 't1' jusqu'au PMSS, 't2' au-delà), taux salarial, taux patronal]
     cotisations: [
       ['Santé', 'Sécurité Sociale - Mal. Mat. Inval. Décès', 'brut', 0, 0.13],
       ['Santé', 'Complémentaire - Incap. Inval. Décès', 't1', 0.0096, 0.0097],
-      ['Santé', 'Accidents du travail & mal. professionnelles', 'brut', 0, 0.007],
+      ['Accidents du travail - maladies professionnelles', 'Accidents du travail & mal. professionnelles', 'brut', 0, 0.007],
       ['Retraite', 'Sécurité Sociale plafonnée', 't1', 0.069, 0.0855],
       ['Retraite', 'Sécurité Sociale déplafonnée', 'brut', 0.004, 0.0211],
       ['Retraite', 'Complémentaire Tranche 1', 't1', 0.0415, 0.0622],
@@ -34,9 +34,9 @@
       ['Famille', 'Famille', 'brut', 0, 0.0525],
       ['Assurance chômage', 'Chômage', 'brut', 0, 0.0425],
       ['Assurance chômage', 'APEC', 'brut', 0.00024, 0.00036],
-      ['Autres', 'Cotisation conventionnelle', 'brut', 0, 0.0005],
-      ['Autres', 'Autres contributions dues par l’employeur', 'brut', 0, 0.02596],
-      ['Autres', 'Autres contributions dues par l’employeur', 't1', 0, 0.001]
+      ['Cotisations statutaires ou prévues par la convention collective', 'Cotisation conventionnelle', 'brut', 0, 0.0005],
+      ['Autres contributions dues par l’employeur', 'Autres contributions dues par l’employeur', 'brut', 0, 0.02596],
+      ['Autres contributions dues par l’employeur', 'Autres contributions dues par l’employeur', 't1', 0, 0.001]
     ],
     csgDeductible: 0.068, csgNonDeductible: 0.029, abattementCsg: 0.0175
   };
@@ -63,10 +63,10 @@
     var baseCsg = brut * (1 - P.abattementCsg) + prevoyancePatronale + sante;
     var csgDed = baseCsg * P.csgDeductible, csgNonDed = baseCsg * P.csgNonDeductible;
     var exoSal = hs * P.exoHsSalariale, exoPat = P.deductionHsParHeure * P.heuresMajorees;
-    lignes.push({ rubrique: 'CSG', libelle: 'CSG déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgDeductible, sal: csgDed, tauxPat: null, pat: 0 });
-    lignes.push({ rubrique: 'CSG', libelle: 'CSG/CRDS non déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgNonDeductible, sal: csgNonDed, tauxPat: null, pat: 0 });
-    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonérations de cotisations employeur', base: null, tauxSal: null, sal: 0, tauxPat: null, pat: -exoPat });
-    lignes.push({ rubrique: 'Exonérations', libelle: 'Exonération sociale sur HC/HS', base: hs, tauxSal: -P.exoHsSalariale, sal: -exoSal, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'CSG déductible de l’impôt sur le revenu', libelle: 'CSG déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgDeductible, sal: csgDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'CSG/CRDS non déductible de l’impôt sur le revenu', libelle: 'CSG/CRDS non déduct. de l’impôt sur le revenu', base: baseCsg, tauxSal: P.csgNonDeductible, sal: csgNonDed, tauxPat: null, pat: 0 });
+    lignes.push({ rubrique: 'Exonérations et allègements de cotisations', libelle: 'Exonérations de cotisations employeur', base: null, tauxSal: null, sal: 0, tauxPat: null, pat: -exoPat });
+    lignes.push({ rubrique: 'Exonérations et allègements de cotisations', libelle: 'Exonération sociale sur HC/HS', base: hs, tauxSal: -P.exoHsSalariale, sal: -exoSal, tauxPat: null, pat: 0 });
     var salariales = sal + csgDed + csgNonDed - exoSal, patronales = pat - exoPat;
     var netSalaire = brut - salariales;
     var tauxHoraire = base / (P.heuresBase + P.heuresMajorees * (1 + P.majoration));
