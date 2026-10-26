@@ -13,7 +13,8 @@
     db.from('comptes_activite').select('*').eq('user_id', uid).order('mois', { ascending: false }).limit(12),
     db.from('consultant_missions').select('*').eq('user_id', uid).order('date_debut', { ascending: false, nullsFirst: false }).limit(20),
     db.from('documents').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(3),
-    db.from('recommandations').select('id, statut, prime_montant').eq('user_id', uid),
+    // Les règles de la base renvoient les recommandations du compte et celles faites avec son adresse e-mail
+    db.from('recommandations').select('id, statut, prime_montant'),
     db.from('simulations').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(1)
   ]);
   var comptes = r[0].data || [], missions = r[1].data || [], docs = r[2].data || [], recos = r[3].data || [], sim = (r[4].data || [])[0];

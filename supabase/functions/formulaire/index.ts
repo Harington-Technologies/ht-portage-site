@@ -136,6 +136,11 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     d.cv_path = cvPath;
   }
 
+  // Recommandation faite depuis le site par un ambassadeur qui a déjà un espace : on la rattache à son compte
+  if (kind === "recommandation" && email) {
+    const { data: compte } = await admin.from("profils").select("id").ilike("email", email).maybeSingle();
+    if (compte?.id) d.user_id = compte.id;
+  }
   const { error } = await admin.from(conf.table).insert(d);
   if (error) {
     console.error("Insertion", kind, error.message);
