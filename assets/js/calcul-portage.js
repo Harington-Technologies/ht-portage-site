@@ -9,7 +9,7 @@
 
   var PARAMS = {
     gestion: 0.05,              // frais de gestion HT Portage (fixe)
-    fraisMax: 0.20,             // frais professionnels : 20 % du CA mensuel maximum
+    fraisMax: 0.20,             // plafond interne des frais (jamais affiché en % sur le site)
     patronal: 0.45,             // cotisations patronales, en % du brut — PROVISOIRE
     salarial: 0.22,             // cotisations salariales, en % du brut — PROVISOIRE
     pmss: 4005,                 // plafond mensuel de la Sécurité sociale 2026

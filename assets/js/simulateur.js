@@ -19,22 +19,21 @@
     if (el) el.value = value;
   }
 
+  // Les frais se règlent en euros ; le plafond (fixé dans calcul-portage.js) n'est jamais affiché en pourcentage.
   function update() {
-    var t = Number(tjm.value), j = Number(jours.value);
-    var r = C.calculer({ tjm: t, jours: j, fraisPct: Number(frais.value) / 100, pas: Number(pas.value) / 100 });
-
-    // Le curseur de frais ne peut pas dépasser la limite réelle (20 % du CA ou salaire minimum)
-    var maxPct = Math.floor(r.fraisMaxPct * 100 + 1e-9);
-    frais.max = String(Math.max(0, maxPct));
-    if (Number(frais.value) > maxPct) frais.value = String(Math.max(0, maxPct));
-    r = C.calculer({ tjm: t, jours: j, fraisPct: Number(frais.value) / 100, pas: Number(pas.value) / 100 });
-    document.getElementById('frais-max-label').textContent = maxPct + ' % du CA' + (r.fraisLimiteParMinimum ? ' (limite du salaire minimum)' : '');
+    var t = Number(tjm.value), j = Number(jours.value), ca = t * j;
+    var plafond = C.calculer({ tjm: t, jours: j, fraisPct: 1 }).frais;   // frais maximum autorisés pour ce CA
+    var max = Math.max(0, Math.floor(plafond / 10) * 10);
+    frais.max = String(max);
+    if (Number(frais.value) > max) frais.value = String(max);
+    var r = C.calculer({ tjm: t, jours: j, fraisPct: ca > 0 ? Number(frais.value) / ca : 0, pas: Number(pas.value) / 100 });
+    document.getElementById('frais-max-label').textContent = eur(max);
 
     var m = periode === 'an' ? 12 : 1;
     document.getElementById('tjm-out').textContent = eur(t);
     document.getElementById('jours-out').textContent = j + ' j';
-    document.getElementById('frais-out').textContent = r.frais > 0 ? eur(r.frais) + ' · ' + Number(frais.value) + ' %' : '0 €';
-    frais.setAttribute('aria-valuetext', eur(r.frais) + ' par mois, soit ' + Number(frais.value) + ' % du chiffre d’affaires');
+    document.getElementById('frais-out').textContent = eur(r.frais);
+    frais.setAttribute('aria-valuetext', eur(r.frais) + ' par mois');
     document.getElementById('pas-out').textContent = r.pas > 0 ? pct(r.pas) : '—';
     pas.setAttribute('aria-valuetext', r.pas > 0 ? pct(r.pas) : 'non renseigné');
 
@@ -76,7 +75,7 @@
     hidden('tjm', t);
     hidden('jours', j);
     hidden('net_estime', netMois);
-    hidden('situation', ('Frais professionnels simulés : ' + eur(r.frais) + '/mois (' + Number(frais.value) + ' % du CA)' + (r.pas > 0 ? ' · PAS ' + pct(r.pas) : '')).slice(0, 200));
+    hidden('situation', ('Frais professionnels simulés : ' + eur(r.frais) + '/mois' + (r.pas > 0 ? ' · PAS ' + pct(r.pas) : '')).slice(0, 200));
 
     var lien = document.getElementById('lien-espace');
     if (lien) lien.href = 'espace/connexion.html?inscription=1&tjm=' + t + '&jours=' + j + '&net=' + netMois + '&frais=' + Math.round(r.frais);

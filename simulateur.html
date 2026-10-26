@@ -60,9 +60,9 @@
               <button class="aide" type="button" id="aide-frais" aria-haspopup="dialog" aria-controls="popup-frais" aria-label="Comment fonctionnent les frais professionnels ?">?</button></span>
             <output id="frais-out" for="frais">0 €</output>
           </div>
-          <input id="frais" type="range" min="0" max="20" step="1" value="0" aria-describedby="frais-note">
-          <div class="range-scale"><span>0 %</span><span id="frais-max-label">20 % du CA</span></div>
-          <p class="small" id="frais-note" style="margin-top:8px">Remboursés sans cotisations ni impôt, dans la limite de 20 % de votre chiffre d'affaires mensuel. Le montant exact est défini avec votre conseiller HT Portage.</p>
+          <input id="frais" type="range" min="0" max="2000" step="10" value="0" aria-describedby="frais-note">
+          <div class="range-scale"><span>0 €</span><span id="frais-max-label">2 000 €</span></div>
+          <p class="small" id="frais-note" style="margin-top:8px">Montant mensuel remboursé sans cotisations ni impôt, selon les barèmes URSSAF. Le montant exact est défini avec votre conseiller HT Portage.</p>
         </div>
         <div>
           <div class="range-head"><label for="pas">Taux de prélèvement à la source <span class="hint">(facultatif)</span></label><output id="pas-out" for="pas">—</output></div>
@@ -166,7 +166,7 @@
         <strong>Un exemple</strong>
         <span>18 repas chez le client (187 €) + 4 jours de télétravail (11 €) + 400 km avec une 5 CV (254 €) = <strong>452 € de frais par mois</strong>, remboursés sans cotisations.</span>
       </div>
-      <p>Dans le simulateur, les frais sont limités à <strong>20 % de votre chiffre d'affaires mensuel</strong>, et votre salaire ne peut pas descendre sous le minimum de la convention du portage salarial. <strong>Le montant exact de vos frais est défini avec votre conseiller HT Portage</strong>, selon votre mission et vos déplacements.</p>
+      <p>Le simulateur propose un montant indicatif : votre salaire ne peut pas descendre sous le minimum de la convention du portage salarial. <strong>Le montant exact de vos frais est défini avec votre conseiller HT Portage</strong>, selon votre mission et vos déplacements réels.</p>
       <div class="popup__actions"><a class="btn btn--dark" href="#simulation-detaillee" data-fermer>Faire le point avec un conseiller</a></div>
     </div>
   </dialog>
