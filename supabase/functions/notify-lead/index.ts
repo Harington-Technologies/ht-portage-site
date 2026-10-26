@@ -442,7 +442,7 @@ export async function bulletinPdf(r: any, nom: string): Promise<Uint8Array> {
   // Mentions
   y -= 10;
   [
-    "Exemple indicatif et non contractuel, calculé avec les taux de cotisations 2026 de nos bulletins de paie (mutuelle d'entreprise",
+    "Exemple indicatif et non contractuel, calculé avec les taux de cotisations 2026 (mutuelle d'entreprise",
     "comprise). Le montant de vos frais professionnels et votre situation sont à affiner avec votre conseiller HT Portage.",
     "Un vrai bulletin de paie est établi chaque mois à partir du compte rendu d'activité validé par votre client.",
   ].forEach((l) => { ecrire(l, M, y, { size: 7.5, color: GRIS }); y -= 10; });
@@ -464,7 +464,7 @@ export function mailSimulation(record: Record<string, unknown>, r: any) {
       titre: "Votre simulation de salaire",
       apercu: `Salaire net estimé : ${e0(r.pas > 0 ? r.netApresImpot : r.net)} par mois.`,
       corps: `<p style="margin:0 0 14px">Bonjour${prenom ? " " + esc(prenom) : ""},</p>` +
-        `<p style="margin:0 0 14px">Merci pour votre demande. Voici votre simulation, calculée avec les taux de cotisations 2026 de nos bulletins de paie.</p>` +
+        `<p style="margin:0 0 14px">Merci pour votre demande. Voici votre simulation, calculée avec les taux de cotisations 2026.</p>` +
         tableau([
           ["Taux journalier", e0(r.tjm)], ["Jours travaillés par mois", String(r.jours)],
           ["Frais professionnels remboursés", e0(r.frais)],
