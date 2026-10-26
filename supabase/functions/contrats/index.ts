@@ -89,7 +89,7 @@ export function donneesContrats(m: any, p: any, htp: any, aujourdHui: any) {
 export function controlerDossier(m: any, p: any) {
   const manque: string[] = [];
   [["civilite", "civilité"], ["prenom", "prénom"], ["nom", "nom"], ["date_naissance", "date de naissance"], ["lieu_naissance", "lieu de naissance"],
-   ["num_secu", "n° de sécurité sociale"], ["adresse", "adresse"], ["code_postal", "code postal"], ["ville", "ville"]]
+   ["adresse", "adresse"], ["code_postal", "code postal"], ["ville", "ville"]]
     .forEach(([k, l]) => { if (!p[k]) manque.push(l + " du consultant"); });
   [["intitule", "objet de la prestation"], ["date_debut", "date de début"], ["tjm", "TJ"], ["client", "société cliente"],
    ["client_adresse", "adresse du client"], ["client_representant", "signataire client"], ["client_signataire_email", "e-mail du signataire client"],

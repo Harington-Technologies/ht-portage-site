@@ -273,8 +273,9 @@
 
   // Informations obligatoires pour établir le contrat (mêmes règles que la fonction « contrats »)
   var EXIGENCES = {
-    identite: [['civilite', 'civilité'], ['prenom', 'prénom'], ['nom', 'nom'], ['date_naissance', 'date de naissance'], ['lieu_naissance', 'lieu de naissance'], ['num_secu', 'n° de sécurité sociale']],
-    coordonnees: [['adresse', 'adresse'], ['code_postal', 'code postal'], ['ville', 'ville'], ['iban', 'IBAN']]
+    identite: [['civilite', 'civilité'], ['prenom', 'prénom'], ['nom', 'nom'], ['date_naissance', 'date de naissance'], ['lieu_naissance', 'lieu de naissance']],
+    // N° de sécurité sociale et IBAN : facultatifs (demandés plus tard par l'équipe si besoin)
+    coordonnees: [['adresse', 'adresse'], ['code_postal', 'code postal'], ['ville', 'ville']]
   };
   function manquants(p) {
     p = p || {};

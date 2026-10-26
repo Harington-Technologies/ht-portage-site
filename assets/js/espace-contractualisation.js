@@ -44,7 +44,7 @@
     var libelle5 = signe ? 'Signé' : (aSigner ? 'Signature en cours' : (etat5 === 'current' ? 'Contrats en préparation' : 'À venir'));
     var etapes = [
       ['Identité', etape1 ? 'done' : 'missing', etape1 ? 'Complète' : manque.identite.length + ' élément' + (manque.identite.length > 1 ? 's' : '') + ' à compléter', 'informations.html'],
-      ['Coordonnées et RIB', etape2 ? 'done' : 'missing', etape2 ? 'Complète' : manque.coordonnees.length + ' élément' + (manque.coordonnees.length > 1 ? 's' : '') + ' à compléter', 'informations.html'],
+      ['Coordonnées', etape2 ? 'done' : 'missing', etape2 ? 'Complète' : manque.coordonnees.length + ' élément' + (manque.coordonnees.length > 1 ? 's' : '') + ' à compléter', 'informations.html'],
       ['Mission et client', etat3, etat3 === 'done' ? 'Envoyée' : (etat3 === 'missing' ? 'À corriger' : (etat3 === 'todo' ? 'À venir' : 'En cours'))],
       ['Validation HT Portage', etat4, etat4 === 'done' ? 'Validée' : (etat4 === 'current' ? 'En cours' : 'À venir')],
       ['Signature en ligne', etat5, libelle5]

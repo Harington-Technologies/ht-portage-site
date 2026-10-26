@@ -25,7 +25,7 @@
     var box = document.getElementById('etat-dossier');
     box.innerHTML = tout.length
       ? '<div class="alerte alerte--manque"><strong>Il manque ' + tout.length + ' information' + (tout.length > 1 ? 's' : '') + ' pour établir votre contrat</strong>' +
-        '<ul>' + (mq.identite.length ? '<li>Identité : ' + E.esc(E.listeFr(mq.identite)) + '</li>' : '') + (mq.coordonnees.length ? '<li>Coordonnées et RIB : ' + E.esc(E.listeFr(mq.coordonnees)) + '</li>' : '') + '</ul>' +
+        '<ul>' + (mq.identite.length ? '<li>Identité : ' + E.esc(E.listeFr(mq.identite)) + '</li>' : '') + (mq.coordonnees.length ? '<li>Coordonnées : ' + E.esc(E.listeFr(mq.coordonnees)) + '</li>' : '') + '</ul>' +
         '<span>Les champs concernés sont signalés en orange ci-dessous.</span></div>'
       : '<div class="alerte alerte--ok"><strong>Vos informations sont complètes</strong><span>Vous pouvez passer à l’étape suivante : <a href="contractualisation.html">déclarer votre mission</a>.</span></div>';
   }

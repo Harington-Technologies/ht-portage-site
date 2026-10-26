@@ -309,6 +309,48 @@ async function recommandation(payload: { type?: string; record?: Record<string, 
   }
 }
 
+// ---------------------------------------------------------------------------
+// Modification des informations d'un consultant → e-mail à l'équipe (avant / après)
+// Les données sensibles (n° de sécurité sociale, IBAN, BIC) ne sont jamais écrites en clair dans l'e-mail.
+// ---------------------------------------------------------------------------
+const CHAMPS_PROFIL: [string, string][] = [
+  ["civilite", "Civilité"], ["prenom", "Prénom"], ["nom", "Nom"], ["date_naissance", "Date de naissance"], ["lieu_naissance", "Lieu de naissance"],
+  ["nationalite", "Nationalité"], ["num_secu", "N° de sécurité sociale"], ["telephone", "Téléphone"], ["adresse", "Adresse"],
+  ["code_postal", "Code postal"], ["ville", "Ville"], ["pays", "Pays"], ["iban", "IBAN"], ["bic", "BIC"], ["competences", "Compétences"],
+];
+const SENSIBLES = new Set(["num_secu", "iban", "bic"]);
+export function masquer(k: string, v: unknown): string {
+  const t = String(v ?? "").replace(/\s/g, "");
+  if (!t) return "—";
+  if (!SENSIBLES.has(k)) return k === "date_naissance" ? dateFr(t) : String(v);
+  return (k === "iban" ? t.slice(0, 4) : "") + "•••• " + t.slice(-4);
+}
+export function differences(avant: Record<string, unknown>, apres: Record<string, unknown>) {
+  const norm = (v: unknown) => String(v ?? "").trim();
+  return CHAMPS_PROFIL.filter(([k]) => norm(avant[k]) !== norm(apres[k])).map(([k, l]) => ({ champ: l, avant: masquer(k, avant[k]), apres: masquer(k, apres[k]) }));
+}
+
+async function profilModifie(payload: { type?: string; record?: Record<string, unknown>; old_record?: Record<string, unknown> }) {
+  if (payload.type !== "UPDATE" || !payload.old_record || !payload.record) return new Response("Ignored", { status: 200 });
+  const r = payload.record, diff = differences(payload.old_record, r);
+  if (!diff.length) return new Response("Ignored", { status: 200 });
+  if (admin) {
+    const { data: ok, error } = await admin.rpc("limiter", { p_cle: "mail-profil:" + String(r.id), p_max: 20, p_fenetre: 3600 });
+    if (!error && ok === false) return new Response("Throttled", { status: 200 });
+  }
+  const nom = [r.prenom, r.nom].filter(Boolean).join(" ") || String(r.email ?? "");
+  const lignes = diff.map((d) => `<tr><td style="padding:8px 12px 8px 0;border-bottom:1px solid #ECE8EE;color:#6B7385;vertical-align:top;white-space:nowrap">${esc(d.champ)}</td><td style="padding:8px 12px 8px 0;border-bottom:1px solid #ECE8EE;color:#8A8F9C;text-decoration:line-through">${esc(d.avant)}</td><td style="padding:8px 0;border-bottom:1px solid #ECE8EE;color:#1B1C1C;font-weight:bold">${esc(d.apres)}</td></tr>`).join("");
+  const html = gabarit({
+    interne: true, titre: "Informations consultant modifiées",
+    apercu: `${nom} a modifié ${diff.length} information${diff.length > 1 ? "s" : ""}.`,
+    corps: `<p style="margin:0 0 14px"><strong>${esc(nom)}</strong> (${esc(r.email)}${r.statut ? " · " + esc(r.statut) : ""}) a modifié ${diff.length > 1 ? diff.length + " informations" : "une information"} de son espace le ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "long", timeStyle: "short" })}.</p>` +
+      `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;margin:4px 0 8px"><tr><th align="left" style="padding:0 12px 6px 0;color:#6B7385;font-size:12px;text-transform:uppercase">Information</th><th align="left" style="padding:0 12px 6px 0;color:#6B7385;font-size:12px;text-transform:uppercase">Avant</th><th align="left" style="padding:0 0 6px;color:#6B7385;font-size:12px;text-transform:uppercase">Après</th></tr>${lignes}</table>` +
+      (diff.some((d) => /sécurité|IBAN|BIC/.test(d.champ)) ? `<p style="margin:12px 0 0;font-size:13px;color:#6B7385">Par sécurité, le n° de sécurité sociale, l'IBAN et le BIC sont masqués : consultez-les dans l'administration.</p>` : ""),
+    bouton: { texte: "Ouvrir l'administration", url: `${SITE}/espace/admin.html#consultants` },
+  });
+  return (await envoyer(NOTIFY_TO, `Informations modifiées — ${nom}`, html)) ? new Response("OK") : new Response("Email failed", { status: 502 });
+}
+
 if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   if (!WEBHOOK_SECRET || req.headers.get("x-webhook-secret") !== WEBHOOK_SECRET) {
@@ -320,6 +362,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   const record: Record<string, unknown> = payload?.record ?? {};
 
   if (table === "consultant_missions") return await mission(payload);
+  if (table === "profils") return await profilModifie(payload);
   // Recommandations : e-mails au coopteur et au coopté (création), suivi au coopteur (changement de statut)
   if (table === "recommandations") {
     try { await recommandation(payload); } catch (e) { console.error("E-mails ambassadeur", e); }
