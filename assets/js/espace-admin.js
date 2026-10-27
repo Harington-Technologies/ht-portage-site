@@ -8,7 +8,7 @@
   if (!st) return;
 
   // Données chargées une fois puis filtrées localement
-  var D = { profils: [], profilsTous: [], missions: [], docs: [], cands: [], contacts: [], recos: [] };
+  var D = { profils: [], profilsTous: [], invitations: [], missions: [], docs: [], cands: [], contacts: [], recos: [] };
   var STATUTS_PROFIL = [['candidat', 'Candidat'], ['consultant', 'Consultant'], ['sorti', 'Sorti']];
   var STATUTS_MISSION = [['brouillon', 'Brouillon'], ['a_valider', 'À valider'], ['validee', 'Validée'], ['active', 'Active'], ['terminee', 'Terminée'], ['annulee', 'Annulée']];
   var STATUTS_CAND = [['nouvelle', 'Nouvelle'], ['en cours', 'En cours'], ['retenue', 'Retenue'], ['archivee', 'Archivée']];
@@ -142,7 +142,9 @@
         '<th scope="col">Nom</th><th scope="col">Mission en cours</th><th scope="col">Dossier</th><th scope="col">Statut</th><th scope="col">ID VSP</th><th scope="col">Inscrit le</th><th scope="col"><span class="visually-hidden">Actions</span></th>' +
         '</tr></thead><tbody>' + liste.map(function (p) {
           var ms = missionsDe(p.id), enCours = ms.find(function (m) { return m.statut === 'active'; }) || ms.find(function (m) { return ['validee', 'a_valider', 'brouillon'].indexOf(m.statut) >= 0; });
-          return '<tr data-id="' + p.id + '"><td><strong>' + esc(nomDe(p)) + '</strong><br><span class="small">' + esc(p.email) + (p.telephone ? ' · ' + esc(p.telephone) : '') + '</span></td>' +
+          var inv = invitationDe(p.id);
+          return '<tr data-id="' + p.id + '"><td><strong>' + esc(nomDe(p)) + '</strong><br><span class="small">' + esc(p.email) + (p.telephone ? ' · ' + esc(p.telephone) : '') + '</span>' +
+            (inv ? '<br><span class="tag ' + (inv.ouvert_le ? 'tag--ok' : 'tag--rose') + '" style="margin-top:4px">' + (inv.ouvert_le ? 'Invitation ouverte' : 'Invité le ' + E.date(inv.envoye_le)) + '</span>' : '') + '</td>' +
             '<td>' + (enCours ? esc(enCours.client || enCours.intitule || '') + '<br>' + E.tag('mission', enCours.statut) : '<span class="small">—</span>') + '</td>' +
             '<td>' + (dossierComplet(p) ? '<span class="tag tag--ok">Complet</span>' : '<span class="tag tag--manque">Incomplet</span>') + '</td>' +
             '<td><label class="visually-hidden" for="s-' + p.id + '">Statut de ' + esc(nomDe(p)) + '</label><select class="select" id="s-' + p.id + '" data-champ="statut">' + options(STATUTS_PROFIL, p.statut) + '</select></td>' +
@@ -170,9 +172,101 @@
   });
 
   // =====================================================================
+  // Reprise des consultants déjà en poste (salariés VSP)
+  // =====================================================================
+  var rTexte = document.getElementById('reprise-texte'), rStatut = document.getElementById('reprise-statut');
+  var rApercu = document.getElementById('reprise-apercu'), rCreer = document.getElementById('reprise-creer');
+  var aCreer = [];
+  var EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  function lireReprise(texte) {
+    var vus = {}, ok = [], ko = [];
+    texte.split(/\r?\n/).forEach(function (ligne, i) {
+      if (!ligne.trim()) return;
+      var c = ligne.split(ligne.indexOf('\t') >= 0 ? '\t' : ligne.indexOf(';') >= 0 ? ';' : ',').map(function (x) { return x.trim(); });
+      // Ligne d'en-tête copiée d'Excel
+      if (i === 0 && /pr[ée]nom/i.test(c[0] || '') && /mail/i.test(c[2] || '')) return;
+      var x = { prenom: c[0] || '', nom: c[1] || '', email: (c[2] || '').toLowerCase(), telephone: c[3] || '', vsp_id: c[4] || '' };
+      var err = !x.prenom || !x.nom ? 'prénom et nom obligatoires' : !EMAIL_RE.test(x.email) ? 'e-mail invalide' : vus[x.email] ? 'e-mail en double dans la liste' : '';
+      vus[x.email] = true;
+      if (err) ko.push('Ligne ' + (i + 1) + ' (' + (ligne.trim().slice(0, 60)) + ') : ' + err); else ok.push(x);
+    });
+    return { ok: ok, ko: ko };
+  }
+  function existant(email) { return D.profilsTous.find(function (p) { return (p.email || '').toLowerCase() === email; }); }
+  document.getElementById('reprise-verifier').addEventListener('click', function () {
+    var r = lireReprise(rTexte.value);
+    aCreer = r.ok;
+    rCreer.hidden = !aCreer.length;
+    if (!r.ok.length && !r.ko.length) { E.setStatus(rStatut, 'Collez au moins une ligne.', 'error'); rApercu.innerHTML = ''; return; }
+    E.setStatus(rStatut, r.ok.length + ' personne(s) prête(s)' + (r.ko.length ? ' · ' + r.ko.length + ' ligne(s) à corriger' : '') + '.', r.ko.length ? 'error' : 'ok');
+    rApercu.innerHTML = (r.ko.length ? '<div class="alerte alerte--manque" style="margin-top:12px"><strong>Lignes ignorées</strong><ul>' + r.ko.map(function (k) { return '<li>' + esc(k) + '</li>'; }).join('') + '</ul></div>' : '') +
+      (r.ok.length ? '<div class="table-wrap" style="margin-top:12px"><table class="table"><thead><tr><th scope="col">Prénom</th><th scope="col">Nom</th><th scope="col">E-mail</th><th scope="col">Téléphone</th><th scope="col">ID VSP</th><th scope="col">Compte</th></tr></thead><tbody>' +
+        r.ok.map(function (x) {
+          var p = existant(x.email);
+          return '<tr><td>' + esc(x.prenom) + '</td><td>' + esc(x.nom) + '</td><td>' + esc(x.email) + '</td><td>' + esc(x.telephone || '—') + '</td><td>' + esc(x.vsp_id || '—') + '</td><td>' +
+            (p ? '<span class="tag tag--rose">Existe déjà (' + esc(p.statut) + ') : passera consultant</span>' : '<span class="tag tag--muted">À créer</span>') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' : '');
+  });
+  rTexte.addEventListener('input', function () { rCreer.hidden = true; });
+  rCreer.addEventListener('click', async function () {
+    if (!aCreer.length) return;
+    rCreer.disabled = true; E.setStatus(rStatut, 'Création des comptes…');
+    var r = await db.functions.invoke('consultants', { body: { action: 'creer', consultants: aCreer } });
+    rCreer.disabled = false;
+    var d = r.data;
+    if (r.error) { try { d = await r.error.context.json(); } catch (e) { d = null; } }
+    if (!d || !d.resultats) { E.setStatus(rStatut, (d && d.erreur) || 'La création a échoué : la fonction « consultants » est-elle déployée ?', 'error'); return; }
+    var bons = d.resultats.filter(function (x) { return x.ok; });
+    rCreer.hidden = true; aCreer = []; rTexte.value = '';
+    E.setStatus(rStatut, bons.length + ' compte(s) prêt(s)' + (bons.length < d.resultats.length ? ' · ' + (d.resultats.length - bons.length) + ' en erreur' : '') + '. Aucun e-mail n\'a encore été envoyé.', bons.length === d.resultats.length ? 'ok' : 'error');
+    await toutRecharger();
+    rApercu.innerHTML = '<div class="table-wrap" style="margin-top:12px"><table class="table"><thead><tr><th scope="col">Consultant</th><th scope="col">Résultat</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>' +
+      d.resultats.map(function (x) {
+        var p = x.id ? (D.profilsTous.find(function (q) { return q.id === x.id; }) || {}) : {};
+        return '<tr data-id="' + esc(x.id || '') + '"><td><strong>' + esc(p.prenom ? nomDe(p) : x.email) + '</strong><br><span class="small">' + esc(x.email) + '</span></td><td>' +
+          (x.ok ? '<span class="tag tag--ok">' + (x.cree ? 'Compte créé' : 'Compte existant mis à jour') + '</span>' : '<span class="tag tag--manque">' + esc(x.erreur || 'Erreur') + '</span>') + '</td><td>' +
+          (x.ok ? '<div class="row-actions"><button class="btn btn--light btn--sm" type="button" data-reprise="fiche">Fiche : mission et contrats</button><button class="btn btn--dark btn--sm" type="button" data-reprise="inviter">Inviter</button></div>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  });
+  rApercu.addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-reprise]');
+    if (!b) return;
+    var id = b.closest('tr').dataset.id, p = profil(id);
+    if (b.dataset.reprise === 'fiche') { ouvrirFiche(p); return; }
+    await envoyerInvitation(p, b);
+  });
+
+  async function envoyerInvitation(p, bouton) {
+    var inv = invitationDe(p.id);
+    if (!confirm((inv ? 'Renvoyer' : 'Envoyer') + ' l\'invitation à ' + nomDe(p) + ' (' + p.email + ') ?\n\nIl recevra l\'e-mail « Votre espace consultant HT Portage est prêt » pour choisir son mot de passe.' + (inv ? '\nLe lien précédent ne fonctionnera plus.' : ''))) return false;
+    var texte = bouton.textContent;
+    bouton.disabled = true; bouton.textContent = 'Envoi…';
+    var r = await db.functions.invoke('consultants', { body: { action: 'inviter', user_id: p.id } });
+    var d = r.data;
+    if (r.error) { try { d = await r.error.context.json(); } catch (e) { d = null; } }
+    bouton.disabled = false;
+    if (!d || !d.ok) { bouton.textContent = texte; alert((d && d.erreur) || 'L\'invitation n\'a pas pu être envoyée.'); return false; }
+    bouton.textContent = 'Invitation envoyée';
+    await chargerProfils();
+    LC.maj();
+    if (courant && courant.id === p.id) rendreAcces();
+    return true;
+  }
+
+  // =====================================================================
   // Fiche consultant (missions et documents)
   // =====================================================================
   var fiche = document.getElementById('fiche'), courant = null;
+  var acces = document.getElementById('fiche-acces');
+  function rendreAcces() {
+    var inv = invitationDe(courant.id);
+    acces.innerHTML = '<span style="display:flex;flex-direction:column;gap:2px"><strong style="font-size:15px">Accès à l\'espace</strong><span style="font-size:14px">' +
+      (inv ? 'Invitation envoyée le ' + E.date(inv.envoye_le) + (inv.ouvert_le ? ' · lien ouvert le ' + E.date(inv.ouvert_le) : ' · pas encore ouverte') +
+        (!inv.ouvert_le && new Date(inv.expire_le) < new Date() ? ' · <strong>lien expiré</strong>' : '')
+        : 'Aucune invitation envoyée. Un consultant inscrit lui-même sur le site a déjà son mot de passe.') + '</span></span>' +
+      '<button class="btn btn--dark btn--sm" type="button" id="btn-inviter">' + (inv ? 'Renvoyer l\'invitation' : 'Envoyer l\'invitation') + '</button>';
+    document.getElementById('btn-inviter').addEventListener('click', function () { envoyerInvitation(courant, this); });
+  }
   fiche.querySelector('[data-fermer]').addEventListener('click', function () { fiche.close(); });
 
   async function ouvrirFiche(p) {
@@ -180,6 +274,7 @@
     document.getElementById('fiche-titre').textContent = nomDe(p);
     document.getElementById('fiche-sous').textContent = p.email + (p.telephone ? ' · ' + p.telephone : '') + (p.competences ? ' · ' + p.competences : '');
     fiche.querySelectorAll('form').forEach(function (f) { f.reset(); E.setStatus(f.querySelector('.form-status'), ''); });
+    rendreAcces();
     if (typeof fiche.showModal === 'function') fiche.showModal(); else fiche.setAttribute('open', '');
     await chargerFiche();
   }
@@ -816,7 +911,11 @@
     var admins = [st.user.id].concat((ia.data || []).map(function (x) { return typeof x === 'string' ? x : (x && x.ids_admins) || x; }));
     D.profilsTous = r.data || [];
     D.profils = D.profilsTous.filter(function (p) { return admins.indexOf(p.id) < 0; });
+    // Invitations « Activer mon espace » (table créée par espace-v14.sql ; absente = aucune)
+    var inv = await db.from('invitations').select('*');
+    D.invitations = inv.error ? [] : (inv.data || []);
   }
+  function invitationDe(uid) { return D.invitations.find(function (i) { return i.user_id === uid; }); }
   // Erreurs de chargement : affichées en haut de page plutôt que des listes vides trompeuses
   var erreurs = [];
   function noterErreur(quoi, r) {

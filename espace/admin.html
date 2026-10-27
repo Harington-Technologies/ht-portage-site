@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/style.css?v=20261026l">
-<link rel="stylesheet" href="../assets/css/espace.css?v=20261026l">
+<link rel="stylesheet" href="../assets/css/style.css?v=20261026m">
+<link rel="stylesheet" href="../assets/css/espace.css?v=20261026m">
 </head>
 <body data-page="admin">
 <div class="app">
@@ -40,6 +40,22 @@
     </section>
 
     <section class="admin-section box" id="consultants" data-titre="Consultants et candidats" data-sous="Tous les comptes de l'espace : statut, dossier, ID VSP et fiche détaillée." aria-label="Consultants et candidats" hidden>
+      <details class="dossier" id="reprise" style="margin-bottom:20px">
+        <summary><span class="dossier__titre"><strong>Reprendre des consultants déjà en poste</strong><span class="small"> · salariés VSP : création des comptes, puis invitation</span></span></summary>
+        <div class="dossier__corps">
+          <ol class="small" style="font-size:15px;margin:0 0 14px;padding-left:20px;display:grid;gap:6px">
+            <li>Collez la liste ci-dessous (une personne par ligne, copiée d'Excel ou séparée par des points-virgules) : <strong>prénom ; nom ; e-mail ; téléphone ; ID VSP</strong>. Le téléphone et l'ID VSP sont facultatifs.</li>
+            <li>« Créer les comptes » : chaque personne a un compte <em>consultant</em>, sans mot de passe. <strong>Aucun e-mail n'est envoyé à ce stade.</strong></li>
+            <li>Ouvrez la fiche de chacun : ajoutez sa mission (statut « Active ») et déposez ses contrats signés (CDI, annexes, avenants, statut « Signé »).</li>
+            <li>Cliquez sur « Inviter » : le consultant reçoit l'e-mail « Votre espace consultant HT Portage est prêt » et choisit son mot de passe. Le lien est valable 30 jours.</li>
+          </ol>
+          <label class="visually-hidden" for="reprise-texte">Liste des consultants</label>
+          <textarea class="textarea" id="reprise-texte" spellcheck="false" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px" placeholder="Sophie ; Martin ; sophie.martin@exemple.fr ; 06 12 34 56 78 ; 1042&#10;Karim ; Benali ; karim.benali@exemple.fr"></textarea>
+          <div class="actions-row" style="margin-top:12px"><p class="form-status" id="reprise-statut" role="status" aria-live="polite"></p>
+            <div class="row-actions"><button class="btn btn--light btn--sm" type="button" id="reprise-verifier">Vérifier</button><button class="btn btn--dark btn--sm" type="button" id="reprise-creer" hidden>Créer les comptes</button></div></div>
+          <div id="reprise-apercu"></div>
+        </div>
+      </details>
       <div id="liste-consultants"><p class="loading">Chargement…</p></div>
     </section>
 
@@ -83,6 +99,8 @@
       <button class="icon-btn" type="button" data-fermer aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
 
+    <div class="alerte alerte--info" id="fiche-acces" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:16px"></div>
+
     <div id="fiche-missions"></div>
 
     <form class="box" id="form-mission" novalidate style="background:var(--bg);border:0">
@@ -118,8 +136,8 @@
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="../assets/js/config.js?v=20261026l"></script>
-<script src="../assets/js/espace.js?v=20261026l"></script>
-<script src="../assets/js/espace-admin.js?v=20261026l"></script>
+<script src="../assets/js/config.js?v=20261026m"></script>
+<script src="../assets/js/espace.js?v=20261026m"></script>
+<script src="../assets/js/espace-admin.js?v=20261026m"></script>
 </body>
 </html>
