@@ -555,6 +555,7 @@
     var input = document.getElementById('fichier-csv');
     btnImport.hidden = true; lignesValides = [];
     if (!input.files[0]) { input.reportValidity(); return; }
+    if (/\.xlsx?$/i.test(input.files[0].name)) { await lireProduction(input.files[0]); return; }
     var texte = (await input.files[0].text()).replace(/^﻿/, '');
     var lignes = texte.split(/\r?\n/).filter(function (l) { return l.trim() !== ''; });
     if (lignes.length < 2) { montrerRapport('Le fichier est vide ou ne contient que l\'en-tête.'); return; }
@@ -590,8 +591,62 @@
     montrerRapport(lignesValides.length + ' ligne(s) prête(s) à importer.' + (erreurs.length ? '\n\n' + erreurs.length + ' ligne(s) ignorée(s) :\n' + erreurs.join('\n') : ''));
     btnImport.hidden = !lignesValides.length;
   });
+  // Export VSP « ProductionMensuelle » (.xlsx) : jours et CA par consultant et par mois.
+  // Rapprochement par n° d'affaire (missions importées), sinon par nom et prénom.
+  // Un mois déjà présent garde son statut, son net versé, ses charges et sa réserve : seuls jours, CA et frais de gestion sont mis à jour.
+  var lignesNouvelles = [], lignesMaj = [];
+  function cleNom(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ''); }
+  async function lireProduction(f) {
+    lignesNouvelles = []; lignesMaj = [];
+    if (!window.XLSX) await new Promise(function (ok, ko) { var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = ok; sc.onerror = ko; document.head.appendChild(sc); });
+    var wb = window.XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    var rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null });
+    if (!rows.length || !('Mois/Année' in rows[0]) || !('Total HT' in rows[0])) { montrerRapport('Fichier Excel non reconnu : il faut l\'export VSP « Production mensuelle » (colonnes Mois/Année, Collaborateur, Nb de jours, Total HT).'); return; }
+    var parAffaire = {}, parNom = {};
+    D.missions.forEach(function (m) { if (m.numero_contrat) parAffaire[m.numero_contrat] = m.user_id; if (m.vsp_id) parAffaire[m.vsp_id] = m.user_id; });
+    D.profils.forEach(function (p) {
+      var pr = (p.prenom || '').split(',')[0];
+      [cleNom((p.nom || '') + pr), cleNom(pr + (p.nom || ''))].forEach(function (k) { if (k) parNom[k] = p; });
+    });
+    var agg = {}, erreurs = [], inconnus = {};
+    rows.forEach(function (x, i) {
+      var m = /^(\d{4})(\d{2})$/.exec(String(x['Mois/Année'] || '').trim());
+      if (!m) { erreurs.push('Ligne ' + (i + 2) + ' : mois illisible'); return; }
+      var uid = parAffaire[String(x['Réf. affaire'] || '').trim()];
+      if (!uid) { var p = parNom[cleNom(String(x.Nom || '') + String(x['Prénom'] || '').split(',')[0])]; uid = p && p.id; }
+      if (!uid) { inconnus[x.Collaborateur || '?'] = 1; return; }
+      var k = uid + '|' + m[1] + '-' + m[2] + '-01';
+      agg[k] = agg[k] || { user_id: uid, mois: m[1] + '-' + m[2] + '-01', jours: 0, ca_ht: 0 };
+      agg[k].jours += Number(x['Nb de jours']) || 0; agg[k].ca_ht += Number(x['Total HT']) || 0;
+    });
+    var lignes = Object.keys(agg).map(function (k) { var a = agg[k]; return { user_id: a.user_id, mois: a.mois, jours: Math.round(a.jours * 100) / 100, ca_ht: Math.round(a.ca_ht * 100) / 100, frais_gestion: Math.round(a.ca_ht * 5) / 100, source: 'vsp' }; });
+    var ids = lignes.map(function (l) { return l.user_id; }).filter(function (v, i, t) { return t.indexOf(v) === i; });
+    var ex = ids.length ? await db.from('comptes_activite').select('user_id, mois').in('user_id', ids) : { data: [] };
+    var deja = {}; (ex.data || []).forEach(function (c) { deja[c.user_id + '|' + c.mois] = 1; });
+    lignes.forEach(function (l) { if (deja[l.user_id + '|' + l.mois]) lignesMaj.push(l); else lignesNouvelles.push(Object.assign({ statut: 'provisoire' }, l)); });
+    var parConsultant = {};
+    lignes.forEach(function (l) { var n = nomDe(profil(l.user_id)); (parConsultant[n] = parConsultant[n] || []).push(l.mois.slice(5, 7) + '/' + l.mois.slice(0, 4)); });
+    var noms = Object.keys(inconnus);
+    montrerRapport(lignes.length + ' mois d\'activité prêts : ' + lignesNouvelles.length + ' nouveau(x), ' + lignesMaj.length + ' mis à jour (jours, CA et frais de gestion ; le net versé déjà saisi est conservé).\n\n' +
+      Object.keys(parConsultant).sort().map(function (n) { return '• ' + n + ' : ' + parConsultant[n].sort().join(', '); }).join('\n') +
+      (noms.length ? '\n\nConsultant(s) introuvable(s) dans l\'espace, lignes ignorées : ' + noms.join(', ') + '. Importez-les d\'abord avec « Migration depuis VSP ».' : '') +
+      (erreurs.length ? '\n\n' + erreurs.join('\n') : ''));
+    lignesValides = [];
+    btnImport.hidden = !lignes.length;
+  }
+
   btnImport.addEventListener('click', async function () {
     btnImport.disabled = true;
+    if (lignesNouvelles.length || lignesMaj.length) {
+      var r1 = lignesNouvelles.length ? await db.from('comptes_activite').upsert(lignesNouvelles, { onConflict: 'user_id,mois' }) : {};
+      var r2 = !r1.error && lignesMaj.length ? await db.from('comptes_activite').upsert(lignesMaj, { onConflict: 'user_id,mois' }) : {};
+      btnImport.disabled = false;
+      if (r1.error || r2.error) { montrerRapport('Import refusé : ' + E.errText(r1.error || r2.error)); return; }
+      montrerRapport((lignesNouvelles.length + lignesMaj.length) + ' mois d\'activité importé(s). Ils sont visibles dans l\'espace des consultants.');
+      btnImport.hidden = true; lignesNouvelles = []; lignesMaj = [];
+      document.getElementById('form-import').reset();
+      return;
+    }
     var r = await db.from('comptes_activite').upsert(lignesValides, { onConflict: 'user_id,mois' });
     btnImport.disabled = false;
     if (r.error) { montrerRapport('Import refusé : ' + E.errText(r.error)); return; }

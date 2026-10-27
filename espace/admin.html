@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/style.css?v=20261027a">
-<link rel="stylesheet" href="../assets/css/espace.css?v=20261027a">
+<link rel="stylesheet" href="../assets/css/style.css?v=20261027b">
+<link rel="stylesheet" href="../assets/css/espace.css?v=20261027b">
 </head>
 <body data-page="admin">
 <div class="app">
@@ -86,12 +86,12 @@
         <div class="small" id="migration-journal" hidden style="font-size:14px;margin-top:8px"></div>
         <div id="migration-apercu"></div>
       </div>
-      <h2 class="box__title" style="font-size:18px">Comptes d'activité (CSV)</h2>
-      <p style="font-size:15px;color:var(--muted)">Fichier CSV (séparateur « ; » ou « , »), une ligne par consultant et par mois. Colonnes reconnues :
+      <h2 class="box__title" style="font-size:18px">Comptes d'activité du mois</h2>
+      <p style="font-size:15px;color:var(--muted)">Chaque mois, déposez l'export VSP <strong>ProductionMensuelle</strong> (.xlsx) tel quel : jours, CA et frais de gestion de chaque consultant sont mis à jour (un net versé déjà saisi est conservé). Ou un fichier CSV (séparateur « ; » ou « , »), une ligne par consultant et par mois. Colonnes reconnues :
         <code>email</code> ou <code>vsp_id</code>, <code>mois</code> (2026-09 ou 09/2026), <code>jours</code>, <code>ca_ht</code>, <code>frais_gestion</code>, <code>charges</code>, <code>reserve</code>, <code>net_verse</code>, <code>statut</code> (provisoire/definitif). Un mois déjà importé est mis à jour.</p>
       <form class="toolbar" id="form-import" novalidate>
-        <label class="visually-hidden" for="fichier-csv">Fichier CSV</label>
-        <input class="input" id="fichier-csv" type="file" accept=".csv,text/csv" required style="max-width:360px;padding:9px 12px">
+        <label class="visually-hidden" for="fichier-csv">Export ProductionMensuelle (.xlsx) ou fichier CSV</label>
+        <input class="input" id="fichier-csv" type="file" accept=".xlsx,.xls,.csv,text/csv" required style="max-width:360px;padding:9px 12px">
         <button class="btn btn--dark btn--sm" type="submit">Vérifier le fichier</button>
         <button class="btn btn--rose btn--sm" type="button" id="btn-importer" hidden>Importer</button>
       </form>
@@ -155,9 +155,9 @@
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="../assets/js/config.js?v=20261027a"></script>
-<script src="../assets/js/espace.js?v=20261027a"></script>
-<script src="../assets/js/espace-admin.js?v=20261027a"></script>
-<script src="../assets/js/espace-migration.js?v=20261027a"></script>
+<script src="../assets/js/config.js?v=20261027b"></script>
+<script src="../assets/js/espace.js?v=20261027b"></script>
+<script src="../assets/js/espace-admin.js?v=20261027b"></script>
+<script src="../assets/js/espace-migration.js?v=20261027b"></script>
 </body>
 </html>
