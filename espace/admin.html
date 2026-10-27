@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/style.css?v=20261026m">
-<link rel="stylesheet" href="../assets/css/espace.css?v=20261026m">
+<link rel="stylesheet" href="../assets/css/style.css?v=20261027a">
+<link rel="stylesheet" href="../assets/css/espace.css?v=20261027a">
 </head>
 <body data-page="admin">
 <div class="app">
@@ -67,7 +67,26 @@
       <div id="liste-signatures"><p class="loading">Chargement…</p></div>
     </section>
 
-    <section class="admin-section box" id="import" data-titre="Import VSP" data-sous="Import des comptes d'activité exportés de VSPortage." aria-label="Import VSP" hidden>
+    <section class="admin-section box" id="import" data-titre="Import VSP" data-sous="Migration des salariés depuis VSP, puis import des comptes d'activité." aria-label="Import VSP" hidden>
+      <div class="box" id="migration" style="background:var(--bg);border:0;margin-bottom:24px">
+        <h2 class="box__title" style="font-size:18px">Migration depuis VSP</h2>
+        <ol class="small" style="font-size:15px;margin:0;padding-left:20px;display:grid;gap:6px">
+          <li>Déposez les exports VSP tels quels : <strong>ListeSalaries</strong>, <strong>ListeAffaires</strong> et <strong>ProductionMensuelle</strong> (.xlsx), et les <strong>bulletins et contrats PDF</strong> (seuls ou en .zip, noms « NOM_Prénom_… »). Vous pouvez en ajouter en plusieurs fois.</li>
+          <li>Vérifiez l'aperçu : profils, missions, mois d'activité et documents de chacun. Rien n'est enregistré à ce stade.</li>
+          <li>« Importer » : comptes, profils, missions, comptes d'activité et documents sont créés. <strong>Aucun e-mail n'est envoyé.</strong> Relancer l'import ne crée pas de doublon.</li>
+          <li>Quand tout est prêt : « Inviter » envoie à chacun l'e-mail « Votre espace consultant HT Portage est prêt ».</li>
+        </ol>
+        <div class="toolbar" style="margin-top:14px">
+          <label class="visually-hidden" for="migration-fichiers">Fichiers VSP (xlsx, pdf, zip)</label>
+          <input class="input" id="migration-fichiers" type="file" multiple accept=".xlsx,.xls,.pdf,.zip" style="max-width:420px;padding:9px 12px">
+          <button class="btn btn--light btn--sm" type="button" id="migration-vider" hidden>Tout effacer</button>
+        </div>
+        <div class="actions-row" style="margin-top:12px"><p class="form-status" id="migration-statut" role="status" aria-live="polite"></p>
+          <div class="row-actions"><button class="btn btn--dark btn--sm" type="button" id="migration-importer" hidden>Importer</button><button class="btn btn--rose btn--sm" type="button" id="migration-inviter" hidden>Inviter</button></div></div>
+        <div class="small" id="migration-journal" hidden style="font-size:14px;margin-top:8px"></div>
+        <div id="migration-apercu"></div>
+      </div>
+      <h2 class="box__title" style="font-size:18px">Comptes d'activité (CSV)</h2>
       <p style="font-size:15px;color:var(--muted)">Fichier CSV (séparateur « ; » ou « , »), une ligne par consultant et par mois. Colonnes reconnues :
         <code>email</code> ou <code>vsp_id</code>, <code>mois</code> (2026-09 ou 09/2026), <code>jours</code>, <code>ca_ht</code>, <code>frais_gestion</code>, <code>charges</code>, <code>reserve</code>, <code>net_verse</code>, <code>statut</code> (provisoire/definitif). Un mois déjà importé est mis à jour.</p>
       <form class="toolbar" id="form-import" novalidate>
@@ -136,8 +155,9 @@
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="../assets/js/config.js?v=20261026m"></script>
-<script src="../assets/js/espace.js?v=20261026m"></script>
-<script src="../assets/js/espace-admin.js?v=20261026m"></script>
+<script src="../assets/js/config.js?v=20261027a"></script>
+<script src="../assets/js/espace.js?v=20261027a"></script>
+<script src="../assets/js/espace-admin.js?v=20261027a"></script>
+<script src="../assets/js/espace-migration.js?v=20261027a"></script>
 </body>
 </html>

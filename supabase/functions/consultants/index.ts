@@ -1,6 +1,8 @@
 // HT Portage — reprise des consultants déjà en poste (salariés VSP) et invitations à l'espace.
 //
-//   POST { action: "creer", consultants: [{ prenom, nom, email, telephone?, vsp_id? }] }   (administrateur)
+//   POST { action: "creer", consultants: [{ prenom, nom, email, telephone?, vsp_id?, ...profil? }] }   (administrateur)
+//        profil facultatif (migration VSP) : civilite, date_naissance, lieu_naissance, nationalite, num_secu,
+//        adresse, code_postal, ville, pays, competences — seuls les champs encore vides sont remplis.
 //        → crée le compte (sans mot de passe) et le profil « consultant » ; un compte existant est simplement mis à jour.
 //          Aucun e-mail n'est envoyé à cette étape.
 //   POST { action: "inviter", user_id }                                                    (administrateur)
@@ -43,6 +45,20 @@ const json = (corps: unknown, status = 200) => new Response(JSON.stringify(corps
 // Contrôles (testés à part)
 // ---------------------------------------------------------------------------
 export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// Champs du profil repris de VSP (formats identiques aux contrôles de la base ; une valeur invalide est ignorée)
+export function profilVsp(c: Record<string, unknown>): Record<string, string> {
+  const t = (x: unknown, n: number) => String(x ?? "").trim().replace(/\s+/g, " ").slice(0, n);
+  const o: Record<string, string> = {};
+  if (c.civilite === "M." || c.civilite === "Mme") o.civilite = c.civilite;
+  const dn = t(c.date_naissance, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dn) && dn >= "1930-01-01" && dn <= new Date().toISOString().slice(0, 10)) o.date_naissance = dn;
+  const secu = t(c.num_secu, 30).replace(/\s/g, "").toUpperCase();
+  if (/^[12][0-9]{4}(2A|2B|[0-9]{2})[0-9]{6}([0-9]{2})?$/.test(secu)) o.num_secu = secu;
+  for (const [k, n] of [["lieu_naissance", 150], ["nationalite", 100], ["adresse", 300], ["code_postal", 20], ["ville", 100], ["pays", 100], ["competences", 500]] as [string, number][]) {
+    const v = t(c[k], n); if (v) o[k] = v;
+  }
+  return o;
+}
 export function nettoyerConsultant(c: Record<string, unknown>): { ok: true; v: { prenom: string; nom: string; email: string; telephone: string | null; vsp_id: string | null } } | { ok: false; erreur: string } {
   const t = (x: unknown, n: number) => String(x ?? "").trim().replace(/\s+/g, " ").slice(0, n);
   const prenom = t(c.prenom, 100), nom = t(c.nom, 100), email = t(c.email, 254).toLowerCase();
@@ -155,6 +171,11 @@ async function creer(liste: unknown) {
       if (!existant?.nom) maj.nom = v.nom;
       if (v.telephone && !existant?.telephone) maj.telephone = v.telephone;
       if (v.vsp_id) maj.vsp_id = v.vsp_id;
+      // Migration VSP : on complète le profil sans écraser ce que le consultant a déjà saisi
+      const pv = profilVsp((brut ?? {}) as Record<string, unknown>);
+      for (const [k, val] of Object.entries(pv)) {
+        if (k === "pays" ? (!existant || !existant.pays || existant.pays === "France") : !existant?.[k]) maj[k] = val;
+      }
       // Le profil est créé par un déclencheur à la création du compte : on attend qu'il existe
       let erreur = "";
       for (let i = 0; i < 5; i++) {

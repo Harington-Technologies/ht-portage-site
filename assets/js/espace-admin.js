@@ -953,6 +953,7 @@
     if (!sansRendu) rendre([LCand, LCont, LReco]);
   }
   async function toutRecharger() { await chargerProfils(); await chargerMissions(); }
+  window.HTP_ADMIN = { recharger: async function () { await chargerProfils(); await Promise.all([chargerMissions(true), chargerDocs(true)]); rendre([LC, LV, LS]); } };
 
   // Tout est chargé avant le premier affichage : pas d'indicateurs calculés sur des données partielles
   await chargerProfils();
