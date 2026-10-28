@@ -264,7 +264,8 @@
       (inv ? 'Invitation envoyée le ' + E.date(inv.envoye_le) + (inv.ouvert_le ? ' · lien ouvert le ' + E.date(inv.ouvert_le) : ' · pas encore ouverte') +
         (!inv.ouvert_le && new Date(inv.expire_le) < new Date() ? ' · <strong>lien expiré</strong>' : '')
         : 'Aucune invitation envoyée. Un consultant inscrit lui-même sur le site a déjà son mot de passe.') + '</span></span>' +
-      '<button class="btn btn--dark btn--sm" type="button" id="btn-inviter">' + (inv ? 'Renvoyer l\'invitation' : 'Envoyer l\'invitation') + '</button>';
+      '<span class="row-actions"><a class="btn btn--light btn--sm" href="index.html?apercu=' + encodeURIComponent(courant.id) + '" target="_blank" rel="noopener">Voir son espace</a>' +
+      '<button class="btn btn--dark btn--sm" type="button" id="btn-inviter">' + (inv ? 'Renvoyer l\'invitation' : 'Envoyer l\'invitation') + '</button></span>';
     document.getElementById('btn-inviter').addEventListener('click', function () { envoyerInvitation(courant, this); });
   }
   fiche.querySelector('[data-fermer]').addEventListener('click', function () { fiche.close(); });

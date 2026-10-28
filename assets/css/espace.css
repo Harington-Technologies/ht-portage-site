@@ -303,3 +303,6 @@ a.etape:hover { box-shadow: 0 0 0 3px rgba(193,135,161,.35); }
 .coords { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px; font-size: 14px; }
 .coord { color: var(--plum, #784E61); font-weight: 600; text-decoration: none; }
 .coord:hover { text-decoration: underline; }
+
+/* Aperçu administrateur de l'espace d'un consultant */
+.bandeau-apercu { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 10px 20px; background: #FFF4E5; color: #8A3F06; border-bottom: 1px solid #F3C98B; font-size: 14px; }

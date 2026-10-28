@@ -157,7 +157,7 @@
       '<div class="sidebar__foot">' +
         (state.isAdmin ? '<div class="contact-card"><span>Connecté</span><strong>' + esc([state.profil.prenom, state.profil.nom].filter(Boolean).join(' ') || state.user.email) + '</strong><span style="text-transform:none;letter-spacing:0">Administrateur</span></div>' :
         '<div class="contact-card"><span>Votre contact</span><strong>Équipe HT Portage</strong><a href="mailto:' + esc(cfg.contactEmail || 'contact@htportage.fr') + '">' + esc(cfg.contactEmail || 'contact@htportage.fr') + '</a></div>') +
-        '<button class="logout" type="button" data-logout>Se déconnecter</button>' +
+        (state.apercu ? '<a class="logout" href="admin.html#consultants" data-fin-apercu style="text-align:center">Quitter l\'aperçu</a>' : '<button class="logout" type="button" data-logout>Se déconnecter</button>') +
       '</div>';
     // Logo seul, en haut à droite du contenu (sur mobile : dans la barre du haut, à côté du menu)
     var contenu = document.querySelector('.content');
@@ -170,7 +170,8 @@
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       toggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
     });
-    el.querySelector('[data-logout]').addEventListener('click', async function () {
+    if (state.apercu) el.querySelector('[data-fin-apercu]').addEventListener('click', function () { try { sessionStorage.removeItem('htp-apercu'); } catch (e) { /* rien */ } });
+    else el.querySelector('[data-logout]').addEventListener('click', async function () {
       await db.auth.signOut();
       location.replace('connexion.html');
     });
@@ -215,6 +216,21 @@
     }
     var state = { user: user, profil: res[0].data || { id: user.id, email: user.email }, isAdmin: estAdmin };
     if (opts.admin && !state.isAdmin) { location.replace('index.html'); return null; }
+    // Aperçu : un administrateur voit l'espace d'un consultant tel que celui-ci le verra (lecture seule)
+    if (!opts.admin && state.isAdmin) {
+      var cibleId = apercuDemande();
+      if (cibleId) {
+        var c = await db.from('profils').select('*').eq('id', cibleId).maybeSingle();
+        if (c.data) {
+          state = { user: { id: c.data.id, email: c.data.email }, profil: c.data, isAdmin: false, apercu: true, admin: user };
+          activerLectureSeule(state);
+          ESPACE.state = state;
+          renderSidebar(state);
+          document.body.classList.add('is-ready');
+          return state;
+        }
+      }
+    }
     // Un administrateur n'a pas d'espace consultant : il va directement à l'administration.
     if (!opts.admin && state.isAdmin) { location.replace('admin.html'); return null; }
     ESPACE.state = state;
@@ -222,6 +238,53 @@
     await enregistrerSimulationEnAttente(state);
     document.body.classList.add('is-ready');
     return state;
+  }
+
+  // ---------- Aperçu administrateur (lecture seule) ----------
+  // admin : lien « Voir son espace » → index.html?apercu=<id du consultant> ; mémorisé pour l'onglet.
+  function apercuDemande() {
+    var q = new URLSearchParams(location.search).get('apercu');
+    try {
+      if (q === 'fin') { sessionStorage.removeItem('htp-apercu'); return null; }
+      if (q && /^[0-9a-f-]{36}$/i.test(q)) sessionStorage.setItem('htp-apercu', q);
+      return sessionStorage.getItem('htp-apercu');
+    } catch (e) { return q && /^[0-9a-f-]{36}$/i.test(q) ? q : null; }
+  }
+  function activerLectureSeule(state) {
+    var refus = { data: null, error: { message: 'Aperçu en lecture seule : aucune modification n\'est enregistrée.' } };
+    // Toute écriture (base, fichiers, fonctions) est refusée côté navigateur pendant l'aperçu
+    var from = db.from.bind(db);
+    db.from = function (t) {
+      var q = from(t);
+      ['insert', 'update', 'upsert', 'delete'].forEach(function (m) {
+        q[m] = function () {
+          var faux = { then: function (ok, ko) { return Promise.resolve(refus).then(ok, ko); } };
+          ['eq', 'neq', 'in', 'select', 'single', 'maybeSingle', 'match', 'is', 'order', 'limit'].forEach(function (k) { faux[k] = function () { return faux; }; });
+          return faux;
+        };
+      });
+      return q;
+    };
+    db.functions.invoke = async function () { return refus; };
+    document.addEventListener('submit', function (e) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      var st = e.target.querySelector('.form-status');
+      if (st) setStatus(st, 'Aperçu administrateur : les formulaires sont désactivés.', 'error');
+    }, true);
+    var nom = [state.profil.prenom, state.profil.nom].filter(Boolean).join(' ') || state.profil.email;
+    var bandeau = document.createElement('div');
+    bandeau.className = 'bandeau-apercu';
+    bandeau.setAttribute('role', 'status');
+    bandeau.innerHTML = '<span><strong>Aperçu administrateur</strong> · espace de ' + esc(nom) + ' (' + esc(state.profil.email) + '), tel qu\'il le verra. Lecture seule.</span>' +
+      '<a class="btn btn--light btn--sm" href="admin.html#consultants" data-fin-apercu>Quitter l\'aperçu</a>';
+    document.body.insertBefore(bandeau, document.body.firstChild);
+    bandeau.querySelector('[data-fin-apercu]').addEventListener('click', function () { try { sessionStorage.removeItem('htp-apercu'); } catch (e) { /* rien */ } });
+  }
+
+  // Recommandations de l'ambassadeur : la base filtre déjà pour un consultant ; en aperçu (administrateur), on filtre ici
+  function filtreRecos(q, state) {
+    if (!state || !state.apercu) return q;
+    return q.or('user_id.eq.' + state.user.id + ',ambassadeur_email.ilike."' + String(state.user.email || '').replace(/["\\%_]/g, '') + '"');
   }
 
   // Simulation faite avant l'inscription : enregistrée au premier passage dans l'espace.
@@ -285,7 +348,7 @@
   function listeFr(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1]; }
 
   var ESPACE = {
-    db: db, cfg: cfg, guard: guard, state: null, LIBELLES: LIBELLES, tag: tag, EXIGENCES: EXIGENCES, manquants: manquants, listeFr: listeFr,
+    db: db, cfg: cfg, guard: guard, state: null, filtreRecos: filtreRecos, LIBELLES: LIBELLES, tag: tag, EXIGENCES: EXIGENCES, manquants: manquants, listeFr: listeFr,
     sectionAdmin: sectionAdmin, badge: badge, PAGES_ADMIN: PAGES_ADMIN,
     esc: esc, num: num, eur: eur, n0: n0, date: date, parseDate: parseDate,
     moisCourt: moisCourt, moisLong: moisLong, cap: cap, initiales: initiales,
