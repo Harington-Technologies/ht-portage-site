@@ -243,6 +243,13 @@ async function supprimer(userId: unknown, par: string) {
   }
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) return json({ erreur: "Suppression impossible : " + error.message }, 500);
+  // Journal : qui a supprimé quel compte (le détail des lignes effacées est journalisé par la base)
+  const { data: auteur } = await admin.from("profils").select("prenom, nom, email").eq("id", par).maybeSingle();
+  await admin.from("journal").insert({
+    auteur: par, auteur_nom: [auteur?.prenom, auteur?.nom].filter(Boolean).join(" ") || auteur?.email || null,
+    action: "suppression", objet: "comptes", cible_id: userId,
+    resume: `Compte supprimé : ${[p?.prenom, p?.nom].filter(Boolean).join(" ")} (${p?.email ?? "?"}) · ${fichiers} fichier(s) effacé(s)`,
+  }).then(({ error: ej }) => { if (ej) console.error("Journal", ej.message); });
   console.log("Compte supprimé", userId, "par", par, "·", fichiers, "fichier(s)");
   return json({ ok: true, fichiers, email: p?.email ?? "" });
 }

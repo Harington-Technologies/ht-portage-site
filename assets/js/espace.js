@@ -94,7 +94,9 @@
     admin: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
     valider: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
     import: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
-    demandes: '<path d="M4 5h16v11H8l-4 4z"/>'
+    demandes: '<path d="M4 5h16v11H8l-4 4z"/>',
+    offres: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 12h18"/>',
+    journal: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
   };
   // Menu de l'administration (sections de admin.html)
   var PAGES_ADMIN = [
@@ -103,7 +105,9 @@
     ['valider', 'a-valider', 'Dossiers à valider'],
     ['contrats', 'signatures', 'Contrats et signatures'],
     ['import', 'import', 'Import VSP'],
-    ['demandes', 'demandes', 'Demandes reçues']
+    ['demandes', 'demandes', 'Demandes reçues'],
+    ['offres', 'offres', 'Offres d’emploi'],
+    ['journal', 'journal', 'Journal']
   ];
   var PAGES = [
     ['accueil', 'index.html', 'Tableau de bord'],

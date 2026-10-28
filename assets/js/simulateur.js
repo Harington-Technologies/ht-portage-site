@@ -84,6 +84,14 @@
     if (lien) lien.href = 'espace/connexion.html?inscription=1&tjm=' + t + '&jours=' + j + '&net=' + netMois + '&frais=' + Math.round(r.frais);
   }
 
+  // Valeurs de départ depuis le lien (ex. simulateur.html?tjm=650&jours=19, depuis les pages métiers)
+  try {
+    var q = new URLSearchParams(location.search);
+    [[tjm, 'tjm'], [jours, 'jours']].forEach(function (x) {
+      var v = Number(q.get(x[1]));
+      if (v && v >= Number(x[0].min) && v <= Number(x[0].max)) x[0].value = String(v);
+    });
+  } catch (e) { /* lien sans paramètres */ }
   [tjm, jours, frais, pas].forEach(function (el) { el.addEventListener('input', update); });
   document.querySelectorAll('[data-periode]').forEach(function (btn) {
     btn.addEventListener('click', function () {

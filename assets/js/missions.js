@@ -23,6 +23,7 @@
 
   var missions = [];
   var filtre = 'Tous';
+  try { var dq = new URLSearchParams(location.search).get('domaine'); if (DOMAINES.indexOf(dq) >= 0) filtre = dq; } catch (e) { /* rien */ }
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -84,6 +85,29 @@
     });
   }
 
+  // Offres lisibles par Google for Jobs (données structurées JobPosting)
+  function donneesStructurees(liste) {
+    if (!liste.length) return;
+    var data = liste.map(function (m) {
+      var remote = /remote|t[ée]l[ée]travail/i.test((m.lieu || '') + ' ' + (m.rythme || ''));
+      var o = {
+        '@context': 'https://schema.org', '@type': 'JobPosting',
+        title: m.titre, identifier: { '@type': 'PropertyValue', name: 'HT Portage', value: m.ref },
+        description: '<p>' + [m.resume, m.duree ? 'Durée : ' + m.duree + '.' : '', m.rythme ? 'Rythme : ' + m.rythme + '.' : '', 'Mission en portage salarial (CDI de portage) avec HT Portage, filiale de Harington Technologies.'].filter(Boolean).join(' ') + '</p>',
+        datePosted: String(m.created_at || new Date().toISOString()).slice(0, 10),
+        employmentType: 'CONTRACTOR',
+        hiringOrganization: { '@type': 'Organization', name: 'HT Portage', sameAs: 'https://www.htportage.fr', logo: 'https://www.htportage.fr/assets/img/favicon.svg' },
+        jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: /remote/i.test(m.lieu || '') ? 'Paris' : (m.lieu || 'Paris'), addressCountry: 'FR' } },
+        directApply: true, url: 'https://www.htportage.fr/missions.html'
+      };
+      if (remote) { o.jobLocationType = 'TELECOMMUTE'; o.applicantLocationRequirements = { '@type': 'Country', name: 'France' }; }
+      return o;
+    });
+    var sc = document.createElement('script');
+    sc.type = 'application/ld+json'; sc.textContent = JSON.stringify(data);
+    document.head.appendChild(sc);
+  }
+
   async function load() {
     var db = window.HTP && window.HTP.db;
     if (!db) {
@@ -91,7 +115,7 @@
       noteEl.textContent = 'Offres d’exemple : la liste réelle s’affichera une fois Supabase configuré.';
     } else {
       var res = await db.from('missions')
-        .select('ref, titre, domaine, resume, lieu, duree, rythme, tjm')
+        .select('ref, titre, domaine, resume, lieu, duree, rythme, tjm, created_at')
         .eq('publiee', true)
         .order('created_at', { ascending: false });
       if (res.error) {
@@ -101,7 +125,9 @@
         return;
       }
       missions = res.data || [];
+      donneesStructurees(missions);
     }
+    if (filtre !== 'Tous' && !missions.some(function (m) { return m.domaine === filtre; })) filtre = 'Tous';
     renderFilters();
     renderList();
     fillSelect();

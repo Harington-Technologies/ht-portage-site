@@ -135,3 +135,38 @@
     form.addEventListener('submit', function (e) { e.preventDefault(); submitForm(form); });
   });
 })();
+
+// Mesure d'audience sans cookie ni stockage (exemptée de consentement) : page vue, simulation, clics clés.
+// Rien n'identifie le visiteur : ni cookie, ni identifiant, ni adresse IP enregistrée.
+(function () {
+  'use strict';
+  var cfg = window.HTP_CONFIG || {};
+  if (!cfg.supabaseUrl || !window.fetch || !window.FormData) return;
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !window.HTP_MESURE_TEST) return;
+  var page = (location.pathname.replace(/\/index\.html$/, '/').split('/').pop() || 'accueil').replace(/\.html$/, '') || 'accueil';
+  var source = '';
+  try {
+    var utm = new URLSearchParams(location.search).get('utm_source');
+    if (utm) source = utm;
+    else if (document.referrer) { var h = new URL(document.referrer).hostname.replace(/^www\./, ''); if (h && h !== location.hostname.replace(/^www\./, '')) source = h; }
+  } catch (e) { /* referrer illisible */ }
+  var appareil = window.matchMedia && window.matchMedia('(max-width: 760px)').matches ? 'mobile' : 'ordinateur';
+  function envoyer(evenement) {
+    var fd = new FormData();
+    fd.append('formulaire', 'mesure'); fd.append('evenement', evenement); fd.append('page', page); fd.append('appareil', appareil);
+    if (source) fd.append('source', source);
+    try { fetch(cfg.supabaseUrl + '/functions/v1/formulaire', { method: 'POST', body: fd, keepalive: true, headers: { Authorization: 'Bearer ' + cfg.supabaseAnonKey, apikey: cfg.supabaseAnonKey } }).catch(function () {}); } catch (e) { /* rien */ }
+  }
+  window.HTP_MESURE = envoyer;
+  envoyer('vue');
+  // Première utilisation du simulateur sur la page
+  var sim = document.querySelector('.simulator, #tjm');
+  if (sim) {
+    var fait = false;
+    document.addEventListener('input', function (e) { if (!fait && e.target.closest && e.target.closest('input[type=range]')) { fait = true; envoyer('simulation'); } });
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href*="connexion.html?inscription"], [data-mesure]');
+    if (a) envoyer(a.dataset.mesure || 'clic_espace');
+  });
+})();

@@ -89,6 +89,26 @@ async function turnstileOk(jeton: string, ip: string): Promise<boolean> {
   } catch (e) { console.error("Turnstile", e); return false; }
 }
 
+// Mesure d'audience sans cookie : page, événement, source (domaine du site d'origine ou utm_source), type d'appareil.
+// Aucune adresse IP ni identifiant n'est enregistré (l'IP sert seulement à limiter les envois, en mémoire de la base).
+export const EVENEMENTS = ["vue", "simulation", "clic_espace", "clic_rappel"];
+export function nettoyerMesure(fd: FormData): Record<string, string> | null {
+  const evenement = String(fd.get("evenement") ?? "");
+  if (!EVENEMENTS.includes(evenement)) return null;
+  const page = String(fd.get("page") ?? "/").replace(/[?#].*$/, "").replace(/[^a-zA-Z0-9/_.-]/g, "").slice(0, 100) || "/";
+  const source = String(fd.get("source") ?? "").toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 100);
+  const appareil = fd.get("appareil") === "mobile" ? "mobile" : "ordinateur";
+  return { page, evenement, appareil, ...(source ? { source } : {}) };
+}
+async function mesure(fd: FormData, req: Request, rep: (c: unknown, s?: number) => Response) {
+  const m = nettoyerMesure(fd);
+  if (!m) return rep({ ok: true });
+  if (!(await limite("mesure:" + ipDe(req), 120, 600))) return rep({ ok: true });
+  const { error } = await admin.from("mesures").insert(m);
+  if (error) console.error("Mesure", error.message);
+  return rep({ ok: true });
+}
+
 const nomFichier = (n: string) => n.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-80);
 
 if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
@@ -100,6 +120,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   let fd: FormData;
   try { fd = await req.formData(); } catch { return rep({ erreur: "Requête invalide." }, 400); }
   const kind = String(fd.get("formulaire") ?? "");
+  if (kind === "mesure") return await mesure(fd, req, rep);
   const conf = FORMULAIRES[kind];
   if (!conf) return rep({ erreur: "Formulaire inconnu." }, 400);
 
