@@ -1139,4 +1139,21 @@
   await chargerProfils();
   await Promise.all([chargerMissions(true), chargerDocs(true), chargerDemandes(true)]);
   rendre([LC, LV, LS, LCand, LCont, LReco]);
+
+  // Données rafraîchies quand on revient sur l'onglet (nouvelles inscriptions, signatures, demandes…)
+  var derniereMaj = Date.now(), enCours = false;
+  async function actualiser() {
+    if (enCours || document.hidden || Date.now() - derniereMaj < 30000) return;
+    if (document.querySelector('dialog[open]')) return; // pas pendant une saisie dans une fiche
+    enCours = true;
+    try {
+      await chargerProfils();
+      await Promise.all([chargerMissions(true), chargerDocs(true), chargerDemandes(true)]);
+      rendre([LC, LV, LS, LCand, LCont, LReco]);
+      derniereMaj = Date.now();
+    } finally { enCours = false; }
+  }
+  document.addEventListener('visibilitychange', actualiser);
+  window.addEventListener('focus', actualiser);
+  setInterval(actualiser, 120000);
 })();
