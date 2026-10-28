@@ -37,18 +37,21 @@
     document.getElementById('annee-label').textContent = '/Année ' + annee + '/';
     var liste = comptes.filter(function (c) { return E.parseDate(c.mois).getFullYear() === Number(annee); });
     var def = liste.filter(function (c) { return c.net_verse != null; });
-    var ca = somme(liste, 'ca_ht'), net = somme(def, 'net_verse'), frais = somme(liste, 'frais_gestion'), caDef = somme(def, 'ca_ht');
+    var ca = somme(liste, 'ca_ht'), net = somme(def, 'net_verse');
+    var avecBp = liste.filter(function (c) { return c.salaire_charge != null; });
+    var charge = somme(avecBp, 'salaire_charge'), fraisPro = somme(avecBp, 'frais_pro');
     var premier = liste[liste.length - 1], dernier = liste[0];
     var periode = E.moisCourt(premier.mois) + ' → ' + E.moisCourt(dernier.mois);
+    var nb = function (n) { return n + ' mois payé' + (n > 1 ? 's' : ''); };
     document.getElementById('cumuls').innerHTML =
       '<div class="kpi kpi--dark"><span class="kpi__label">CA facturé · cumul</span><span class="kpi__value">' + E.eur(ca) + ' <small style="font-size:15px">HT</small></span><span class="kpi__note">' + esc(periode) + '</span></div>' +
-      '<div class="kpi"><span class="kpi__label">Net versé · cumul</span><span class="kpi__value">' + E.eur(net) + '</span><span class="kpi__note">' + def.length + ' mois payé' + (def.length > 1 ? 's' : '') + '</span></div>' +
-      '<div class="kpi"><span class="kpi__label">Frais de gestion · cumul</span><span class="kpi__value">' + E.eur(frais) + '</span><span class="kpi__note">' + (ca ? Math.round(frais / ca * 1000) / 10 + ' % du CA' : '') + '</span></div>' +
-      '<div class="kpi"><span class="kpi__label">Taux de conversion</span><span class="kpi__value">' + (caDef ? Math.round(net / caDef * 100) + ' %' : '—') + '</span><span class="kpi__note">Net versé / CA facturé</span></div>';
+      '<div class="kpi"><span class="kpi__label">Salaire chargé · cumul</span><span class="kpi__value">' + E.eur(charge) + '</span><span class="kpi__note">Brut + charges patronales · ' + nb(avecBp.length) + '</span></div>' +
+      '<div class="kpi"><span class="kpi__label">Frais professionnels · cumul</span><span class="kpi__value">' + E.eur(fraisPro) + '</span><span class="kpi__note">Remboursés avec le salaire</span></div>' +
+      '<div class="kpi"><span class="kpi__label">Net versé · cumul</span><span class="kpi__value">' + E.eur(net) + '</span><span class="kpi__note">' + nb(def.length) + '</span></div>';
 
     document.getElementById('tableau').innerHTML = '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr>' +
       '<th scope="col">Mois</th><th scope="col" class="num">Jours</th><th scope="col" class="num">CA HT</th><th scope="col" class="num">Frais de gestion</th>' +
-      '<th scope="col" class="num">Charges et cotisations</th><th scope="col" class="num">Réserve</th><th scope="col" class="num">Net versé</th><th scope="col" class="num">Documents</th>' +
+      '<th scope="col" class="num">Frais professionnels</th><th scope="col" class="num">Salaire chargé</th><th scope="col" class="num">Net versé</th><th scope="col" class="num">Documents</th>' +
       '</tr></thead><tbody>' + liste.map(function (c) {
         var ds = docsDuMois(c.mois);
         var liens = ds.length ? ds.map(function (d) {
@@ -58,28 +61,32 @@
         var provisoire = c.statut === 'provisoire' ? ' <span class="tag tag--rose">Provisoire</span>' : '';
         return '<tr><th scope="row">' + esc(E.cap(E.moisLong(c.mois))) + provisoire + '</th>' +
           '<td class="num">' + (c.jours != null ? E.n0(c.jours) : '—') + '</td><td class="num">' + E.eur(c.ca_ht) + '</td>' +
-          '<td class="num">' + E.eur(c.frais_gestion) + '</td><td class="num">' + E.eur(c.charges) + '</td><td class="num">' + E.eur(c.reserve) + '</td>' +
+          '<td class="num">' + E.eur(c.frais_gestion) + '</td><td class="num">' + E.eur(c.frais_pro) + '</td><td class="num">' + E.eur(c.salaire_charge) + '</td>' +
           '<td class="num"><strong style="color:var(--navy-900)">' + E.eur(c.net_verse) + '</strong></td><td class="num">' + liens + '</td></tr>';
-      }).join('') + '</tbody></table></div>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="small" style="font-size:13px;margin-top:10px">Salaire chargé = salaire brut + charges patronales, d\'après votre bulletin de paie. Il comprend vos cotisations, votre réserve financière et votre salaire net.</p>';
 
-    // Répartition du dernier mois complet
-    var ref = def[0];
+    // Répartition du dernier mois dont le bulletin est disponible : salaire chargé + frais professionnels + frais de gestion
+    var ref = liste.filter(function (c) { return c.salaire_charge != null && Number(c.ca_ht); })[0];
     var bloc = document.getElementById('bloc-repart');
-    if (!ref || !Number(ref.ca_ht)) { bloc.hidden = true; return; }
-    var parts = [
-      ['Net versé', Number(ref.net_verse) || 0, 'var(--navy-900)'],
-      ['Charges et cotisations', Number(ref.charges) || 0, 'var(--on-dark-2)'],
-      ['Réserve', Number(ref.reserve) || 0, 'var(--slate)'],
-      ['Frais de gestion', Number(ref.frais_gestion) || 0, 'var(--rose)']
-    ].filter(function (x) { return x[1] > 0; });
+    if (!ref) { bloc.hidden = true; return; }
     var tot = Number(ref.ca_ht);
+    var parts = [
+      ['Salaire chargé', Number(ref.salaire_charge) || 0, 'var(--navy-900)'],
+      ['Frais professionnels', Number(ref.frais_pro) || 0, 'var(--slate)'],
+      ['Frais de gestion', Number(ref.frais_gestion) || 0, 'var(--rose)']
+    ];
+    var reste = Math.round((tot - parts.reduce(function (s, x) { return s + x[1]; }, 0)) * 100) / 100;
+    if (reste >= 1) parts.push(['Reste sur votre compte d\'activité', reste, 'var(--on-dark-2)']);
+    parts = parts.filter(function (x) { return x[1] > 0; });
     document.getElementById('t-repart').textContent = 'Où va votre chiffre d\'affaires · ' + E.moisLong(ref.mois);
     document.getElementById('repart').innerHTML =
-      '<div class="stack" role="img" aria-label="' + esc(parts.map(function (x) { return x[0] + ' ' + E.eur(x[1]); }).join(', ')) + '">' +
+      '<div class="stack" role="img" aria-label="' + esc('CA ' + E.eur(tot) + ' : ' + parts.map(function (x) { return x[0] + ' ' + E.eur(x[1]); }).join(', ')) + '">' +
         parts.map(function (x) { return '<div style="flex:' + x[1] + ' 1 0;background:' + x[2] + '"></div>'; }).join('') + '</div>' +
       '<div class="legend">' + parts.map(function (x) {
-        return '<span><i style="background:' + x[2] + '"></i>' + esc(x[0]) + ' · ' + E.eur(x[1]) + ' (' + Math.round(x[1] / tot * 100) + ' %)</span>';
-      }).join('') + '</div>';
+        return '<span><i style="background:' + x[2] + '"></i>' + esc(x[0]) + ' · ' + E.eur(x[1]) + '</span>';
+      }).join('') + '</div>' +
+      (ref.net_verse != null ? '<p class="small" style="font-size:14px;margin-top:10px">CA facturé : ' + E.eur(tot) + ' HT · dont net versé sur votre compte bancaire : ' + E.eur(Number(ref.net_verse)) + ' (salaire + frais remboursés).</p>' : '');
     bloc.hidden = false;
   }
 

@@ -75,7 +75,7 @@
   }
   // Mois et net payé lus dans le bulletin (le nom du fichier sert de secours)
   async function lireBulletin(buf, nom) {
-    var info = { mois: null, net: null };
+    var info = { mois: null, net: null, fraisPro: null, salaireCharge: null };
     try {
       await charger(LIBS.pdf);
       var lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = LIBS.pdfWorker;
@@ -84,6 +84,13 @@
       var t = c.items.map(function (i) { return i.str; }).join(' ');
       var n = /Net pay[ée]\s*:?\s*([\d\s  .,]+)\s*(?:€|euros?)/i.exec(t);
       if (n) info.net = nombre(n[1].replace(/\s/g, ''));
+      // Part frais et part salaire chargé (brut + charges patronales)
+      var NB = '(-?\\d{1,3}(?:[\\s\\u00a0\\u202f]\\d{3})*[.,]\\d{2})';
+      var val = function (x) { return nombre(String(x).replace(/[\s\u00a0\u202f]/g, '')); };
+      var brut = new RegExp('Salaire brut\\s+' + NB).exec(t), cot = new RegExp('Total des cotisations et contributions\\s+' + NB + '\\s+' + NB).exec(t);
+      var fr = new RegExp('Remboursement de frais professionnels\\s+' + NB).exec(t);
+      if (brut && cot) info.salaireCharge = arrondi(val(brut[1]) + val(cot[2]));
+      if (info.salaireCharge != null) info.fraisPro = fr ? val(fr[1]) : 0;
       // Fin de période : la date la plus récente qui tombe un dernier jour de mois
       var fins = (t.match(/\b\d{2}\/\d{2}\/20\d{2}\b/g) || []).map(iso).filter(function (d) {
         var x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + 1); return x.getDate() === 1;
@@ -200,12 +207,18 @@
       var vus = {};
       d.bulletins = d.pdfs.filter(function (p) { return p.type === 'bulletin' && p.mois; }).reverse().filter(function (p) { if (vus[p.mois]) return false; vus[p.mois] = 1; return true; }).reverse();
       d.autresPdfs = d.pdfs.filter(function (p) { return p.type !== 'bulletin' || !p.mois; });
-      d.bulletins.forEach(function (b) { if (b.net != null) { parMois[b.mois] = parMois[b.mois] || { mois: b.mois, jours: null, ca_ht: null }; parMois[b.mois].net_verse = b.net; } });
+      d.bulletins.forEach(function (b) {
+        if (b.net == null && b.salaireCharge == null) return;
+        parMois[b.mois] = parMois[b.mois] || { mois: b.mois, jours: null, ca_ht: null };
+        if (b.net != null) parMois[b.mois].net_verse = b.net;
+        if (b.salaireCharge != null) { parMois[b.mois].salaire_charge = b.salaireCharge; parMois[b.mois].frais_pro = b.fraisPro; }
+      });
       var moisCourant = aujourdhui().slice(0, 7) + '-01';
       d.comptes = Object.keys(parMois).sort().map(function (m) {
         var c = parMois[m];
         return { mois: m, jours: c.jours != null ? arrondi(c.jours) : null, ca_ht: c.ca_ht != null ? arrondi(c.ca_ht) : null,
           frais_gestion: c.ca_ht != null ? arrondi(c.ca_ht * 0.05) : null, net_verse: c.net_verse != null ? c.net_verse : null,
+          salaire_charge: c.salaire_charge != null ? c.salaire_charge : null, frais_pro: c.frais_pro != null ? c.frais_pro : null,
           statut: m < moisCourant && c.net_verse != null ? 'definitif' : 'provisoire', source: 'vsp' };
       });
       return d;
@@ -321,9 +334,17 @@
 
     // Comptes d'activité
     if (d.comptes.length) {
-      var lignes = d.comptes.map(function (c) { var o = Object.assign({ user_id: uid }, c); Object.keys(o).forEach(function (k) { if (o[k] === null) delete o[k]; }); return o; });
-      var ca = await db.from('comptes_activite').upsert(lignes, { onConflict: 'user_id,mois' });
-      if (ca.error) throw new Error('comptes d\'activité : ' + E.errText(ca.error));
+      // Une ligne à la fois : une valeur absente de VSP (null) n'efface jamais une valeur déjà enregistrée,
+      // et un mois déjà « définitif » ne repasse pas en « provisoire ».
+      var exist = (await db.from('comptes_activite').select('mois, statut').eq('user_id', uid)).data || [];
+      for (var k = 0; k < d.comptes.length; k++) {
+        var o = Object.assign({ user_id: uid }, d.comptes[k]);
+        Object.keys(o).forEach(function (cle) { if (o[cle] === null) delete o[cle]; });
+        var ancien = exist.find(function (x) { return x.mois === o.mois; });
+        if (ancien && ancien.statut === 'definitif' && o.statut === 'provisoire') delete o.statut;
+        var ca = await db.from('comptes_activite').upsert(o, { onConflict: 'user_id,mois' });
+        if (ca.error) throw new Error('comptes d\'activité : ' + E.errText(ca.error));
+      }
       bilan.push(d.comptes.length + ' mois d\'activité');
     }
 

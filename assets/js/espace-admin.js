@@ -523,7 +523,7 @@
   var rapport = document.getElementById('rapport-import'), btnImport = document.getElementById('btn-importer');
   function normal(s) { return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
   var ALIAS = { e_mail: 'email', mail: 'email', id_vsp: 'vsp_id', vsp: 'vsp_id', matricule: 'vsp_id', ca: 'ca_ht', chiffre_d_affaires: 'ca_ht', frais: 'frais_gestion',
-    net: 'net_verse', salaire_net: 'net_verse', reserve_financiere: 'reserve', nb_jours: 'jours', jours_travailles: 'jours', periode: 'mois' };
+    net: 'net_verse', salaire_net: 'net_verse', frais_professionnels: 'frais_pro', salaire_charge: 'salaire_charge', cout_salaire: 'salaire_charge', reserve_financiere: 'reserve', nb_jours: 'jours', jours_travailles: 'jours', periode: 'mois' };
   function nombre(v) {
     if (v == null) return null;
     var s = String(v).replace(/[\s €]/g, '');
@@ -579,7 +579,7 @@
       if (!m) { erreurs.push('Ligne ' + n + ' : mois illisible « ' + o.mois + ' »'); return; }
       var ligne = { user_id: p.id, mois: m, source: 'vsp', statut: /prov/i.test(o.statut || '') ? 'provisoire' : 'definitif' };
       var ko = false;
-      ['jours', 'ca_ht', 'frais_gestion', 'charges', 'reserve', 'net_verse'].forEach(function (k) {
+      ['jours', 'ca_ht', 'frais_gestion', 'charges', 'reserve', 'net_verse', 'frais_pro', 'salaire_charge'].forEach(function (k) {
         if (!(k in o)) return;
         var v = nombre(o[k]);
         if (v !== v) { erreurs.push('Ligne ' + n + ' : valeur non numérique pour ' + k + ' « ' + o[k] + ' »'); ko = true; }
