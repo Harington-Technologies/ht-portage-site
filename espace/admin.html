@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/style.css?v=20261028b">
-<link rel="stylesheet" href="../assets/css/espace.css?v=20261028b">
+<link rel="stylesheet" href="../assets/css/style.css?v=20261028c">
+<link rel="stylesheet" href="../assets/css/espace.css?v=20261028c">
 </head>
 <body data-page="admin">
 <div class="app">
@@ -123,7 +123,8 @@
     <div id="fiche-missions"></div>
 
     <form class="box" id="form-mission" novalidate style="background:var(--bg);border:0">
-      <h3 class="box__title" style="font-size:16px">Ajouter une mission</h3>
+      <h3 class="box__title" style="font-size:16px" data-titre-form>Ajouter une mission</h3>
+      <input type="hidden" name="edit_id">
       <div class="grid-form">
         <div class="field full"><label for="m-intitule">Intitulé</label><input class="input" id="m-intitule" name="intitule" required maxlength="300"></div>
         <div class="field"><label for="m-client">Client</label><input class="input" id="m-client" name="client" maxlength="200"></div>
@@ -131,14 +132,16 @@
         <div class="field"><label for="m-debut">Début</label><input class="input" id="m-debut" name="date_debut" type="date"></div>
         <div class="field"><label for="m-fin">Fin</label><input class="input" id="m-fin" name="date_fin" type="date"></div>
         <div class="field"><label for="m-tjm">TJ (€ HT)</label><input class="input" id="m-tjm" name="tjm" type="number" min="100" max="5000" step="1"></div>
-        <div class="field"><label for="m-statut">Statut</label><select class="select" id="m-statut" name="statut"><option value="active">Active</option><option value="validee">Validée</option><option value="terminee">Terminée</option></select></div>
+        <div class="field"><label for="m-statut">Statut</label><select class="select" id="m-statut" name="statut"><option value="active">Active</option><option value="validee">Validée</option><option value="terminee">Terminée</option><option value="annulee">Annulée</option></select></div>
+        <div class="field"><label for="m-num">N° de contrat <span class="hint">(facultatif)</span></label><input class="input" id="m-num" name="numero_contrat" maxlength="50"></div>
         <div class="field"><label for="m-vsp">ID VSP <span class="hint">(facultatif)</span></label><input class="input" id="m-vsp" name="vsp_id" maxlength="100"></div>
       </div>
-      <div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><button class="btn btn--dark btn--sm" type="submit">Ajouter la mission</button></div>
+      <div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><div class="row-actions"><button class="btn btn--light btn--sm" type="button" data-annuler hidden>Annuler</button><button class="btn btn--dark btn--sm" type="submit">Ajouter la mission</button></div></div>
     </form>
 
     <form class="box" id="form-doc" novalidate style="background:var(--bg);border:0">
-      <h3 class="box__title" style="font-size:16px">Déposer un document</h3>
+      <h3 class="box__title" style="font-size:16px" data-titre-form>Déposer un document</h3>
+      <input type="hidden" name="edit_id">
       <div class="grid-form">
         <div class="field"><label for="d-type">Type</label><select class="select" id="d-type" name="type">
           <option value="cdi">CDI de portage</option><option value="annexe">Annexe de mission</option><option value="avenant">Avenant</option>
@@ -147,17 +150,23 @@
         <div class="field full"><label for="d-titre">Titre</label><input class="input" id="d-titre" name="titre" required maxlength="200" placeholder="Ex. : Bulletin de paie · septembre 2026"></div>
         <div class="field"><label for="d-date">Date du document <span class="hint">(mois de paie)</span></label><input class="input" id="d-date" name="date_document" type="date"></div>
         <div class="field"><label for="d-mission">Mission</label><select class="select" id="d-mission" name="mission_id"><option value="">—</option></select></div>
-        <div class="field full"><label for="d-fichier">Fichier (PDF, JPG ou PNG, 10 Mo max.)</label><input class="input" id="d-fichier" name="fichier" type="file" accept=".pdf,.jpg,.jpeg,.png" required style="padding:9px 12px"></div>
+        <div class="field full"><label for="d-fichier">Fichier (PDF, JPG ou PNG, 10 Mo max.) <span class="hint" data-hint-remplacer hidden>— facultatif : choisissez un fichier seulement pour remplacer l'actuel</span></label><input class="input" id="d-fichier" name="fichier" type="file" accept=".pdf,.jpg,.jpeg,.png" required style="padding:9px 12px"></div>
       </div>
-      <div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><button class="btn btn--dark btn--sm" type="submit">Déposer</button></div>
+      <div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><div class="row-actions"><button class="btn btn--light btn--sm" type="button" data-annuler hidden>Annuler</button><button class="btn btn--dark btn--sm" type="submit">Déposer</button></div></div>
     </form>
+
+    <div class="box zone-danger" id="zone-danger">
+      <h3 class="box__title" style="font-size:16px">Supprimer ce compte</h3>
+      <p class="small" style="font-size:14px;margin:0">Supprime définitivement le compte, son profil, ses missions, ses documents et fichiers, ses comptes d'activité et son invitation. Ses recommandations d'ambassadeur restent dans « Demandes reçues ». Cette action est irréversible.</p>
+      <div class="actions-row"><p class="form-status" role="status" aria-live="polite"></p><button class="btn btn--sm btn--danger" type="button" id="btn-supprimer-compte">Supprimer ce compte…</button></div>
+    </div>
   </div>
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="../assets/js/config.js?v=20261028b"></script>
-<script src="../assets/js/espace.js?v=20261028b"></script>
-<script src="../assets/js/espace-admin.js?v=20261028b"></script>
-<script src="../assets/js/espace-migration.js?v=20261028b"></script>
+<script src="../assets/js/config.js?v=20261028c"></script>
+<script src="../assets/js/espace.js?v=20261028c"></script>
+<script src="../assets/js/espace-admin.js?v=20261028c"></script>
+<script src="../assets/js/espace-migration.js?v=20261028c"></script>
 </body>
 </html>

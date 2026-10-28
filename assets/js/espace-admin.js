@@ -275,7 +275,8 @@
     document.getElementById('fiche-titre').textContent = nomDe(p);
     document.getElementById('fiche-sous').textContent = p.email + (p.telephone ? ' · ' + p.telephone : '') + (p.competences ? ' · ' + p.competences : '');
     fiche.querySelectorAll('form').forEach(function (f) { f.reset(); E.setStatus(f.querySelector('.form-status'), ''); });
-    rendreAcces();
+    rendreAcces(); reinitMission(); reinitDoc();
+    document.getElementById('zone-danger').querySelector('.form-status').textContent = '';
     if (typeof fiche.showModal === 'function') fiche.showModal(); else fiche.setAttribute('open', '');
     await chargerFiche();
   }
@@ -287,21 +288,81 @@
       db.from('documents').select('*').eq('user_id', courant.id).order('created_at', { ascending: false })
     ]);
     var missions = r[0].data || [], docs = r[1].data || [];
+    ficheData = { missions: missions, docs: docs };
     document.getElementById('d-mission').innerHTML = '<option value="">—</option>' + missions.map(function (m) { return '<option value="' + m.id + '">' + esc(m.intitule) + '</option>'; }).join('');
     el.innerHTML =
       '<h3 class="box__title" style="font-size:16px">Missions</h3>' +
       (missions.length ? '<ul class="list">' + missions.map(function (m) {
         return '<li data-mission="' + m.id + '"><span class="list__main"><strong>' + esc(m.intitule) + '</strong><span>' +
           esc([m.client, m.client_final, m.tjm ? E.eur(m.tjm) + ' HT' : '', E.date(m.date_debut) + ' → ' + E.date(m.date_fin)].filter(Boolean).join(' · ')) + '</span></span>' +
-          '<label class="visually-hidden" for="ms-' + m.id + '">Statut</label><select class="select" id="ms-' + m.id + '" style="width:auto;min-height:40px;font-size:14px">' + options(STATUTS_MISSION, m.statut) + '</select></li>';
+          '<span class="row-actions"><label class="visually-hidden" for="ms-' + m.id + '">Statut</label><select class="select" id="ms-' + m.id + '" style="width:auto;min-height:40px;font-size:14px">' + options(STATUTS_MISSION, m.statut) + '</select>' +
+          '<button class="link-btn" type="button" data-modif-mission="' + m.id + '">Modifier</button><button class="icon-suppr" type="button" data-suppr-mission="' + m.id + '">Supprimer<span class="visually-hidden"> la mission ' + esc(m.intitule) + '</span></button></span></li>';
       }).join('') + '</ul>' : '<p class="small" style="font-size:14px">Aucune mission.</p>') +
       '<h3 class="box__title" style="font-size:16px;margin-top:12px">Documents</h3>' +
       (docs.length ? '<ul class="list">' + docs.map(function (d) {
         return '<li><span class="list__main"><strong>' + esc(d.titre) + '</strong><span>' + esc(E.LIBELLES.typeDoc[d.type] || '') + ' · ' + E.date(d.date_document || d.created_at) + '</span></span>' +
-          E.tag('document', d.statut) + (d.storage_path ? ' <button class="link-btn" type="button" data-doc="' + esc(d.storage_path) + '">Ouvrir</button>' : '') + '</li>';
+          '<span class="row-actions">' + E.tag('document', d.statut) + (d.storage_path ? ' <button class="link-btn" type="button" data-doc="' + esc(d.storage_path) + '">Ouvrir</button>' : '') +
+          '<button class="link-btn" type="button" data-modif-doc="' + d.id + '">Modifier</button><button class="icon-suppr" type="button" data-suppr-doc="' + d.id + '">Supprimer<span class="visually-hidden"> ' + esc(d.titre) + '</span></button></span></li>';
       }).join('') + '</ul>' : '<p class="small" style="font-size:14px">Aucun document.</p>');
   }
   E.brancherTelechargements(document.getElementById('fiche-missions'));
+  var ficheData = { missions: [], docs: [] };
+  function modeEdition(form, actif, titre, bouton) {
+    form.querySelector('[data-titre-form]').textContent = titre;
+    form.querySelector('[type=submit]').textContent = bouton;
+    form.querySelector('[data-annuler]').hidden = !actif;
+    var h = form.querySelector('[data-hint-remplacer]'); if (h) h.hidden = !actif;
+    if (form.fichier) form.fichier.required = !actif;
+  }
+  function reinitMission() { fm.reset(); fm.edit_id.value = ''; modeEdition(fm, false, 'Ajouter une mission', 'Ajouter la mission'); }
+  function reinitDoc() { fd.reset(); fd.edit_id.value = ''; modeEdition(fd, false, 'Déposer un document', 'Déposer'); }
+  document.getElementById('fiche-missions').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-modif-mission],[data-suppr-mission],[data-modif-doc],[data-suppr-doc]');
+    if (!b) return;
+    if (b.dataset.modifMission) {
+      var m = ficheData.missions.find(function (x) { return x.id === b.dataset.modifMission; }); if (!m) return;
+      reinitMission(); fm.edit_id.value = m.id;
+      ['intitule', 'client', 'client_final', 'date_debut', 'date_fin', 'tjm', 'numero_contrat', 'vsp_id'].forEach(function (k) { fm[k].value = m[k] == null ? '' : m[k]; });
+      if (!fm.statut.querySelector('option[value="' + m.statut + '"]')) fm.statut.insertAdjacentHTML('beforeend', '<option value="' + esc(m.statut) + '">' + esc((STATUTS_MISSION.find(function (x) { return x[0] === m.statut; }) || [0, m.statut])[1]) + '</option>');
+      fm.statut.value = m.statut;
+      modeEdition(fm, true, 'Modifier la mission', 'Enregistrer la mission');
+      fm.scrollIntoView({ behavior: 'smooth', block: 'start' }); fm.intitule.focus();
+      return;
+    }
+    if (b.dataset.supprMission) {
+      var mi = ficheData.missions.find(function (x) { return x.id === b.dataset.supprMission; }); if (!mi) return;
+      var lies = ficheData.docs.filter(function (d) { return d.mission_id === mi.id; });
+      var enCours = lies.some(function (d) { return d.statut === 'a_signer'; });
+      if (!confirm('Supprimer la mission « ' + mi.intitule + ' »' + (mi.client ? ' (' + mi.client + ')' : '') + ' ?' +
+        (lies.length ? '\n\n' + lies.length + ' document(s) liés seront conservés, sans mission.' : '') +
+        (enCours ? '\n\nAttention : une signature Yousign est en cours pour cette mission ; annulez-la aussi dans Yousign.' : '') + '\n\nCette action est irréversible.')) return;
+      var r = await db.from('consultant_missions').delete().eq('id', mi.id);
+      if (r.error) { alert(E.errText(r.error)); return; }
+      if (fm.edit_id.value === mi.id) reinitMission();
+      chargerFiche(); toutRecharger();
+      return;
+    }
+    if (b.dataset.modifDoc) {
+      var d = ficheData.docs.find(function (x) { return x.id === b.dataset.modifDoc; }); if (!d) return;
+      reinitDoc(); fd.edit_id.value = d.id;
+      fd.type.value = d.type; fd.titre.value = d.titre || ''; fd.date_document.value = d.date_document || ''; fd.mission_id.value = d.mission_id || '';
+      if (!fd.statut.querySelector('option[value="' + d.statut + '"]')) fd.statut.insertAdjacentHTML('beforeend', '<option value="' + esc(d.statut) + '">' + esc((E.LIBELLES.document[d.statut] || [d.statut])[0]) + '</option>');
+      fd.statut.value = d.statut;
+      modeEdition(fd, true, 'Modifier le document', 'Enregistrer le document');
+      fd.scrollIntoView({ behavior: 'smooth', block: 'start' }); fd.titre.focus();
+      return;
+    }
+    if (b.dataset.supprDoc) {
+      var doc = ficheData.docs.find(function (x) { return x.id === b.dataset.supprDoc; }); if (!doc) return;
+      if (!confirm('Supprimer le document « ' + doc.titre + ' » ?\n\nIl disparaîtra de l\'espace du consultant et le fichier sera effacé.' +
+        (doc.statut === 'a_signer' ? '\n\nAttention : une signature Yousign est en cours ; annulez-la aussi dans Yousign.' : '') + '\n\nCette action est irréversible.')) return;
+      var rd = await db.from('documents').delete().eq('id', doc.id);
+      if (rd.error) { alert(E.errText(rd.error)); return; }
+      if (doc.storage_path) await db.storage.from('documents').remove([doc.storage_path]);
+      if (fd.edit_id.value === doc.id) reinitDoc();
+      chargerFiche(); chargerDocs();
+    }
+  });
   document.getElementById('fiche-missions').addEventListener('change', async function (e) {
     var li = e.target.closest('[data-mission]');
     if (!li) return;
@@ -315,24 +376,26 @@
     e.preventDefault();
     var s = fm.querySelector('.form-status');
     if (!fm.checkValidity()) { fm.reportValidity(); E.setStatus(s, "L'intitulé est obligatoire.", 'error'); return; }
-    var data = { user_id: courant.id };
-    ['intitule', 'client', 'client_final', 'date_debut', 'date_fin', 'tjm', 'statut', 'vsp_id'].forEach(function (k) {
+    var data = {}, id = fm.edit_id.value;
+    ['intitule', 'client', 'client_final', 'date_debut', 'date_fin', 'tjm', 'statut', 'numero_contrat', 'vsp_id'].forEach(function (k) {
       var v = (fm[k].value || '').trim(); data[k] = v === '' ? null : v;
     });
     if (data.tjm) data.tjm = Number(data.tjm);
-    var r = await db.from('consultant_missions').insert(data);
+    var r = id ? await db.from('consultant_missions').update(data).eq('id', id) : await db.from('consultant_missions').insert(Object.assign({ user_id: courant.id }, data));
     if (r.error) { E.setStatus(s, E.errText(r.error), 'error'); return; }
-    fm.reset(); E.setStatus(s, 'Mission ajoutée.', 'ok');
+    reinitMission(); E.setStatus(s, id ? 'Mission enregistrée.' : 'Mission ajoutée.', 'ok');
     chargerFiche();
     toutRecharger();
   });
 
+  fm.querySelector('[data-annuler]').addEventListener('click', function () { reinitMission(); E.setStatus(fm.querySelector('.form-status'), ''); });
   var fd = document.getElementById('form-doc');
   fd.addEventListener('submit', async function (e) {
     e.preventDefault();
     var s = fd.querySelector('.form-status');
     if (!fd.checkValidity()) { fd.reportValidity(); E.setStatus(s, 'Titre et fichier obligatoires.', 'error'); return; }
-    var file = fd.fichier.files[0];
+    var file = fd.fichier.files[0], idDoc = fd.edit_id.value;
+    if (idDoc) { await modifierDocument(idDoc, file, s); return; }
     if (['application/pdf', 'image/jpeg', 'image/png'].indexOf(file.type) < 0) { E.setStatus(s, 'Format accepté : PDF, JPG ou PNG.', 'error'); return; }
     if (file.size > 10 * 1024 * 1024) { E.setStatus(s, 'Le fichier dépasse 10 Mo.', 'error'); return; }
     var nom = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-80);
@@ -348,6 +411,47 @@
     if (r.error) { await db.storage.from('documents').remove([path]); E.setStatus(s, E.errText(r.error), 'error'); return; }
     fd.reset(); E.setStatus(s, 'Document déposé : il est visible dans l\'espace du consultant.', 'ok');
     chargerFiche();
+  });
+
+  async function modifierDocument(id, file, s) {
+    var ancien = ficheData.docs.find(function (x) { return x.id === id; }) || {};
+    var maj = { type: fd.type.value, statut: fd.statut.value, titre: fd.titre.value.trim(), date_document: fd.date_document.value || null, mission_id: fd.mission_id.value || null };
+    var nouveau = null;
+    fd.querySelector('[type=submit]').disabled = true;
+    if (file) {
+      if (['application/pdf', 'image/jpeg', 'image/png'].indexOf(file.type) < 0) { fd.querySelector('[type=submit]').disabled = false; E.setStatus(s, 'Format accepté : PDF, JPG ou PNG.', 'error'); return; }
+      if (file.size > 10 * 1024 * 1024) { fd.querySelector('[type=submit]').disabled = false; E.setStatus(s, 'Le fichier dépasse 10 Mo.', 'error'); return; }
+      var nom = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-80);
+      nouveau = courant.id + '/' + Date.now() + '-' + nom;
+      E.setStatus(s, 'Envoi du nouveau fichier…');
+      var up = await db.storage.from('documents').upload(nouveau, file, { contentType: file.type, upsert: false });
+      if (up.error) { fd.querySelector('[type=submit]').disabled = false; E.setStatus(s, E.errText(up.error), 'error'); return; }
+      maj.storage_path = nouveau;
+    }
+    var r = await db.from('documents').update(maj).eq('id', id);
+    fd.querySelector('[type=submit]').disabled = false;
+    if (r.error) { if (nouveau) await db.storage.from('documents').remove([nouveau]); E.setStatus(s, E.errText(r.error), 'error'); return; }
+    // L'ancien fichier n'est effacé qu'une fois le nouveau enregistré
+    if (nouveau && ancien.storage_path && ancien.storage_path !== nouveau) await db.storage.from('documents').remove([ancien.storage_path]);
+    reinitDoc(); E.setStatus(s, file ? 'Document enregistré, fichier remplacé.' : 'Document enregistré.', 'ok');
+    chargerFiche(); chargerDocs();
+  }
+  fd.querySelector('[data-annuler]').addEventListener('click', function () { reinitDoc(); E.setStatus(fd.querySelector('.form-status'), ''); });
+
+  // Suppression définitive du compte (fonction « consultants », clé serveur)
+  document.getElementById('btn-supprimer-compte').addEventListener('click', async function () {
+    var b = this, st2 = document.querySelector('#zone-danger .form-status'), p = courant;
+    var saisie = prompt('Suppression DÉFINITIVE du compte de ' + nomDe(p) + '.\n\nProfil, missions, documents et fichiers, comptes d\'activité : tout sera effacé, sans retour possible.\n\nPour confirmer, saisissez son adresse e-mail : ' + p.email);
+    if (saisie == null) return;
+    if (saisie.trim().toLowerCase() !== String(p.email || '').toLowerCase()) { E.setStatus(st2, 'Adresse différente : rien n\'a été supprimé.', 'error'); return; }
+    b.disabled = true; E.setStatus(st2, 'Suppression…');
+    var r = await db.functions.invoke('consultants', { body: { action: 'supprimer', user_id: p.id } });
+    var d = r.data; if (r.error) { try { d = await r.error.context.json(); } catch (e) { d = null; } }
+    b.disabled = false;
+    if (!d || !d.ok) { E.setStatus(st2, (d && d.erreur) || 'La suppression a échoué.', 'error'); return; }
+    fiche.close();
+    await toutRecharger(); await chargerDocs(); LC.maj();
+    alert('Le compte de ' + nomDe(p) + ' a été supprimé' + (d.fichiers ? ' (' + d.fichiers + ' fichier(s) effacé(s))' : '') + '.');
   });
 
   // =====================================================================
@@ -727,12 +831,12 @@
       { id: 'tjm', label: 'TJM décroissant', cmp: function (a, b) { return (b.tjm_souhaite || 0) - (a.tjm_souhaite || 0); } }
     ],
     rendre: function (cands) {
-      return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Candidat</th><th scope="col">Mission</th><th scope="col">TJM</th><th scope="col">CV</th><th scope="col">Statut</th></tr></thead><tbody>' +
+      return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Candidat</th><th scope="col">Mission</th><th scope="col">TJM</th><th scope="col">CV</th><th scope="col">Statut</th><th scope="col"><span class="visually-hidden">Supprimer</span></th></tr></thead><tbody>' +
         cands.map(function (c) {
           return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td><strong>' + esc(c.nom) + '</strong>' + coordonnees(c.telephone, c.email) + '</td>' +
             '<td>' + esc(c.mission_ref || 'Spontanée') + '</td><td class="num">' + (c.tjm_souhaite ? E.eur(c.tjm_souhaite) : '—') + '</td>' +
             '<td>' + (c.cv_path ? '<button class="link-btn" type="button" data-doc="' + esc(c.cv_path) + '" data-bucket="cv">CV</button>' : '—') + '</td>' +
-            '<td><label class="visually-hidden" for="c-' + c.id + '">Statut</label><select class="select" id="c-' + c.id + '" data-champ="statut">' + options(STATUTS_CAND, c.statut || 'nouvelle') + '</select></td></tr>';
+            '<td><label class="visually-hidden" for="c-' + c.id + '">Statut</label><select class="select" id="c-' + c.id + '" data-champ="statut">' + options(STATUTS_CAND, c.statut || 'nouvelle') + '</select></td><td><button class="icon-suppr" type="button" data-suppr-demande>Supprimer</button></td></tr>';
         }).join('') + '</tbody></table></div>';
     }
   });
@@ -753,13 +857,13 @@
       { id: 'ancien', label: 'Plus anciennes', cmp: cmpDate(function (c) { return c.created_at; }, true) }
     ],
     rendre: function (contacts) {
-      return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Contact</th><th scope="col">Message</th><th scope="col">Traité</th></tr></thead><tbody>' +
+      return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Contact</th><th scope="col">Message</th><th scope="col">Traité</th><th scope="col"><span class="visually-hidden">Supprimer</span></th></tr></thead><tbody>' +
         contacts.map(function (c) {
           var sim = c.type === 'simulation' ? 'TJM ' + E.eur(c.tjm) + ' · ' + c.jours + ' j · net ' + E.eur(c.net_estime) + '. ' : '';
           return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td>' + (c.type === 'simulation' ? 'Simulation' : 'Contact') + '</td>' +
             '<td><strong>' + esc(c.nom) + '</strong>' + coordonnees(c.telephone, c.email) + '</td>' +
             '<td style="max-width:360px">' + esc(sim + (c.message || c.situation || '')) + '</td>' +
-            '<td><label class="check" style="font-size:14px"><input type="checkbox" data-champ="traite"' + (c.traite ? ' checked' : '') + '>Traité</label></td></tr>';
+            '<td><label class="check" style="font-size:14px"><input type="checkbox" data-champ="traite"' + (c.traite ? ' checked' : '') + '>Traité</label></td><td><button class="icon-suppr" type="button" data-suppr-demande>Supprimer</button></td></tr>';
         }).join('') + '</tbody></table></div>';
     }
   });
@@ -780,12 +884,12 @@
       { id: 'ambassadeur', label: 'Ambassadeur (A → Z)', cmp: cmpTexte(function (x) { return x.ambassadeur_nom || ''; }) }
     ],
     rendre: function (recos) {
-      return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Ambassadeur</th><th scope="col">Recommande</th><th scope="col">Statut</th><th scope="col">Prime (€)</th></tr></thead><tbody>' +
+      return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Ambassadeur</th><th scope="col">Recommande</th><th scope="col">Statut</th><th scope="col">Prime (€)</th><th scope="col"><span class="visually-hidden">Supprimer</span></th></tr></thead><tbody>' +
         recos.map(function (x) {
           return '<tr data-id="' + x.id + '"><td style="white-space:nowrap">' + E.date(x.created_at) + '</td><td><strong>' + esc(x.ambassadeur_nom) + '</strong>' + coordonnees(x.user_id ? (D.profilsTous.find(function (p) { return p.id === x.user_id; }) || {}).telephone : null, x.ambassadeur_email) + (x.user_id ? '<span class="small">Compte espace</span>' : '') + '</td>' +
             '<td><strong>' + esc(E.LIBELLES.typeReco[x.type] || x.type) + ' · ' + esc(x.contact_nom) + '</strong>' + coordonnees(x.contact_telephone, x.contact_email) + '<span class="small">' + esc(x.details) + '</span></td>' +
             '<td><label class="visually-hidden" for="r-' + x.id + '">Statut</label><select class="select" id="r-' + x.id + '" data-champ="statut">' + options(STATUTS_RECO, x.statut || 'nouvelle') + '</select></td>' +
-            '<td><label class="visually-hidden" for="rp-' + x.id + '">Prime</label><input class="input" id="rp-' + x.id + '" data-champ="prime_montant" type="number" min="0" step="1" value="' + (x.prime_montant == null ? '' : esc(x.prime_montant)) + '" style="width:110px"></td></tr>';
+            '<td><label class="visually-hidden" for="rp-' + x.id + '">Prime</label><input class="input" id="rp-' + x.id + '" data-champ="prime_montant" type="number" min="0" step="1" value="' + (x.prime_montant == null ? '' : esc(x.prime_montant)) + '" style="width:110px"></td><td><button class="icon-suppr" type="button" data-suppr-demande>Supprimer</button></td></tr>';
         }).join('') + '</tbody></table></div>';
     }
   });
@@ -793,6 +897,26 @@
   contEl.addEventListener('change', enregistrerChamp('contacts', function () { return D.contacts; }));
   recoEl.addEventListener('change', enregistrerChamp('recommandations', function () { return D.recos; }));
   E.brancherTelechargements(document.getElementById('demandes'));
+  // Suppression d'une demande (et du CV d'une candidature)
+  function brancherSuppression(el, table, cle, liste) {
+    el.addEventListener('click', async function (e) {
+      var b = e.target.closest('[data-suppr-demande]'); if (!b) return;
+      var tr = b.closest('tr[data-id]'), obj = D[cle].find(function (x) { return String(x.id) === tr.dataset.id; }); if (!obj) return;
+      var qui = table === 'recommandations' ? (obj.ambassadeur_nom || '') + ' → ' + (obj.contact_nom || '') : (obj.nom || obj.email || '');
+      if (!confirm('Supprimer définitivement cette ' + (table === 'candidatures' ? 'candidature' : table === 'contacts' ? 'demande' : 'recommandation') + ' (' + qui + ', ' + E.date(obj.created_at) + ') ?' +
+        (obj.cv_path ? '\n\nLe CV sera aussi effacé.' : '') + '\n\nCette action est irréversible.')) return;
+      b.disabled = true;
+      var r = await db.from(table).delete().eq('id', obj.id).select('id');
+      b.disabled = false;
+      if (r.error || !(r.data && r.data.length)) { alert(r.error ? E.errText(r.error) : 'Suppression refusée : lancez le script espace-v16.sql dans Supabase.'); return; }
+      if (obj.cv_path) await db.storage.from('cv').remove([obj.cv_path]);
+      D[cle] = D[cle].filter(function (x) { return x !== obj; });
+      liste.maj(); majCompteurs();
+    });
+  }
+  brancherSuppression(candEl, 'candidatures', 'cands', LCand);
+  brancherSuppression(contEl, 'contacts', 'contacts', LCont);
+  brancherSuppression(recoEl, 'recommandations', 'recos', LReco);
 
   var onglets = Array.prototype.slice.call(document.querySelectorAll('[data-onglet]'));
   function ouvrirOnglet(nom, focus) {

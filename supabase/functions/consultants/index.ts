@@ -7,6 +7,8 @@
 //          Aucun e-mail n'est envoyé à cette étape.
 //   POST { action: "inviter", user_id }                                                    (administrateur)
 //        → envoie l'e-mail « Votre espace HT Portage est prêt » avec un lien personnel valable 30 jours.
+//   POST { action: "supprimer", user_id }                                                  (administrateur)
+//        → supprime définitivement le compte, ses données et ses fichiers (jamais un administrateur).
 //   POST { action: "activer", t }                                                          (public)
 //        → le lien de l'e-mail ouvre espace/activer.html, qui appelle cette action : on renvoie un lien
 //          Supabase tout neuf vers espace/reset.html, où le consultant choisit son mot de passe.
@@ -220,6 +222,31 @@ async function activer(t: unknown, ip: string) {
   return json({ url: data.properties.action_link });
 }
 
+// Suppression définitive d'un compte consultant : fichiers (documents, CV de candidature) puis compte.
+// Profil, missions, documents, comptes d'activité, simulations et invitations partent avec le compte (cascade).
+async function supprimer(userId: unknown, par: string) {
+  if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId)) return json({ erreur: "Consultant non précisé." }, 400);
+  if (userId === par) return json({ erreur: "Vous ne pouvez pas supprimer votre propre compte." }, 400);
+  const { data: estAdmin } = await admin.from("admins").select("user_id").eq("user_id", userId).maybeSingle();
+  if (estAdmin) return json({ erreur: "Ce compte est administrateur : retirez-le d'abord des administrateurs." }, 409);
+  const { data: p } = await admin.from("profils").select("email, prenom, nom").eq("id", userId).maybeSingle();
+  // Fichiers du dossier du consultant (stockage « documents »)
+  let fichiers = 0;
+  for (let tour = 0; tour < 20; tour++) {
+    const { data: liste, error } = await admin.storage.from("documents").list(userId, { limit: 100 });
+    if (error || !liste?.length) break;
+    const chemins = liste.filter((f) => f.name).map((f) => userId + "/" + f.name);
+    if (!chemins.length) break;
+    const { error: e2 } = await admin.storage.from("documents").remove(chemins);
+    if (e2) { console.error("Suppression fichiers", e2.message); break; }
+    fichiers += chemins.length;
+  }
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return json({ erreur: "Suppression impossible : " + error.message }, 500);
+  console.log("Compte supprimé", userId, "par", par, "·", fichiers, "fichier(s)");
+  return json({ ok: true, fichiers, email: p?.email ?? "" });
+}
+
 const ipDe = (req: Request) => (req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || (req.headers.get("x-forwarded-for") ?? "").split(",")[0] || "inconnue").trim();
 
 if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
@@ -239,6 +266,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
 
     if (corps.action === "creer") return await creer(corps.consultants);
     if (corps.action === "inviter") return await inviter(corps.user_id, u.user.id);
+    if (corps.action === "supprimer") return await supprimer(corps.user_id, u.user.id);
     return json({ erreur: "Action inconnue." }, 400);
   } catch (e) {
     console.error(e);
