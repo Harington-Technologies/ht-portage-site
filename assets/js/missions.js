@@ -32,6 +32,55 @@
     return e;
   }
 
+  // Description mise en forme à partir du texte saisi (souvent collé depuis Word) :
+  // « • » ou « - » = point principal, « o » / « ◦ » / « – » = sous-point, ligne en MAJUSCULES = intertitre.
+  // Construite élément par élément (textContent), jamais en HTML brut.
+  function description(texte) {
+    var box = el('div', 'mission__desc');
+    var lignes = String(texte).replace(/\r/g, '').split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+    var ul = null, li = null, sous = null, dernier = null;
+    function fermer() { ul = null; li = null; sous = null; }
+    lignes.forEach(function (l) {
+      var m1 = /^[•●▪■*-]\s*(.+)$/.exec(l), m2 = /^(?:o|◦|–|·|○)\s+(.+)$/.exec(l);
+      var lettres = l.replace(/[^A-Za-zÀ-ÿ]/g, '');
+      if (m2) {
+        if (!li) {
+          // Sous-points sans point principal : la ligne qui les précède devient leur titre
+          var avant = box.lastElementChild, titre = avant && avant.tagName === 'P' && !avant.classList.contains('mission__intertitre') ? avant.textContent : null;
+          if (titre) { box.removeChild(avant); ul = null; }
+          if (!ul) { ul = el('ul'); box.appendChild(ul); }
+          li = el('li'); if (titre) li.appendChild(el('span', 'mission__point', titre)); else li.className = 'sans-puce';
+          ul.appendChild(li);
+        }
+        if (!sous) { sous = el('ul'); li.appendChild(sous); }
+        dernier = el('li', null, m2[1]); sous.appendChild(dernier);
+      } else if (m1) {
+        if (!ul) { ul = el('ul'); box.appendChild(ul); }
+        li = el('li'); dernier = el('span', 'mission__point', m1[1]); li.appendChild(dernier); ul.appendChild(li); sous = null;
+      } else if (lettres.length >= 4 && lettres === lettres.toUpperCase() && l.length <= 80) {
+        fermer(); dernier = null; box.appendChild(el('p', 'mission__intertitre', l.charAt(0) + l.slice(1).toLowerCase()));
+      } else if (dernier && /^[a-zà-ÿ(]/.test(l)) {
+        dernier.textContent += ' ' + l; // suite d'une ligne coupée
+      } else if (dernier && sous) {
+        dernier = el('li', null, l); sous.appendChild(dernier);
+      } else {
+        fermer(); dernier = el('p', null, l); box.appendChild(dernier);
+      }
+    });
+    if (lignes.length <= 4 && String(texte).length <= 360) return box;
+    // Description longue : repliée, avec un bouton pour la déplier
+    var wrap = el('div', 'mission__repli');
+    box.classList.add('is-repliee'); wrap.appendChild(box);
+    var b = el('button', 'link-btn mission__plus', 'Voir le détail');
+    b.type = 'button'; b.setAttribute('aria-expanded', 'false');
+    b.addEventListener('click', function () {
+      var ouvert = box.classList.toggle('is-repliee') === false;
+      b.textContent = ouvert ? 'Réduire' : 'Voir le détail'; b.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+    });
+    wrap.appendChild(b);
+    return wrap;
+  }
+
   function renderFilters() {
     var labels = ['Tous'].concat(DOMAINES.filter(function (d) {
       return missions.some(function (m) { return m.domaine === d; });
@@ -61,7 +110,7 @@
       top.appendChild(el('span', 'small', m.ref || ''));
       card.appendChild(top);
       card.appendChild(el('h3', null, m.titre));
-      if (m.resume) card.appendChild(el('p', null, m.resume));
+      if (m.resume) card.appendChild(description(m.resume));
       var meta = el('div', 'mission__meta');
       [m.lieu, m.duree, m.rythme].forEach(function (v) { if (v) meta.appendChild(el('span', null, v)); });
       card.appendChild(meta);
