@@ -120,7 +120,7 @@ async function analyser(contenu: unknown[], systeme: string) {
       messages: [{ role: "user", content: contenu }],
     }),
   });
-  if (!r.ok) { const t = await r.text(); console.error("Anthropic", r.status, t.slice(0, 500)); throw new Error(r.status === 401 ? "Clé ANTHROPIC_API_KEY invalide." : r.status === 429 || r.status === 529 ? "Service d'analyse saturé : réessayez dans une minute." : "Analyse impossible (" + r.status + ")."); }
+  if (!r.ok) { const t = await r.text(); console.error("Anthropic", r.status, t.slice(0, 500)); if (/credit balance/i.test(t)) throw new Error("Crédit de l'API Claude épuisé : ajoutez du crédit sur console.anthropic.com (Plans & Billing)."); throw new Error(r.status === 401 ? "Clé ANTHROPIC_API_KEY invalide." : r.status === 429 || r.status === 529 ? "Service d'analyse saturé : réessayez dans une minute." : "Analyse impossible (" + r.status + ")."); }
   const j = await r.json();
   const bloc = (j.content ?? []).find((b: { type: string }) => b.type === "tool_use");
   if (!bloc?.input) throw new Error("Le CV n'a pas pu être analysé.");
