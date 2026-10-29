@@ -107,6 +107,7 @@
     ['import', 'import', 'Import VSP'],
     ['demandes', 'demandes', 'Demandes reçues'],
     ['offres', 'offres', 'Offres d’emploi'],
+    ['cv', 'cv', 'Convertisseur de CV'],
     ['journal', 'journal', 'Journal']
   ];
   var PAGES = [

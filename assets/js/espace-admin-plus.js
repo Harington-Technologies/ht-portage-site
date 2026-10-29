@@ -199,6 +199,11 @@
   chargerOffres();
 
   // =====================================================================
+  // Convertisseur de CV
+  // =====================================================================
+  if (window.HTP_CV && document.getElementById('convertisseur-admin')) window.HTP_CV_ADMIN = window.HTP_CV.monter(document.getElementById('convertisseur-admin'), { admin: true });
+
+  // =====================================================================
   // Journal
   // =====================================================================
   var lj = document.getElementById('liste-journal'), qJ = document.getElementById('q-journal'), oJ = document.getElementById('o-journal'), aJ = document.getElementById('j-admin');

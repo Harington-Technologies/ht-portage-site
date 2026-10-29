@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/style.css?v=20261029a">
-<link rel="stylesheet" href="../assets/css/espace.css?v=20261029a">
+<link rel="stylesheet" href="../assets/css/style.css?v=20261029b">
+<link rel="stylesheet" href="../assets/css/espace.css?v=20261029b">
 </head>
 <body data-page="admin">
 <div class="app">
@@ -109,6 +109,10 @@
         <button class="btn btn--dark btn--sm" type="button" id="btn-nouvelle-offre">Nouvelle offre</button>
       </div>
       <div id="liste-offres"><p class="loading">Chargement…</p></div>
+    </section>
+
+    <section class="admin-section" id="cv" data-titre="Convertisseur de CV" data-sous="Mettez n'importe quel CV au format HT Portage, anonymisé ou non, en français ou en anglais, et adaptez-le à une offre ou à une mission." aria-label="Convertisseur de CV" hidden>
+      <div id="convertisseur-admin"></div>
     </section>
 
     <section class="admin-section box" id="journal" data-titre="Journal" data-sous="Toutes les actions des administrateurs et des traitements automatiques (signatures, formulaires, purges). Conservé 3 ans." aria-label="Journal" hidden>
@@ -213,10 +217,11 @@
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="../assets/js/config.js?v=20261029a"></script>
-<script src="../assets/js/espace.js?v=20261029a"></script>
-<script src="../assets/js/espace-admin.js?v=20261029a"></script>
-<script src="../assets/js/espace-admin-plus.js?v=20261029a"></script>
-<script src="../assets/js/espace-migration.js?v=20261029a"></script>
+<script src="../assets/js/config.js?v=20261029b"></script>
+<script src="../assets/js/espace.js?v=20261029b"></script>
+<script src="../assets/js/espace-admin.js?v=20261029b"></script>
+<script src="../assets/js/cv-ht.js?v=20261029b"></script>
+<script src="../assets/js/espace-admin-plus.js?v=20261029b"></script>
+<script src="../assets/js/espace-migration.js?v=20261029b"></script>
 </body>
 </html>

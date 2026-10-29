@@ -835,7 +835,7 @@
         cands.map(function (c) {
           return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td><strong>' + esc(c.nom) + '</strong>' + coordonnees(c.telephone, c.email) + '</td>' +
             '<td>' + esc(c.mission_ref || 'Spontanée') + '</td><td class="num">' + (c.tjm_souhaite ? E.eur(c.tjm_souhaite) : '—') + '</td>' +
-            '<td>' + (c.cv_path ? '<button class="link-btn" type="button" data-doc="' + esc(c.cv_path) + '" data-bucket="cv">CV</button>' : '—') + '</td>' +
+            '<td>' + (c.cv_path ? '<button class="link-btn" type="button" data-doc="' + esc(c.cv_path) + '" data-bucket="cv">CV</button><br><button class="link-btn" type="button" data-cv-ht style="font-size:13px">Format HT Portage</button>' : '—') + '</td>' +
             '<td><label class="visually-hidden" for="c-' + c.id + '">Statut</label><select class="select" id="c-' + c.id + '" data-champ="statut">' + options(STATUTS_CAND, c.statut || 'nouvelle') + '</select></td><td><button class="icon-suppr" type="button" data-suppr-demande>Supprimer</button></td></tr>';
         }).join('') + '</tbody></table></div>';
     }
@@ -915,6 +915,14 @@
     });
   }
   brancherSuppression(candEl, 'candidatures', 'cands', LCand);
+  // CV d'un candidat → convertisseur au format HT Portage
+  candEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cv-ht]'); if (!b) return;
+    var c = D.cands.find(function (x) { return String(x.id) === b.closest('tr').dataset.id; });
+    if (!c || !window.HTP_CV_ADMIN) return;
+    history.pushState(null, '', '#cv'); afficherSection('cv');
+    window.HTP_CV_ADMIN.depuisCandidature(c);
+  });
   brancherSuppression(contEl, 'contacts', 'contacts', LCont);
   brancherSuppression(recoEl, 'recommandations', 'recos', LReco);
 
