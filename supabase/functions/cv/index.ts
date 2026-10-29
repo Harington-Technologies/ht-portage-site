@@ -85,7 +85,7 @@ export function consignes(o: { anonyme?: boolean; masquer_clients?: boolean; lan
   const en = o.langue === "en";
   const r = [
     "Tu es chargé de remettre en forme des CV de consultants pour HT Portage, société de portage salarial (groupe Harington Technologies).",
-    "Analyse le CV fourni et appelle l'outil cv_ht_portage avec son contenu restructuré.",
+    "Analyse le CV fourni et appelle obligatoirement l'outil cv_ht_portage avec son contenu restructuré. Ne réponds pas en texte : utilise uniquement l'outil.",
     "Règles impératives :",
     "- N'invente rien : aucune expérience, compétence, date, certification ou diplôme absent du CV. En cas de doute, omets.",
     "- Conserve les dates et les durées exactes ; classe les expériences de la plus récente à la plus ancienne.",
@@ -116,15 +116,20 @@ async function analyser(contenu: unknown[], systeme: string) {
     headers: { "x-api-key": CLE, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
       model: MODELE, max_tokens: 8000, system: systeme,
-      tools: [OUTIL], tool_choice: { type: "tool", name: OUTIL.name },
+      tools: [OUTIL], tool_choice: { type: "auto" }, // le choix forcé d'un outil n'est pas accepté par tous les modèles
       messages: [{ role: "user", content: contenu }],
     }),
   });
   if (!r.ok) { const t = await r.text(); console.error("Anthropic", r.status, t.slice(0, 500)); if (/credit balance/i.test(t)) throw new Error("Crédit de l'API Claude épuisé : ajoutez du crédit sur console.anthropic.com (Plans & Billing)."); throw new Error(r.status === 401 ? "Clé ANTHROPIC_API_KEY invalide." : r.status === 429 || r.status === 529 ? "Service d'analyse saturé : réessayez dans une minute." : "Analyse impossible (" + r.status + ")."); }
   const j = await r.json();
   const bloc = (j.content ?? []).find((b: { type: string }) => b.type === "tool_use");
-  if (!bloc?.input) throw new Error("Le CV n'a pas pu être analysé.");
-  return bloc.input;
+  if (bloc?.input) return bloc.input;
+  // Secours : réponse en texte contenant le JSON
+  const txt = (j.content ?? []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("\n");
+  const m = /\{[\s\S]*\}/.exec(txt);
+  if (m) { try { const o = JSON.parse(m[0]); if (o && (o.experiences || o.titre)) return o; } catch { /* JSON illisible */ } }
+  console.error("Réponse sans CV", JSON.stringify(j).slice(0, 500));
+  throw new Error("Le CV n'a pas pu être analysé. Réessayez.");
 }
 
 if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
