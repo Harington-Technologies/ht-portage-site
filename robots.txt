@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /espace/
+Disallow: /chantier/
 
 Sitemap: https://www.htportage.fr/sitemap.xml

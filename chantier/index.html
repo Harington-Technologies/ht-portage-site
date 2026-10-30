@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1F3A2E">
+<title>Chantier · Dépenses</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Chantier">
+<style>
+:root{--vert:#1F3A2E;--vert2:#2F5A46;--sable:#F4EFE6;--fond:#FAF8F4;--carte:#FFFFFF;--encre:#1C2320;--doux:#6B746F;--ligne:#E6E1D7;--acc:#C8792B;--ok:#2E7D4F;--ko:#B3261E;--r:14px}
+*{box-sizing:border-box}html,body{margin:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fond);color:var(--encre);font-size:16px;-webkit-text-size-adjust:100%;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+.tete{background:var(--vert);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 14px;position:sticky;top:0;z-index:5}
+.tete h1{margin:0;font-size:18px;font-weight:700}.tete .sous{font-size:13px;opacity:.8;margin-top:2px}
+.caisse{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 12px}
+.caisse b{font-size:20px}.caisse span{font-size:13px;opacity:.85}
+main{padding:16px;max-width:640px;margin:0 auto}
+.vue[hidden]{display:none}
+.carte{background:var(--carte);border:1px solid var(--ligne);border-radius:var(--r);padding:16px;margin-bottom:14px}
+h2{font-size:15px;margin:0 0 10px;color:var(--vert)}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--sable);border-radius:12px;padding:4px;margin-bottom:14px}
+.seg button{border:0;background:none;padding:10px;border-radius:9px;font-weight:600;color:var(--doux)}
+.seg button[aria-pressed=true]{background:#fff;color:var(--vert);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.postes{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.postes button{border:1.5px solid var(--ligne);background:#fff;border-radius:12px;padding:12px 8px;min-height:52px;font-weight:600;font-size:14px;line-height:1.2}
+.postes button[aria-pressed=true]{border-color:var(--vert);background:var(--vert);color:#fff}
+.champ{display:flex;flex-direction:column;gap:6px;margin-top:14px}.champ label{font-weight:600;font-size:14px}
+.champ input,.champ select,.champ textarea{border:1.5px solid var(--ligne);border-radius:12px;padding:12px 14px;background:#fff;min-height:50px;width:100%}
+.champ input:focus,.champ select:focus{outline:3px solid rgba(47,90,70,.25);border-color:var(--vert2)}
+.montant{font-size:26px!important;font-weight:700;text-align:right}
+.ligne2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.puces{display:flex;flex-wrap:wrap;gap:8px}.puces button{border:1.5px solid var(--ligne);background:#fff;border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px}
+.puces button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.imput{font-size:13px;color:var(--doux);margin-top:6px}
+.btn{display:block;width:100%;border:0;border-radius:14px;background:var(--vert);color:#fff;font-weight:700;font-size:17px;padding:16px;margin-top:18px}
+.btn:disabled{opacity:.6}.btn--clair{background:var(--sable);color:var(--vert)}.btn--petit{display:inline-block;width:auto;padding:10px 14px;font-size:14px;margin:0}
+.lien{background:none;border:0;color:var(--vert2);font-weight:600;text-decoration:underline;padding:4px 0}
+.msg{margin-top:12px;font-weight:600;min-height:1.2em}.msg.ok{color:var(--ok)}.msg.ko{color:var(--ko)}
+.sem{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sem button{border:1.5px solid var(--ligne);background:#fff;border-radius:10px;width:44px;height:44px;font-size:20px}
+.sem b{font-size:17px}.sem small{display:block;color:var(--doux);font-size:13px;text-align:center}
+.chiffres{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.chiffres div{background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:10px}.chiffres span{display:block;font-size:12px;color:var(--doux)}.chiffres b{font-size:16px}
+.liste{list-style:none;margin:0;padding:0}.liste li{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--ligne);align-items:center}
+.liste li:last-child{border-bottom:0}.liste .q{min-width:0}.liste .q b{display:block;font-size:15px}.liste .q span{font-size:13px;color:var(--doux)}
+.liste .m{font-weight:700;white-space:nowrap}.liste button.ed{border:0;background:none;padding:0;text-align:left;width:100%;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.groupe{font-size:13px;font-weight:700;color:var(--vert2);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 2px;display:flex;justify-content:space-between}
+.barre{height:8px;background:var(--sable);border-radius:5px;overflow:hidden;margin-top:6px}.barre i{display:block;height:100%;background:var(--vert2)}
+.barre i.trop{background:var(--ko)}
+.lot{border-bottom:1px solid var(--ligne);padding:12px 0}.lot:last-child{border-bottom:0}
+.lot summary{list-style:none;cursor:pointer}.lot summary::-webkit-details-marker{display:none}
+.lot .t{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14.5px}.lot .s{display:flex;justify-content:space-between;font-size:13px;color:var(--doux);margin-top:3px}
+.lot .det{font-size:13px;margin-top:10px;background:var(--fond);border-radius:10px;padding:10px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--sable);color:var(--doux);margin-left:4px;vertical-align:middle}
+nav.bas{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--ligne);display:grid;grid-template-columns:repeat(3,1fr);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav.bas button{border:0;background:none;padding:10px 4px 12px;font-size:12px;font-weight:600;color:var(--doux);display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.bas button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav.bas button[aria-current=page]{color:var(--vert)}
+dialog{border:0;border-radius:18px;padding:0;width:min(560px,94vw);max-height:90vh}dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
+.acces{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.acces .carte{width:100%;max-width:380px}
+.reprise li{align-items:center}.reprise input[type=number]{width:96px;border:1.5px solid var(--ligne);border-radius:10px;padding:8px;text-align:right;font-weight:700}
+.reprise input[type=checkbox]{width:22px;height:22px}
+.vide{color:var(--doux);font-size:14px;text-align:center;padding:16px 0}
+.rouge{color:var(--ko)}.vert{color:var(--ok)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function () {
+  'use strict';
+  var API = 'https://krcsbskmttgmzzqjfudo.supabase.co/functions/v1/chantier';
+  var CLE = 'sb_publishable_eOLYfFeFNzf-xzwGtcEP_g_SKCIRkqm';
+  var app = document.getElementById('app');
+  var S = { code: '', role: '', lots: [], lignes: [], postes: [], depenses: [], versements: [], vue: 'saisir', semaine: null, mode: 'depense', poste: null, payePar: 'Caisse', photo: null };
+  try { S.code = localStorage.getItem('chantier-code') || ''; } catch (e) { /* stockage indisponible */ }
+
+  // ---------- utilitaires ----------
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var nf = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 });
+  function dt(n) { return nf.format(Math.round((Number(n) || 0) * 1000) / 1000) + ' DT'; }
+  function auj() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function dIso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function parse(s) { var p = String(s).split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), 12); }
+  function lundi(s) { var d = parse(s); var j = (d.getDay() + 6) % 7; d.setDate(d.getDate() - j); return dIso(d); }
+  function numSemaine(s) { var d = parse(s); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7); var a = new Date(d.getFullYear(), 0, 4); return 1 + Math.round(((d - a) / 864e5 - 3 + (a.getDay() + 6) % 7) / 7); }
+  function plusJours(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return dIso(d); }
+  function court(s) { var d = parse(s); return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2); }
+  function lot(id) { return S.lots.find(function (l) { return l.id === id; }); }
+  function posteNom(n) { return S.postes.find(function (p) { return p.nom.toLowerCase() === String(n || '').toLowerCase(); }); }
+  function somme(t, k) { return t.reduce(function (s, x) { return s + (Number(x[k]) || 0); }, 0); }
+
+  async function api(action, corps) {
+    var r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-chantier-code': S.code, apikey: CLE, Authorization: 'Bearer ' + CLE }, body: JSON.stringify(Object.assign({ action: action }, corps || {})) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok) { var e = new Error(d.erreur || 'Erreur ' + r.status); e.status = r.status; throw e; }
+    return d;
+  }
+  async function charger() {
+    var d = await api('etat');
+    S.role = d.role; S.lots = d.lots || []; S.lignes = d.lignes || []; S.postes = (d.postes || []).filter(function (p) { return p.actif; });
+    S.depenses = (d.depenses || []).map(function (x) { x.montant = Number(x.montant); return x; });
+    S.versements = (d.versements || []).map(function (x) { x.montant = Number(x.montant); return x; });
+    S.lots.forEach(function (l) { l.marche = Number(l.marche); l.paye_initial = Number(l.paye_initial); });
+    if (!S.semaine) S.semaine = lundi(auj());
+  }
+
+  // ---------- calculs ----------
+  function caisse() {
+    var dep = somme(S.depenses.filter(function (x) { return x.paye_par === 'Caisse'; }), 'montant');
+    return somme(S.versements, 'montant') - dep;
+  }
+  function payeLot(l) { return l.paye_initial + somme(S.depenses.filter(function (x) { return x.lot_id === l.id && !x.deja_au_budget; }), 'montant'); }
+
+  // ---------- écran d'accès ----------
+  function ecranAcces(msg) {
+    app.innerHTML = '<div class="acces"><form class="carte" id="f-acces"><h2 style="font-size:20px">Chantier · Dépenses</h2>' +
+      '<p style="color:var(--doux);margin:0 0 6px;font-size:15px">Saisissez le code d\'accès qui vous a été donné.</p>' +
+      '<div class="champ"><label for="code">Code d\'accès</label><input id="code" type="password" autocomplete="current-password" required></div>' +
+      '<button class="btn" type="submit">Entrer</button><p class="msg ko">' + esc(msg || '') + '</p></form></div>';
+    var f = document.getElementById('f-acces');
+    f.code.focus();
+    f.addEventListener('submit', async function (e) {
+      e.preventDefault(); S.code = f.code.value.trim();
+      f.querySelector('button').disabled = true;
+      try { await charger(); try { localStorage.setItem('chantier-code', S.code); } catch (x) { /* rien */ } rendre(); }
+      catch (err) { f.querySelector('button').disabled = false; f.querySelector('.msg').textContent = err.message; }
+    });
+  }
+
+  // ---------- squelette ----------
+  var ICON = {
+    saisir: '<path d="M12 5v14M5 12h14"/>',
+    semaine: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+    global: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+  };
+  function rendre() {
+    var c = caisse();
+    app.innerHTML = '<header class="tete"><h1>Chantier · Dépenses</h1><div class="sous">' + (S.role === 'admin' ? 'Accès administrateur' : 'Saisie des dépenses') + '</div>' +
+      '<div class="caisse"><span>Argent en caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '" style="color:' + (c < 0 ? '#FFB4AB' : '#fff') + '">' + dt(c) + '</b></div></header>' +
+      '<main><section class="vue" id="v-saisir"></section><section class="vue" id="v-semaine" hidden></section><section class="vue" id="v-global" hidden></section></main>' +
+      '<nav class="bas">' + [['saisir', 'Saisir'], ['semaine', 'Semaine'], ['global', 'Budget global']].map(function (x) {
+        return '<button type="button" data-vue="' + x[0] + '"' + (S.vue === x[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24">' + ICON[x[0]] + '</svg>' + x[1] + '</button>';
+      }).join('') + '</nav><dialog id="dlg"><div class="in"></div></dialog>';
+    app.querySelector('nav.bas').addEventListener('click', function (e) { var b = e.target.closest('[data-vue]'); if (b) { S.vue = b.dataset.vue; rendre(); window.scrollTo(0, 0); } });
+    ['saisir', 'semaine', 'global'].forEach(function (v) { document.getElementById('v-' + v).hidden = S.vue !== v; });
+    if (S.vue === 'saisir') vueSaisir(); else if (S.vue === 'semaine') vueSemaine(); else vueGlobal();
+  }
+  async function rafraichir() { await charger(); rendre(); }
+
+  // ---------- saisie ----------
+  function personnes() {
+    var p = ['Caisse'];
+    S.depenses.concat(S.lignes).forEach(function (x) { var n = (x.paye_par || '').trim(); if (n && p.indexOf(n) < 0 && p.length < 8) p.push(n); });
+    return p;
+  }
+  function vueSaisir(edit) {
+    var v = document.getElementById('v-saisir');
+    var mode = edit ? (edit.poste ? 'depense' : 'versement') : S.mode;
+    if (edit && edit.poste) { S.poste = edit.poste; S.payePar = edit.paye_par || 'Caisse'; }
+    var p = S.poste && posteNom(S.poste), l = p && lot(p.lot_id);
+    var noms = S.depenses.filter(function (x) { return S.poste && x.poste.toLowerCase() === S.poste.toLowerCase() && x.detail; }).map(function (x) { return x.detail; }).filter(function (x, i, t) { return t.indexOf(x) === i; }).slice(0, 30);
+    v.innerHTML =
+      (edit ? '' : '<div class="seg" role="group" aria-label="Type"><button type="button" data-mode="depense" aria-pressed="' + (mode === 'depense') + '">Dépense</button><button type="button" data-mode="versement" aria-pressed="' + (mode === 'versement') + '">Argent reçu</button></div>') +
+      (mode === 'depense' ?
+        '<form class="carte" id="f-dep" novalidate>' + (edit ? '<h2>Modifier la dépense</h2>' : '') +
+          '<h2 style="margin-bottom:8px">Pour quoi ?</h2>' + boutonsPostes() +
+          '<p class="imput">' + (l ? 'Imputé sur <b>' + esc(l.code + ' · ' + cap(l.nom)) + '</b>' : (S.poste ? '<span class="rouge">Poste non relié à un lot</span>' : 'Choisissez un poste')) + '</p>' +
+          '<div class="champ"><label for="detail">Nom / achat / détail</label><input id="detail" name="detail" list="noms" autocomplete="off" placeholder="Ex. : Mohammed Zeyed, sable, ciment…" value="' + esc(edit ? edit.detail || '' : '') + '"><datalist id="noms">' + noms.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist></div>' +
+          '<div class="ligne2"><div class="champ"><label for="montant">Montant (DT)</label><input class="montant" id="montant" name="montant" inputmode="decimal" autocomplete="off" placeholder="0" value="' + (edit ? esc(edit.montant) : '') + '"></div>' +
+          '<div class="champ"><label for="date">Date</label><input id="date" name="date" type="date" value="' + (edit ? edit.date : auj()) + '"></div></div>' +
+          '<div class="champ"><label>Payé par</label><div class="puces" id="paye-par">' + personnes().map(function (n) { return '<button type="button" data-p="' + esc(n) + '" aria-pressed="' + (S.payePar === n) + '">' + (n === 'Caisse' ? 'Caisse chantier' : esc(n)) + '</button>'; }).join('') + '<button type="button" data-p="__autre">+ Autre</button></div></div>' +
+          (edit && edit.photo ? '<p style="margin:12px 0 0"><button class="lien" type="button" data-voir-photo>Voir la photo du ticket</button></p>' : '') +
+          '<div class="champ"><label for="photo">' + (edit && edit.photo ? 'Remplacer la photo' : 'Photo du ticket') + ' <span style="font-weight:400;color:var(--doux)">(facultatif)</span></label><input id="photo" type="file" accept="image/*" capture="environment"></div>' +
+          (edit && S.role === 'admin' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px"><input type="checkbox" name="deja"' + (edit.deja_au_budget ? ' checked' : '') + '> Déjà comptée dans le « payé » initial du budget</label>' : '') +
+          '<button class="btn" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter la dépense') + '</button>' +
+          (edit ? '<button class="btn btn--clair" type="button" data-annuler>Annuler</button>' + (!edit.deja_au_budget || S.role === 'admin' ? '<button class="lien rouge" type="button" data-suppr style="margin-top:14px">Supprimer cette dépense</button>' : '') : '') +
+          '<p class="msg" role="status"></p></form>' +
+          (edit ? '' : repriseBloc())
+      :
+        '<form class="carte" id="f-vers" novalidate>' + (edit ? '<h2>Modifier l\'argent reçu</h2>' : '<h2>Argent reçu pour le chantier</h2>') +
+          '<div class="ligne2"><div class="champ"><label for="vmontant">Montant (DT)</label><input class="montant" id="vmontant" inputmode="decimal" placeholder="0" value="' + (edit ? esc(edit.montant) : '') + '"></div>' +
+          '<div class="champ"><label for="vdate">Date</label><input id="vdate" type="date" value="' + (edit ? edit.date : auj()) + '"></div></div>' +
+          '<div class="champ"><label for="vlib">De qui / pour quoi</label><input id="vlib" placeholder="Ex. : virement Wadi, avance clim…" value="' + esc(edit ? edit.libelle || '' : '') + '"></div>' +
+          '<button class="btn" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter') + '</button>' +
+          (edit ? '<button class="btn btn--clair" type="button" data-annuler>Annuler</button><button class="lien rouge" type="button" data-suppr style="margin-top:14px">Supprimer</button>' : '') +
+          '<p class="msg" role="status"></p></form>');
+
+    v.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { S.mode = b.dataset.mode; vueSaisir(); }); });
+    var f = v.querySelector('form'), msg = f.querySelector('.msg');
+    function dire(t, ok) { msg.textContent = t; msg.className = 'msg ' + (ok ? 'ok' : 'ko'); }
+    if (edit) {
+      f.querySelector('[data-annuler]').addEventListener('click', function () { S.vue = 'semaine'; rendre(); });
+      var vp = f.querySelector('[data-voir-photo]'); if (vp) vp.addEventListener('click', function () { voirPhoto(edit.id); });
+      var sp = f.querySelector('[data-suppr]');
+      if (sp) sp.addEventListener('click', async function () {
+        if (!confirm('Supprimer définitivement ?')) return;
+        try { await api(mode === 'depense' ? 'supprimer_depense' : 'supprimer_versement', { id: edit.id }); S.vue = 'semaine'; await rafraichir(); } catch (err) { dire(err.message); }
+      });
+    }
+    if (mode === 'depense') {
+      f.addEventListener('click', function (e) { var b = e.target.closest('[data-poste]'); if (!b) return; S.poste = b.dataset.poste; var d = f.detail.value, m = f.montant.value, dd = f.date.value; vueSaisir(edit ? Object.assign({}, edit, { poste: S.poste, detail: d, montant: m, date: dd }) : null); if (!edit) { var f2 = document.getElementById('f-dep'); f2.detail.value = d; f2.montant.value = m; f2.date.value = dd; f2.detail.focus(); } });
+      f.querySelector('#paye-par').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-p]'); if (!b) return;
+        var n = b.dataset.p;
+        if (n === '__autre') { n = (prompt('Qui a payé ?') || '').trim(); if (!n) return; var nb = document.createElement('button'); nb.type = 'button'; nb.dataset.p = n; nb.textContent = n; b.before(nb); }
+        S.payePar = n; f.querySelectorAll('#paye-par [data-p]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.p === n)); });
+      });
+      f.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var m = Number(String(f.montant.value).replace(/\s/g, '').replace(',', '.'));
+        if (!S.poste) return dire('Choisissez le poste (Maçonnerie, Plombier…).');
+        if (!(m > 0)) { f.montant.focus(); return dire('Indiquez le montant.'); }
+        var pp = posteNom(S.poste), corps = { id: edit && edit.id, date: f.date.value || auj(), poste: S.poste, lot_id: pp ? pp.lot_id : (edit && edit.lot_id), detail: f.detail.value, montant: m, paye_par: S.payePar };
+        if (edit && f.deja) corps.deja_au_budget = f.deja.checked;
+        var b = f.querySelector('[type=submit]'); b.disabled = true; dire('Enregistrement…', true);
+        try {
+          var file = f.querySelector('#photo').files[0];
+          if (file) corps.photo = await compresser(file);
+          await api('depense', corps);
+          var lo = lot(corps.lot_id);
+          await charger();
+          if (edit) { S.vue = 'semaine'; rendre(); return; }
+          rendre();
+          var f3 = document.getElementById('f-dep');
+          var mm = f3.querySelector('.msg'); mm.className = 'msg ok'; mm.textContent = '✓ ' + dt(m) + ' ajouté' + (lo ? ' sur ' + lo.code : '') + '.';
+          f3.detail.focus();
+        } catch (err) { b.disabled = false; dire(err.message); }
+      });
+      var rep = v.querySelector('#reprise'); if (rep) brancherReprise(rep);
+    } else {
+      f.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var m = Number(String(f.vmontant.value).replace(/\s/g, '').replace(',', '.'));
+        if (!m) return dire('Indiquez le montant.');
+        var b = f.querySelector('[type=submit]'); b.disabled = true;
+        try { await api('versement', { id: edit && edit.id, date: f.vdate.value || auj(), montant: m, libelle: f.vlib.value }); await charger(); if (edit) { S.vue = 'semaine'; rendre(); return; } rendre(); var mm = document.querySelector('#f-vers .msg'); mm.className = 'msg ok'; mm.textContent = '✓ ' + dt(m) + ' ajouté à la caisse.'; }
+        catch (err) { b.disabled = false; dire(err.message); }
+      });
+    }
+  }
+  // Les postes les plus utilisés d'abord ; les autres derrière « Autres postes »
+  function boutonsPostes() {
+    var n = {};
+    S.depenses.forEach(function (x) { var k = x.poste.toLowerCase(); n[k] = (n[k] || 0) + 1; });
+    var tri = S.postes.slice().sort(function (a, b) { return (n[b.nom.toLowerCase()] || 0) - (n[a.nom.toLowerCase()] || 0) || a.ordre - b.ordre; });
+    var freq = tri.filter(function (x) { return n[x.nom.toLowerCase()]; }).slice(0, 12);
+    if (freq.length < 6) freq = tri.slice(0, 8);
+    var autres = tri.filter(function (x) { return freq.indexOf(x) < 0; });
+    var choisi = S.poste && autres.some(function (x) { return x.nom.toLowerCase() === S.poste.toLowerCase(); });
+    function b(x) { return '<button type="button" data-poste="' + esc(x.nom) + '" aria-pressed="' + (S.poste && S.poste.toLowerCase() === x.nom.toLowerCase()) + '">' + esc(x.nom) + '</button>'; }
+    return '<div class="postes" role="group" aria-label="Poste">' + freq.map(b).join('') + '</div>' +
+      (autres.length ? '<details style="margin-top:10px"' + (choisi ? ' open' : '') + '><summary class="lien" style="cursor:pointer">Autres postes (' + autres.length + ')</summary><div class="postes" style="margin-top:10px">' + autres.map(b).join('') + '</div></details>' : '');
+  }
+  function cap(s) { s = String(s || '').toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // Reprendre les paiements réguliers de la semaine précédente (salaires de l'équipe…)
+  function repriseBloc() {
+    var deb = plusJours(lundi(auj()), -7), fin = plusJours(deb, 6);
+    var t = S.depenses.filter(function (x) { return x.date >= deb && x.date <= fin && x.montant > 0; });
+    if (!t.length) return '';
+    return '<div class="carte" id="reprise"><h2>Reprendre la semaine dernière</h2><p style="font-size:14px;color:var(--doux);margin:0 0 8px">Les paiements de la semaine ' + numSemaine(deb) + ', à cocher et ajuster pour aujourd\'hui.</p>' +
+      '<details><summary class="lien" style="cursor:pointer">Voir les ' + t.length + ' paiements</summary><ul class="liste reprise" style="margin-top:8px">' +
+      t.map(function (x, i) { return '<li><label style="display:flex;gap:10px;align-items:center;min-width:0"><input type="checkbox" data-i="' + i + '" checked><span class="q"><b>' + esc(x.detail || x.poste) + '</b><span>' + esc(x.poste) + '</span></span></label><input type="number" inputmode="decimal" data-m="' + i + '" value="' + x.montant + '"></li>'; }).join('') +
+      '</ul><button class="btn" type="button" data-reprendre>Ajouter les paiements cochés</button><p class="msg" role="status"></p></details></div>';
+  }
+  function brancherReprise(box) {
+    var deb = plusJours(lundi(auj()), -7), fin = plusJours(deb, 6);
+    var t = S.depenses.filter(function (x) { return x.date >= deb && x.date <= fin && x.montant > 0; });
+    box.querySelector('[data-reprendre]').addEventListener('click', async function () {
+      var lignes = [];
+      box.querySelectorAll('[data-i]').forEach(function (c) { if (!c.checked) return; var x = t[Number(c.dataset.i)], m = Number(box.querySelector('[data-m="' + c.dataset.i + '"]').value); if (m > 0) lignes.push({ date: auj(), poste: x.poste, lot_id: x.lot_id, detail: x.detail, montant: m, paye_par: x.paye_par }); });
+      var msg = box.querySelector('.msg');
+      if (!lignes.length) { msg.className = 'msg ko'; msg.textContent = 'Rien de coché.'; return; }
+      if (!confirm('Ajouter ' + lignes.length + ' paiements pour ' + dt(somme(lignes, 'montant')) + ' ?')) return;
+      try { await api('depenses', { lignes: lignes }); S.vue = 'semaine'; S.semaine = lundi(auj()); await rafraichir(); }
+      catch (err) { msg.className = 'msg ko'; msg.textContent = err.message; }
+    });
+  }
+  async function compresser(file) {
+    var img = await new Promise(function (ok, ko) { var i = new Image(); i.onload = function () { ok(i); }; i.onerror = ko; i.src = URL.createObjectURL(file); });
+    var k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    var data = c.toDataURL('image/jpeg', 0.72);
+    return { type: 'image/jpeg', base64: data.split(',')[1] };
+  }
+
+  // ---------- semaine ----------
+  function vueSemaine() {
+    var v = document.getElementById('v-semaine'), deb = S.semaine, fin = plusJours(deb, 6);
+    var dep = S.depenses.filter(function (x) { return x.date >= deb && x.date <= fin; });
+    var ver = S.versements.filter(function (x) { return x.date >= deb && x.date <= fin; });
+    var td = somme(dep, 'montant'), tv = somme(ver, 'montant');
+    var groupes = {};
+    dep.forEach(function (x) { var k = cap(x.poste); (groupes[k] = groupes[k] || []).push(x); });
+    v.innerHTML = '<div class="sem"><button type="button" data-s="-7" aria-label="Semaine précédente">‹</button><div><b>Semaine ' + numSemaine(deb) + '</b><small>du ' + court(deb) + ' au ' + court(fin) + '</small></div><button type="button" data-s="7" aria-label="Semaine suivante">›</button></div>' +
+      '<div class="chiffres"><div><span>Dépenses</span><b>' + dt(td) + '</b></div><div><span>Argent reçu</span><b>' + dt(tv) + '</b></div><div><span>Écart semaine</span><b class="' + (tv - td < 0 ? 'rouge' : 'vert') + '">' + dt(tv - td) + '</b></div></div>' +
+      '<div class="carte"><h2>Dépenses (' + dep.length + ')</h2>' + (dep.length ? Object.keys(groupes).sort().map(function (k) {
+        var g = groupes[k];
+        return '<div class="groupe"><span>' + esc(k) + '</span><span>' + dt(somme(g, 'montant')) + '</span></div><ul class="liste">' + g.map(function (x) {
+          var lo = lot(x.lot_id);
+          return '<li><button type="button" class="ed" data-dep="' + x.id + '"><span class="q"><b>' + esc(x.detail || x.poste) + (x.photo ? ' 📎' : '') + '</b><span>' + court(x.date) + (lo ? ' · ' + esc(lo.code) : '') + (x.paye_par !== 'Caisse' ? ' · payé par ' + esc(x.paye_par) : '') + (x.deja_au_budget ? '<span class="tag">historique</span>' : '') + '</span></span><span class="m">' + dt(x.montant) + '</span></button></li>';
+        }).join('') + '</ul>';
+      }).join('') : '<p class="vide">Aucune dépense cette semaine.</p>') + '</div>' +
+      '<div class="carte"><h2>Argent reçu (' + ver.length + ')</h2>' + (ver.length ? '<ul class="liste">' + ver.map(function (x) {
+        return '<li><button type="button" class="ed" data-ver="' + x.id + '"><span class="q"><b>' + esc(x.libelle || 'Argent reçu') + '</b><span>' + court(x.date) + '</span></span><span class="m">' + dt(x.montant) + '</span></button></li>';
+      }).join('') + '</ul>' : '<p class="vide">Rien cette semaine.</p>') + '</div>' +
+      '<button class="btn btn--clair" type="button" data-csv>Exporter la semaine (Excel)</button>';
+    v.querySelectorAll('[data-s]').forEach(function (b) { b.addEventListener('click', function () { S.semaine = plusJours(S.semaine, Number(b.dataset.s)); vueSemaine(); }); });
+    v.onclick = async function (e) {
+      var d = e.target.closest('[data-dep]'), w = e.target.closest('[data-ver]');
+      if (d) { S.vue = 'saisir'; rendreEdition(S.depenses.find(function (y) { return y.id === d.dataset.dep; })); }
+      if (w) { S.vue = 'saisir'; rendreEdition(S.versements.find(function (y) { return y.id === w.dataset.ver; })); }
+      if (e.target.closest('[data-csv]')) exporter(dep, 'semaine-' + numSemaine(deb));
+    };
+  }
+  function rendreEdition(x) {
+    rendre(); document.getElementById('v-saisir').hidden = false;
+    app.querySelectorAll('nav.bas [data-vue]').forEach(function (b) { b.removeAttribute('aria-current'); });
+    vueSaisir(x); window.scrollTo(0, 0);
+  }
+  async function voirPhoto(id) { try { var r = await api('photo', { id: id }); window.open(r.url, '_blank'); } catch (e) { alert(e.message); } }
+  function exporter(lignes, nom) {
+    var t = [['Date', 'Semaine', 'Poste', 'Lot', 'Nom / détail', 'Montant (DT)', 'Payé par']].concat(lignes.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; }).map(function (x) { var lo = lot(x.lot_id); return [court(x.date), 'S' + numSemaine(x.date), x.poste, lo ? lo.code + ' ' + lo.nom : '', x.detail || '', String(x.montant).replace('.', ','), x.paye_par]; }));
+    var csv = '﻿' + t.map(function (r) { return r.map(function (c) { c = String(c); return /[;"\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(';'); }).join('\r\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'chantier-' + nom + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ---------- budget global ----------
+  function vueGlobal() {
+    var v = document.getElementById('v-global');
+    var M = 0, P = 0;
+    S.lots.forEach(function (l) { M += l.marche; P += payeLot(l); });
+    var R = M - P, pct = M ? Math.min(100, Math.round(P / M * 100)) : 0;
+    var nonImp = S.depenses.filter(function (x) { return !x.lot_id && !x.deja_au_budget; });
+    // À rembourser : lignes du budget + dépenses payées par quelqu'un d'autre que la caisse
+    var dus = {};
+    S.lignes.forEach(function (x) { if (x.paye_par && Number(x.a_rembourser)) dus[x.paye_par.trim()] = (dus[x.paye_par.trim()] || 0) + Number(x.a_rembourser); });
+    S.depenses.forEach(function (x) { if (x.paye_par !== 'Caisse' && !x.deja_au_budget) dus[x.paye_par] = (dus[x.paye_par] || 0) + x.montant; });
+    v.innerHTML = '<div class="carte"><h2>Total du chantier</h2><div class="chiffres" style="margin:0"><div><span>Marché</span><b>' + dt(M) + '</b></div><div><span>Payé</span><b>' + dt(P) + '</b></div><div><span>Reste à payer</span><b>' + dt(R) + '</b></div></div>' +
+      '<div class="barre" style="height:12px;margin-top:12px"><i style="width:' + pct + '%"></i></div><p class="imput">' + pct + ' % du budget payé · dépenses saisies ici : ' + dt(somme(S.depenses.filter(function (x) { return !x.deja_au_budget; }), 'montant')) + '</p></div>' +
+      (nonImp.length ? '<div class="carte" style="border-color:var(--acc)"><h2>Dépenses sans lot (' + nonImp.length + ')</h2><p class="imput">' + dt(somme(nonImp, 'montant')) + ' ne sont imputés sur aucun lot : reliez leur poste à un lot.</p></div>' : '') +
+      '<div class="carte"><h2>Par lot</h2>' + S.lots.map(function (l) {
+        var p = payeLot(l), r = l.marche - p, w = l.marche ? Math.round(p / l.marche * 100) : (p ? 100 : 0);
+        var deps = S.depenses.filter(function (x) { return x.lot_id === l.id && !x.deja_au_budget; });
+        var lg = S.lignes.filter(function (x) { return x.lot_id === l.id; });
+        return '<details class="lot"><summary><div class="t"><span>' + esc(l.code) + ' · ' + esc(cap(l.nom)) + '</span><span>' + dt(r) + '</span></div>' +
+          '<div class="s"><span>Payé ' + dt(p) + ' / ' + dt(l.marche) + '</span><span>reste</span></div><div class="barre"><i class="' + (p > l.marche + 0.5 ? 'trop' : '') + '" style="width:' + Math.min(100, w) + '%"></i></div></summary>' +
+          '<div class="det">' + (l.remarque ? '<p style="margin:0 0 6px">' + esc(l.remarque) + '</p>' : '') +
+            '<p style="margin:0 0 6px">Payé au départ (fichier) : <b>' + dt(l.paye_initial) + '</b> · saisi ici : <b>' + dt(somme(deps, 'montant')) + '</b></p>' +
+            (lg.length ? '<p style="margin:8px 0 4px;font-weight:700">Détail du budget</p><ul class="liste">' + lg.map(function (x) { return '<li><span class="q"><b style="font-size:13.5px">' + esc([x.libelle, x.detail].filter(Boolean).join(' · ') || '—') + '</b><span>' + esc(x.remarque || '') + (x.paye_par ? ' · payé par ' + esc(x.paye_par) : '') + '</span></span><span class="m" style="font-size:13px">' + dt(x.paye) + ' / ' + dt(x.marche) + '</span></li>'; }).join('') + '</ul>' : '') +
+            (deps.length ? '<p style="margin:8px 0 4px;font-weight:700">Dernières dépenses saisies</p><ul class="liste">' + deps.slice(0, 8).map(function (x) { return '<li><span class="q"><b style="font-size:13.5px">' + esc(x.detail || x.poste) + '</b><span>' + court(x.date) + ' · ' + esc(x.poste) + '</span></span><span class="m" style="font-size:13px">' + dt(x.montant) + '</span></li>'; }).join('') + '</ul>' : '') +
+            (S.role === 'admin' ? '<button class="btn btn--clair btn--petit" type="button" data-lot="' + l.id + '" style="margin-top:10px">Modifier le marché / payé</button>' : '') +
+          '</div></details>';
+      }).join('') + '</div>' +
+      (Object.keys(dus).length ? '<div class="carte"><h2>À rembourser</h2><ul class="liste">' + Object.keys(dus).sort().map(function (k) { return '<li><span class="q"><b>' + esc(k) + '</b><span>avancé de sa poche</span></span><span class="m">' + dt(dus[k]) + '</span></li>'; }).join('') + '</ul></div>' : '') +
+      (S.role === 'admin' ? '<div class="carte"><h2>Postes et imputation</h2><p class="imput" style="margin-top:0">Chaque bouton de la saisie est relié à un lot du budget.</p><ul class="liste">' + S.postes.map(function (p) { var lo = lot(p.lot_id); return '<li><span class="q"><b>' + esc(p.nom) + '</b><span>' + (lo ? esc(lo.code + ' · ' + cap(lo.nom)) : '<span class="rouge">aucun lot</span>') + '</span></span><button class="lien" type="button" data-poste-ed="' + p.id + '">Modifier</button></li>'; }).join('') + '</ul><button class="btn btn--clair" type="button" data-poste-ed="0">+ Nouveau poste</button></div>' +
+        '<button class="btn btn--clair" type="button" data-csv-tout>Exporter toutes les dépenses (Excel)</button>' : '') +
+      '<p class="imput" style="text-align:center;margin-top:16px"><button class="lien" type="button" data-sortir>Changer de code / se déconnecter</button></p>';
+    v.onclick = function (e) {
+      var b;
+      if ((b = e.target.closest('[data-lot]'))) return editerLot(lot(Number(b.dataset.lot)));
+      if ((b = e.target.closest('[data-poste-ed]'))) return editerPoste(S.postes.find(function (p) { return p.id === Number(b.dataset.posteEd); }));
+      if (e.target.closest('[data-csv-tout]')) return exporter(S.depenses, 'toutes-depenses');
+      if (e.target.closest('[data-sortir]')) { try { localStorage.removeItem('chantier-code'); } catch (x) { /* rien */ } S.code = ''; ecranAcces(); }
+    };
+  }
+  function dialogue(html, onSubmit) {
+    var d = document.getElementById('dlg'), i = d.querySelector('.in');
+    i.innerHTML = '<form novalidate>' + html + '<button class="btn" type="submit">Enregistrer</button><button class="btn btn--clair" type="button" data-fermer>Annuler</button><p class="msg ko" role="status"></p></form>';
+    var f = i.querySelector('form');
+    f.querySelector('[data-fermer]').addEventListener('click', function () { d.close(); });
+    f.addEventListener('submit', async function (e) { e.preventDefault(); try { await onSubmit(f); d.close(); await rafraichir(); S.vue = 'global'; rendre(); } catch (err) { f.querySelector('.msg').textContent = err.message; } });
+    d.showModal();
+  }
+  function editerLot(l) {
+    dialogue('<h3>' + esc(l.code + ' · ' + cap(l.nom)) + '</h3><div class="champ"><label for="lm">Marché (DT)</label><input id="lm" inputmode="decimal" value="' + l.marche + '"></div>' +
+      '<div class="champ"><label for="lp">Payé au départ, hors saisies de l\'outil (DT)</label><input id="lp" inputmode="decimal" value="' + l.paye_initial + '"></div>' +
+      '<div class="champ"><label for="lr">Remarque</label><input id="lr" value="' + esc(l.remarque || '') + '"></div>', async function (f) {
+      await api('lot', { id: l.id, marche: f.lm.value, paye_initial: f.lp.value, remarque: f.lr.value });
+    });
+  }
+  function editerPoste(p) {
+    dialogue('<h3>' + (p ? 'Modifier le poste' : 'Nouveau poste') + '</h3><div class="champ"><label for="pn">Nom du bouton</label><input id="pn" value="' + esc(p ? p.nom : '') + '"></div>' +
+      '<div class="champ"><label for="pl">Imputé sur le lot</label><select id="pl"><option value="">— aucun —</option>' + S.lots.map(function (l) { return '<option value="' + l.id + '"' + (p && p.lot_id === l.id ? ' selected' : '') + '>' + esc(l.code + ' · ' + cap(l.nom)) + '</option>'; }).join('') + '</select></div>' +
+      (p ? '<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pa"> Masquer ce bouton</label>' : ''), async function (f) {
+      await api('poste', { id: p && p.id, nom: f.pn.value, lot_id: f.pl.value, actif: !(f.pa && f.pa.checked) });
+    });
+  }
+
+  // ---------- démarrage ----------
+  (async function () {
+    if (!S.code) return ecranAcces();
+    app.innerHTML = '<p class="vide" style="padding-top:40vh">Chargement…</p>';
+    try { await charger(); rendre(); }
+    catch (err) { ecranAcces(err.status === 401 ? '' : err.message); }
+  })();
+})();
+</script>
+</body>
+</html>
