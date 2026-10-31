@@ -1,7 +1,6 @@
 // Outil « Chantier » : saisie des dépenses depuis un téléphone et imputation sur le budget global.
-// Accès par code (en-tête x-chantier-code), sans compte :
-//   CHANTIER_CODE        → saisie (dépenses, argent reçu)
-//   CHANTIER_CODE_ADMIN  → saisie + budget (marché, payé initial, postes)
+// Accès libre depuis la page htportage.fr/chantier/ (pas de code, une seule version pour tous).
+// Seules les requêtes venant du site sont acceptées (en-tête Origin).
 // Toutes les lectures et écritures passent par cette fonction (clé serveur) ; les tables ne sont pas exposées.
 // Déploiement : « Verify JWT » désactivé.
 
@@ -12,8 +11,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-chantier-code",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const CODE = Deno.env.get("CHANTIER_CODE") ?? "";
-const CODE_ADMIN = Deno.env.get("CHANTIER_CODE_ADMIN") ?? "";
+const ORIGINES = /^(https:\/\/(www\.)?htportage\.fr|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
 function serverKey(): string {
   const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (legacy) return legacy;
@@ -26,11 +24,6 @@ function serverKey(): string {
 const db = createClient(Deno.env.get("SUPABASE_URL") ?? "http://localhost", serverKey() || "x", { auth: { persistSession: false } });
 const json = (c: unknown, s = 200) => new Response(JSON.stringify(c), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
-function egal(a: string, b: string) {
-  if (!a || !b || a.length !== b.length) return false;
-  let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return r === 0;
-}
 const txt = (v: unknown, n = 200) => { const s = String(v ?? "").trim().replace(/\s+/g, " ").slice(0, n); return s || null; };
 const nombre = (v: unknown) => { const n = Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : NaN; };
 const dateOk = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "")) ? String(v) : null;
@@ -62,16 +55,10 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erreur: "Méthode non autorisée" }, 405);
   try {
-    if (!CODE) return json({ erreur: "Outil non configuré (secret CHANTIER_CODE manquant)." }, 503);
-    const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || (req.headers.get("x-forwarded-for") ?? "").split(",")[0] || "?").trim();
-    const code = req.headers.get("x-chantier-code") ?? "";
-    const role = egal(code, CODE_ADMIN) ? "admin" : egal(code, CODE) ? "saisie" : "";
-    if (!role) {
-      const { data: ok } = await db.rpc("limiter", { p_cle: "chantier-code:" + ip, p_max: 10, p_fenetre: 900 });
-      return json({ erreur: ok === false ? "Trop d'essais. Réessayez dans 15 minutes." : "Code incorrect." }, 401);
-    }
+    if (!ORIGINES.test(req.headers.get("origin") ?? "")) return json({ erreur: "Accès refusé." }, 403);
+    const role = "admin";
     const c = await req.json().catch(() => ({}));
-    const qui = role === "admin" ? "admin" : "saisie";
+    const qui = "chantier";
 
     switch (c.action) {
       case "etat": return await etat(role);
