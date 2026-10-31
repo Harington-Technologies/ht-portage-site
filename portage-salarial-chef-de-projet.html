@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20261029b">
+<link rel="stylesheet" href="assets/css/style.css?v=20261031a">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Le portage salarial convient-il au management de transition ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. Le portage salarial s’adresse aux experts autonomes qui réalisent des prestations intellectuelles, dont le pilotage de projets et le management de transition."}}, {"@type": "Question", "name": "Qui signe le contrat avec le client ?", "acceptedAnswer": {"@type": "Answer", "text": "HT Portage signe le contrat commercial avec votre client ; vous signez avec HT Portage un CDI de portage et une annexe par mission, électroniquement."}}, {"@type": "Question", "name": "Puis-je être recommandé ou recommander des missions ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui, avec le programme Ambassadeur : chaque mission, consultant ou client apporté est rémunéré."}}]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://www.htportage.fr/"}, {"@type": "ListItem", "position": 2, "name": "Pilotage de projets", "item": "https://www.htportage.fr/portage-salarial-chef-de-projet.html"}]}</script>
 </head>
@@ -34,6 +34,7 @@
       <a href="simulateur.html">Simulateur</a>
       <a href="ambassadeur.html">Ambassadeur</a>
       <a href="missions.html">Missions</a>
+      <a href="guides/index.html">Guides</a>
       <a href="espace/connexion.html">Espace consultant</a>
       <a class="btn btn--rose" href="simulateur.html">Simuler mon net</a>
     </nav>
@@ -99,6 +100,39 @@
       </div>
     </div>
   </section>
+
+  <section class="section section--tint alerte-missions" id="alerte">
+    <div class="container">
+      <div class="panel" style="align-items: flex-start">
+        <div class="panel__main" style="flex-basis: 320px">
+          <p class="eyebrow">/Alerte missions/</p>
+          <h2 class="h3">Recevez les missions qui vous correspondent.</h2>
+          <p class="lead" style="font-size: 17px">Les besoins des clients du groupe Harington Technologies, dans votre domaine, avant leur publication. Sans CV, en 30 secondes.</p>
+        </div>
+        <form class="form panel__side" style="flex: 999 1 420px" data-form="alerte" novalidate>
+          <div class="form__row">
+            <div class="field"><label for="al-nom">Nom et prénom</label><input class="input" id="al-nom" name="nom" autocomplete="name" required></div>
+            <div class="field"><label for="al-email">E-mail</label><input class="input" id="al-email" name="email" type="email" autocomplete="email" required></div>
+          </div>
+          <div class="form__row">
+            <div class="field"><label for="al-dom">Domaine</label>
+              <select class="select" id="al-dom" name="situation" required>
+                <option value="">Choisir…</option>
+                <option>Développement</option><option>Data &amp; IA</option><option>Cloud &amp; DevOps</option><option>Cybersécurité</option>
+                <option>Pilotage de projets / PMO</option><option>Conseil fonctionnel / ERP</option><option>Infrastructure &amp; réseaux</option><option>Autre</option>
+              </select>
+            </div>
+            <div class="field"><label for="al-tel">Téléphone <span class="hint">(facultatif)</span></label><input class="input" id="al-tel" name="telephone" type="tel" autocomplete="tel"></div>
+          </div>
+          <div class="field"><label for="al-comp">Compétences clés, TJM, disponibilité <span class="hint">(facultatif)</span></label><input class="input" id="al-comp" name="message" placeholder="Ex. : Java/Spring, Kafka, 600 €/j, dispo en janvier"></div>
+          <div class="hp" aria-hidden="true"><label for="al-site">Site web</label><input id="al-site" name="site_web" tabindex="-1" autocomplete="off"></div>
+          <label class="check"><input type="checkbox" name="consentement" required>J'accepte que HT Portage conserve mes coordonnées pour m'envoyer des missions. Désinscription sur simple demande. <a href="confidentialite.html">Politique de confidentialité</a></label>
+          <div><button class="btn btn--dark" type="submit" data-mesure="alerte">M'inscrire à l'alerte missions</button></div>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="site-footer">
@@ -112,6 +146,8 @@
       <a href="index.html">Accueil</a>
       <a href="simulateur.html">Simulateur</a>
       <a href="missions.html">Missions</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="a-propos.html">À propos</a>
     </div>
     <div class="footer__col">
       <p>Métiers</p>
@@ -119,6 +155,13 @@
       <a href="portage-salarial-data-ia.html">Data &amp; IA</a>
       <a href="portage-salarial-cloud-devops.html">Cloud &amp; DevOps</a>
       <a href="portage-salarial-chef-de-projet.html">Chefs de projet</a>
+    </div>
+    <div class="footer__col">
+      <p>Guides</p>
+      <a href="guides/portage-salarial.html">Le portage salarial</a>
+      <a href="guides/calcul-salaire-portage-salarial.html">Calcul du salaire</a>
+      <a href="guides/portage-salarial-ou-freelance.html">Portage ou freelance</a>
+      <a href="guides/conditions-portage-salarial.html">Conditions</a>
     </div>
     <div class="footer__col">
       <p>Contact</p>
@@ -135,9 +178,10 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="assets/js/config.js?v=20261029b"></script>
-<script src="assets/js/main.js?v=20261029b"></script>
-<script src="assets/js/calcul-portage.js?v=20261029b"></script>
+<script src="assets/js/config.js?v=20261031a"></script>
+<script src="assets/js/captcha.js?v=20261031a"></script>
+<script src="assets/js/main.js?v=20261031a"></script>
+<script src="assets/js/calcul-portage.js?v=20261031a"></script>
 <script>
 // Exemple calculé avec le moteur du simulateur (montants en euros)
 (function () {

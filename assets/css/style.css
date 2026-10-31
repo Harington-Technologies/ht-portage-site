@@ -336,3 +336,63 @@ input[type=range] { width: 100%; height: 28px; margin-top: 16px; accent-color: v
 .mission__plus { align-self: flex-start; margin-top: 6px; font-size: 15px; }
 .mission__repli { display: flex; flex-direction: column; }
 .link-btn { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--plum, #784E61); text-decoration: underline; cursor: pointer; }
+
+/* ---------- Guides et pages éditoriales ---------- */
+.hero--guide .container { padding-top: 48px; padding-bottom: 56px; }
+.fil { font-size: 14px; color: var(--on-dark-2); margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 6px; }
+.fil a { color: var(--on-dark); text-decoration: none; }
+.fil a:hover { color: var(--white); text-decoration: underline; }
+.guide-titre { font-size: clamp(32px, 4.6vw, 54px); max-width: 900px; }
+.guide-meta { margin-top: 18px; color: var(--on-dark-2); font-size: 15px; }
+.guide { padding: 64px 0 88px; }
+.guide__grille { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 56px; align-items: start; }
+.article { max-width: 760px; font-size: 17px; line-height: 1.7; color: var(--ink); }
+.article h2 { font-size: clamp(24px, 2.6vw, 30px); font-weight: 700; line-height: 1.2; margin: 48px 0 14px; scroll-margin-top: 90px; }
+.article p { margin: 0 0 16px; }
+.article ul, .article ol { margin: 0 0 18px; padding-left: 22px; }
+.article li { margin-bottom: 8px; }
+.article strong { font-weight: 600; }
+.article .faq { margin-top: 8px; }
+.en-bref { background: var(--white); border-left: 4px solid var(--rose); border-radius: 0 16px 16px 0; padding: 22px 26px; margin-bottom: 28px; }
+.en-bref__titre { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--plum); margin-bottom: 8px !important; }
+.en-bref p:last-child { margin: 0; }
+.sommaire { background: var(--tint); border-radius: 16px; padding: 18px 24px; margin-bottom: 8px; font-size: 15px; }
+.sommaire > p { font-weight: 700; margin: 0 0 8px; }
+.sommaire ol { margin: 0; }
+.sommaire a { color: var(--navy-700); text-decoration: none; }
+.sommaire a:hover { text-decoration: underline; }
+.tableau { overflow-x: auto; margin: 8px 0 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); }
+.tableau table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.45; }
+.tableau caption { text-align: left; padding: 14px 16px 4px; font-size: 13px; color: var(--muted-2); }
+.tableau th, .tableau td { padding: 11px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.tableau thead th { font-size: 13px; color: var(--muted); font-weight: 600; background: var(--bg); }
+.tableau tbody th { font-weight: 600; }
+.tableau tr:last-child td, .tableau tr:last-child th { border-bottom: 0; }
+.cta-guide { background: var(--navy-900); color: var(--white); border-radius: 20px; padding: 28px; margin: 40px 0 8px; }
+.cta-guide p { margin: 0; }
+.cta-guide__btns { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px !important; }
+.cta-guide .btn--dark { background: var(--rose); color: var(--ink); }
+.cta-guide .btn--ghost-dark { border-color: var(--on-dark-2); color: var(--white); }
+.article > .cta-guide:only-of-type .cta-guide__btns { margin-top: 0 !important; }
+.sources { font-size: 15px; }
+.glossaire dt { font-weight: 700; margin-top: 18px; scroll-margin-top: 90px; }
+.glossaire dd { margin: 4px 0 0; color: var(--muted); }
+.guide__aside { position: sticky; top: 96px; display: grid; gap: 18px; }
+.aside-carte, .aside-liens { background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+.aside-carte__titre { font-weight: 700; margin-bottom: 10px; }
+.aside-carte ul { margin: 0 0 18px; padding-left: 18px; font-size: 15px; color: var(--muted); display: grid; gap: 6px; }
+.aside-carte .btn { width: 100%; justify-content: center; }
+.guide-lien { display: block; padding: 12px 0; border-top: 1px solid var(--line); text-decoration: none; color: var(--ink); font-weight: 600; font-size: 15px; line-height: 1.35; }
+.guide-lien span { display: block; font-size: 12px; font-weight: 600; color: var(--plum); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+.guide-lien:hover { color: var(--plum); }
+.guides-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.guide-carte { display: flex; flex-direction: column; gap: 10px; background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 28px; text-decoration: none; color: var(--ink); transition: border-color .15s, transform .15s; }
+.guide-carte:hover { border-color: var(--rose); transform: translateY(-2px); color: var(--ink); }
+.guide-carte h2 { font-size: 21px; font-weight: 700; line-height: 1.25; }
+.guide-carte p { font-size: 15px; color: var(--muted); line-height: 1.55; flex: 1; }
+.guide-carte span { font-weight: 600; color: var(--plum); font-size: 15px; }
+@media (max-width: 960px) {
+  .guide__grille { grid-template-columns: 1fr; gap: 32px; }
+  .guide__aside { position: static; }
+  .article { font-size: 16px; }
+}

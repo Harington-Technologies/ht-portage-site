@@ -43,7 +43,8 @@
     contact: 'Merci ! Nous vous recontactons très vite.',
     simulation: 'Merci ! Votre simulation détaillée vous sera envoyée sous 24 h ouvrées.',
     candidature: 'Candidature envoyée. Notre équipe revient vers vous rapidement.',
-    recommandation: 'Merci pour votre recommandation ! Nous vous tenons informé de la suite.'
+    recommandation: 'Merci pour votre recommandation ! Nous vous tenons informé de la suite.',
+    alerte: 'C\'est noté ! Vous recevrez les missions qui correspondent à votre domaine.'
   };
   var CV_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
   var CV_MAX = 5 * 1024 * 1024;

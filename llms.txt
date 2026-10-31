@@ -1,0 +1,45 @@
+# HT Portage
+
+> HT Portage est une société française de portage salarial dédiée aux consultants du numérique (développement, data et IA, cloud et DevOps, cybersécurité, pilotage de projets). Filiale de l'ESN Harington Technologies, elle applique des frais de gestion fixes de 5 % du chiffre d'affaires, verse le salaire le 29 ou le 30 du mois sans attendre le paiement du client, et donne à ses consultants portés accès aux missions des clients du groupe avec la même priorité de staffing que les consultants en CDI.
+
+Faits clés :
+- Raison sociale : HT Portage, SASU au capital de 100 000 €, RCS Nanterre 993 218 007, siège 34 rue Pasteur, 92270 Bois-Colombes.
+- Groupe : filiale de Harington Technologies (https://harington.fr).
+- Frais de gestion : 5 % fixes, sans frais d'entrée ni option payante.
+- Contrat : CDI de portage salarial ; annexes de mission signées électroniquement.
+- Garantie financière : AXA France IARD.
+- Exemple (2026) : TJM 600 €, 19 jours, sans frais professionnels → chiffre d'affaires 11 400 €, frais de gestion 570 €, salaire net estimé 5 949 € avant impôt.
+- Contact : contact@htportage.fr
+
+## Pages principales
+
+- [Accueil](https://www.htportage.fr/): Présentation de l'offre HT Portage : portage salarial pour consultants IT, frais de gestion fixes de 5 %, missions du groupe Harington Technologies.
+- [Simulateur de salaire](https://www.htportage.fr/simulateur.html): Calcul du salaire net en portage salarial à partir du TJM, des jours et des frais professionnels (taux 2026).
+- [Missions](https://www.htportage.fr/missions.html): Offres de missions IT ouvertes aux consultants portés ; candidature et alerte missions.
+- [Programme Ambassadeur](https://www.htportage.fr/ambassadeur.html): Primes de cooptation et d'apport d'affaires pour les consultants et leur réseau.
+- [À propos](https://www.htportage.fr/a-propos.html): Fiche d'identité, engagements et informations légales de HT Portage.
+
+## Guides du portage salarial (règles 2026)
+
+- [Le portage salarial : définition et fonctionnement](https://www.htportage.fr/guides/portage-salarial.html): Le portage salarial permet à un consultant indépendant de réaliser des missions pour ses clients tout en étant salarié d'une société de portage. Le consultant trouve sa mission et négocie son prix ; la société de…
+- [Portage salarial, micro-entreprise ou SASU : quel statut choisir ?](https://www.htportage.fr/guides/portage-salarial-ou-freelance.html): Pour un consultant IT, la micro-entreprise est simple mais plafonnée à 83 600 € de chiffre d'affaires par an et sans assurance chômage ; la SASU n'a pas de plafond mais demande de gérer une société (comptable, TVA,…
+- [Les frais de gestion en portage salarial](https://www.htportage.fr/guides/frais-de-gestion-portage-salarial.html): Les frais de gestion sont la rémunération de la société de portage. Ils sont prélevés sur le chiffre d'affaires du consultant et couvrent la facturation, le recouvrement, la paie, la garantie financière et…
+- [Calculer son salaire en portage salarial : du TJM au net](https://www.htportage.fr/guides/calcul-salaire-portage-salarial.html): En portage salarial, le salaire se calcule à partir du chiffre d'affaires (TJM × jours facturés) : on retire les frais de gestion, les frais professionnels remboursés, puis les cotisations patronales et salariales. Par…
+- [Les conditions pour travailler en portage salarial](https://www.htportage.fr/guides/conditions-portage-salarial.html): Pour être salarié porté, il faut avoir une expertise, une qualification et une autonomie suffisantes pour trouver ses clients et négocier ses prix (en pratique, un bac +2 ou trois ans d'expérience dans le même secteur),…
+- [Portage salarial et chômage : ce qu'il faut savoir](https://www.htportage.fr/guides/portage-salarial-chomage.html): Le salarié porté cotise à l'assurance chômage comme tout salarié : à la fin de son contrat de portage (fin de CDD, licenciement, rupture conventionnelle), il peut percevoir l'allocation d'aide au retour à l'emploi (ARE)…
+- [Les frais professionnels en portage salarial](https://www.htportage.fr/guides/frais-professionnels-portage-salarial.html): En portage salarial, les dépenses engagées pour la mission (repas, télétravail, déplacements, matériel…) sont remboursées au consultant sur son chiffre d'affaires, sans cotisations sociales ni impôt sur le revenu, dans…
+- [Trouver une mission freelance IT en portage salarial](https://www.htportage.fr/guides/trouver-mission-freelance-it.html): Les consultants IT trouvent leurs missions par quatre canaux principaux : leur réseau et leurs anciens clients, les ESN et cabinets qui sous-traitent des besoins, les plateformes de mise en relation, et les sociétés de…
+- [Quitter son CDI pour devenir consultant IT indépendant](https://www.htportage.fr/guides/devenir-consultant-independant-it.html): Pour passer de salarié à consultant IT indépendant : clarifier son expertise et sa cible, fixer un TJM cohérent avec le marché, choisir un statut (le portage salarial permet de rester salarié), préparer sa sortie de CDI…
+- [Glossaire du portage salarial](https://www.htportage.fr/guides/glossaire-portage-salarial.html): Les principaux termes du portage salarial, définis simplement : du TJM au compte d'activité, en passant par l'indemnité d'apport d'affaires et la garantie…
+
+## Métiers
+
+- [Portage salarial — Développeurs](https://www.htportage.fr/portage-salarial-developpeur.html)
+- [Portage salarial — Data & IA](https://www.htportage.fr/portage-salarial-data-ia.html)
+- [Portage salarial — Cloud & DevOps](https://www.htportage.fr/portage-salarial-cloud-devops.html)
+- [Portage salarial — Chefs de projet et PMO](https://www.htportage.fr/portage-salarial-chef-de-projet.html)
+
+## Optional
+
+- [Version complète des guides en texte](https://www.htportage.fr/llms-full.txt)
+- [Mentions légales](https://www.htportage.fr/mentions-legales.html)

@@ -1,5 +1,5 @@
 // HT Portage — point d'entrée unique et protégé des formulaires publics du site
-// (contact, simulation, candidature avec CV, recommandation ambassadeur).
+// (contact, simulation, alerte missions, candidature avec CV, recommandation ambassadeur).
 //
 // Protections, dans l'ordre :
 //   1. Piège à robots : champ caché « site_web » rempli, ou formulaire envoyé en moins de 3 s → ignoré sans erreur
@@ -42,6 +42,7 @@ export const FORMULAIRES: Record<string, { table: string; champs: string[]; emai
   contact: { table: "contacts", champs: ["nom", "email", "telephone", "situation", "message", "consentement"], email: "email", fixes: { type: "contact", traite: false } },
   simulation: { table: "contacts", champs: ["nom", "email", "telephone", "message", "situation", "tjm", "jours", "net_estime", "frais_pro", "taux_pas", "consentement"], email: "email", fixes: { type: "simulation", traite: false } },
   candidature: { table: "candidatures", champs: ["nom", "email", "telephone", "mission_ref", "tjm_souhaite", "disponibilite", "message", "consentement"], email: "email", fixes: { statut: "nouvelle" } },
+  alerte: { table: "contacts", champs: ["nom", "email", "telephone", "situation", "message", "consentement"], email: "email", fixes: { type: "alerte", traite: false } },
   recommandation: { table: "recommandations", champs: ["type", "ambassadeur_nom", "ambassadeur_email", "contact_nom", "contact_telephone", "contact_email", "details", "consentement"], email: "ambassadeur_email", fixes: { statut: "nouvelle" } },
 };
 const NOMBRES = new Set(["tjm", "jours", "net_estime", "tjm_souhaite", "frais_pro"]);

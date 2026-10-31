@@ -1,13 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://www.htportage.fr/</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://www.htportage.fr/simulateur.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://www.htportage.fr/missions.html</loc><lastmod>2026-10-28</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://www.htportage.fr/ambassadeur.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>
-  <url><loc>https://www.htportage.fr/portage-salarial-developpeur.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://www.htportage.fr/portage-salarial-data-ia.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://www.htportage.fr/portage-salarial-cloud-devops.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://www.htportage.fr/portage-salarial-chef-de-projet.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://www.htportage.fr/mentions-legales.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>
-  <url><loc>https://www.htportage.fr/confidentialite.html</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://www.htportage.fr/</loc><lastmod>2026-10-31</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://www.htportage.fr/simulateur.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.htportage.fr/missions.html</loc><lastmod>2026-10-31</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.htportage.fr/ambassadeur.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.htportage.fr/a-propos.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.htportage.fr/guides/</loc><lastmod>2026-10-31</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/portage-salarial.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/portage-salarial-ou-freelance.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/frais-de-gestion-portage-salarial.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/calcul-salaire-portage-salarial.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/conditions-portage-salarial.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/portage-salarial-chomage.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/frais-professionnels-portage-salarial.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/trouver-mission-freelance-it.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/devenir-consultant-independant-it.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/guides/glossaire-portage-salarial.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.htportage.fr/portage-salarial-developpeur.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.htportage.fr/portage-salarial-data-ia.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.htportage.fr/portage-salarial-cloud-devops.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.htportage.fr/portage-salarial-chef-de-projet.html</loc><lastmod>2026-10-31</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.htportage.fr/mentions-legales.html</loc><lastmod>2026-10-31</lastmod><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://www.htportage.fr/confidentialite.html</loc><lastmod>2026-10-31</lastmod><changefreq>yearly</changefreq><priority>0.2</priority></url>
 </urlset>

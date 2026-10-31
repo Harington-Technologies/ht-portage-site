@@ -1,0 +1,194 @@
+# HT Portage — guides du portage salarial (texte intégral)
+
+Source : https://www.htportage.fr/ — mis à jour le 31 octobre 2026.
+
+## Le portage salarial : définition et fonctionnement
+URL : https://www.htportage.fr/guides/portage-salarial.html
+
+Le portage salarial permet à un consultant indépendant de réaliser des missions pour ses clients tout en étant salarié d'une société de portage. Le consultant trouve sa mission et négocie son prix ; la société de portage signe le contrat avec le client, facture, puis lui verse un salaire avec la protection sociale d'un salarié (chômage, retraite, mutuelle). C'est un cadre légal défini par le Code du travail (articles L1254-1 et suivants).
+
+Une relation à trois Le portage salarial repose sur trois acteurs et deux contrats : Le consultant (le « salarié porté ») : il apporte son expertise, trouve ses clients, négocie son taux journalier (TJM) et réalise la mission en toute autonomie. La société de portage : elle signe un contrat commercial de prestation avec le client, facture, encaisse, et emploie le consultant par un contrat de travail en portage salarial (CDD ou CDI). L'entreprise cliente : elle bénéficie de l'expertise du consultant et paie la société de portage, sans lien de subordination avec le consultant. Chaque mois, le chiffre d'affaires de la mission alimente un compte d'activité au nom du consultant. La société de portage en déduit ses frais de gestion, les frais professionnels remboursés et les cotisations sociales : le reste devient le salaire.
+
+Ce que dit la loi Le portage salarial est encadré par le Code du travail depuis l'ordonnance du 2 avril 2015, et par la convention collective de branche des salariés en portage salarial. Les principales règles : le consultant doit justifier d'une expertise, d'une qualification et d'une autonomie lui permettant de rechercher ses clients et de convenir avec eux du prix de sa prestation ; le client ne peut recourir au portage que pour une tâche occasionnelle hors de son activité normale et permanente, ou pour une expertise qu'il n'a pas en interne, et pour 36 mois maximum par prestation ; la rémunération ne peut pas être inférieure à un minimum : à défaut d'accord de branche, 75 % du plafond mensuel de la Sécurité sociale pour un temps plein, soit 3 003,75 € brut par mois en 2026 ; le salarié porté perçoit une indemnité d'apport d'affaires de 5 % de sa rémunération ; la société de portage doit souscrire une garantie financière qui sécurise le paiement des salaires, et tenir un compte d'activité pour chaque salarié ; les services à la personne (garde d'enfants, aide à domicile…) sont exclus du portage salarial.
+
+Pour qui ? Le portage salarial s'adresse aux experts qui vendent une prestation intellectuelle : consultants IT, développeurs, data engineers, chefs de projet, architectes, formateurs, consultants métier. La convention collective demande en pratique un diplôme de niveau bac +2 ou au moins trois ans d'expérience dans le même secteur. Il convient particulièrement aux profils dont le TJM permet de dépasser largement le salaire minimum du portage.
+
+Les avantages par rapport à une société ou une micro-entreprise Le statut de salarié : assurance chômage, retraite de base et complémentaire, mutuelle, prévoyance. Aucune gestion : pas de société à créer, pas de comptabilité, pas de TVA à déclarer. Pas de plafond de chiffre d'affaires , contrairement à la micro-entreprise. La sécurité de paiement grâce à la garantie financière. En contrepartie, la société de portage prélève des frais de gestion (5 % chez HT Portage) et les cotisations sociales d'un salarié s'appliquent. Notre guide portage salarial, micro-entreprise ou SASU détaille les différences.
+
+Comment démarrer en portage salarial Simulez votre salaire à partir de votre TJM avec le simulateur HT Portage . Trouvez votre mission , ou positionnez-vous sur les missions du groupe Harington Technologies . Signez votre contrat de travail et l'annexe de mission, électroniquement. Déclarez vos jours chaque mois : HT Portage facture le client et vous verse votre salaire le 29 ou le 30 du mois.
+
+Questions fréquentes :
+- Le portage salarial est-il légal ? Oui. Le portage salarial est encadré par le Code du travail (articles L1254-1 à L1254-31) depuis l'ordonnance du 2 avril 2015, et par une convention collective de branche étendue.
+- Qui trouve les missions en portage salarial ? En principe, le consultant trouve lui-même ses clients : la société de portage n'a pas d'obligation de fournir du travail. HT Portage, filiale de Harington Technologies, propose en plus les besoins des clients du groupe à ses consultants.
+- Quel est le salaire minimum en portage salarial en 2026 ? À défaut d'accord de branche, la loi fixe le minimum à 75 % du plafond mensuel de la Sécurité sociale pour un temps plein, soit 3 003,75 € brut par mois en 2026 (plafond mensuel : 4 005 €).
+- Le salarié porté a-t-il droit au chômage ? Oui. Le salarié porté cotise à l'assurance chômage comme tout salarié et peut percevoir l'allocation à la fin de son contrat de travail, dans les conditions habituelles.
+
+## Portage salarial, micro-entreprise ou SASU : quel statut choisir ?
+URL : https://www.htportage.fr/guides/portage-salarial-ou-freelance.html
+
+Pour un consultant IT, la micro-entreprise est simple mais plafonnée à 83 600 € de chiffre d'affaires par an et sans assurance chômage ; la SASU n'a pas de plafond mais demande de gérer une société (comptable, TVA, bilan) ; le portage salarial combine l'absence de gestion et de plafond avec la protection d'un salarié, en échange de frais de gestion (5 % chez HT Portage).
+
+Le comparatif en un coup d'œil Comparaison des statuts pour un consultant indépendant en 2026 Portage salarial Micro-entreprise SASU Création Aucune, signature d'un contrat Déclaration en ligne Statuts, capital, immatriculation Plafond de chiffre d'affaires Aucun 83 600 € par an (prestations de services) Aucun Charges Frais de gestion + cotisations de salarié 25,6 % du chiffre d'affaires (BNC, SSI) Cotisations sur la rémunération, impôt sur les sociétés Frais professionnels Remboursés hors cotisations Non déductibles Déductibles Assurance chômage Oui Non Non pour le président Retraite complémentaire cadre Oui Non Selon la rémunération versée Comptabilité et TVA Gérées par la société de portage Simplifiées, TVA au-delà de 37 500 € Expert-comptable conseillé, TVA
+
+La micro-entreprise : simple, mais vite trop petite Le régime micro est le plus rapide à ouvrir. En 2026, un consultant en profession libérale relevant de la Sécurité sociale des indépendants paie 25,6 % de son chiffre d'affaires en cotisations, plus la contribution à la formation professionnelle. Mais le chiffre d'affaires est plafonné à 83 600 € par an : avec un TJM de 450 €, ce plafond est atteint en moins de 190 jours facturés. Les frais réels ne sont pas déductibles, et il n'y a ni assurance chômage ni retraite complémentaire de cadre.
+
+La SASU : puissante, mais il faut la gérer La SASU n'a pas de plafond et permet d'arbitrer entre salaire et dividendes. En contrepartie, il faut créer et faire vivre une société : expert-comptable, déclarations de TVA, bilan annuel, assurance, recouvrement des factures. Le président de SASU n'a pas droit à l'assurance chômage.
+
+Le portage salarial : la liberté sans la gestion En portage salarial, vous gardez le choix de vos missions et de votre TJM, sans créer de structure. La société de portage facture, encaisse et vous verse un salaire chaque mois, avec la protection sociale d'un cadre : chômage, retraite complémentaire, mutuelle, prévoyance. Vos frais professionnels vous sont remboursés sans cotisations ni impôt. Le portage est particulièrement adapté : pour tester l'indépendance sans quitter le statut de salarié ; si votre chiffre d'affaires dépasse le plafond de la micro-entreprise ; si vous voulez conserver vos droits au chômage entre deux contrats ; si vous ne voulez pas gérer de société . Pour voir ce qu'il vous resterait, utilisez le simulateur de salaire ou consultez nos exemples de calcul du TJM au salaire net .
+
+Questions fréquentes :
+- Quel est le plafond de la micro-entreprise en 2026 ? 83 600 € de chiffre d'affaires annuel pour les prestations de services et les professions libérales (BNC et BIC services).
+- Peut-on passer de la micro-entreprise au portage salarial ? Oui. Il suffit de signer un contrat de portage salarial pour vos nouvelles missions ; vous pouvez ensuite fermer votre micro-entreprise ou la conserver pour une autre activité.
+- Le portage salarial coûte-t-il plus cher qu'une SASU ? Les frais de gestion du portage remplacent les coûts de la société (expert-comptable, assurances, temps de gestion). Les cotisations sont celles d'un salarié cadre, qui financent aussi le chômage et la retraite complémentaire. Le bon choix dépend de votre TJM, de vos frais et de vos priorités.
+- Quel statut choisir pour une première mission en freelance ? Le portage salarial est souvent le plus simple pour une première mission : pas de structure à créer, statut de salarié conservé et droits au chômage maintenus.
+
+## Les frais de gestion en portage salarial
+URL : https://www.htportage.fr/guides/frais-de-gestion-portage-salarial.html
+
+Les frais de gestion sont la rémunération de la société de portage. Ils sont prélevés sur le chiffre d'affaires du consultant et couvrent la facturation, le recouvrement, la paie, la garantie financière et l'accompagnement. Le marché affiche généralement des taux de 5 % à 10 %, parfois dégressifs ou complétés d'options payantes ; chez HT Portage, ils sont fixes à 5 %, sans frais cachés.
+
+À quoi servent les frais de gestion ? La société de portage prend en charge tout ce qu'une société ou un indépendant devrait gérer seul : le contrat commercial avec le client, la facturation et la relance des impayés ; l'établissement des bulletins de paie et la déclaration des cotisations sociales ; la garantie financière obligatoire, qui assure le paiement des salaires ; la tenue du compte d'activité et le remboursement des frais professionnels ; l'accompagnement juridique et administratif du consultant.
+
+Comment sont-ils calculés ? Les frais de gestion sont un pourcentage du chiffre d'affaires hors taxes encaissé. Avec un TJM de 600 € et 19 jours facturés, le chiffre d'affaires du mois est de 11 400 € : des frais de 5 % représentent 570 €. Le reste finance le salaire, les cotisations et les frais professionnels remboursés.
+
+Les points à vérifier avant de signer Le taux réel : un taux d'appel bas peut s'accompagner d'options payantes (assurance, accès aux outils, avance de trésorerie). Les frais d'entrée ou de sortie , et les frais de tenue de compte. La base de calcul : le chiffre d'affaires facturé ou le chiffre d'affaires encaissé. Le délai de versement du salaire : à date fixe ou après paiement du client. Ce qui est inclus : mutuelle, formations, apport de missions.
+
+Les frais de gestion chez HT Portage HT Portage applique des frais de gestion fixes de 5 % , sans frais d'entrée, sans option payante et sans marge arrière. Le salaire est versé le 29 ou le 30 du mois, sans attendre le paiement du client. Chaque euro est visible sur votre compte d'activité, dans votre espace consultant. Ces 5 % incluent aussi ce qui fait la différence d'une filiale d'ESN : l'accès aux missions des clients du groupe Harington Technologies, avec la même priorité de staffing que les consultants en CDI, et des formations (IA for All, Data for All, Python for All, Pluralsight illimité). Attention à ne pas confondre les frais de gestion avec les frais professionnels , qui sont vos dépenses de mission et vous sont remboursés.
+
+Questions fréquentes :
+- Quel est le taux moyen des frais de gestion en portage salarial ? La plupart des sociétés de portage affichent des frais de gestion compris entre 5 % et 10 % du chiffre d'affaires, parfois dégressifs selon le volume ou complétés d'options payantes.
+- Les frais de gestion sont-ils déductibles ? Ils sont prélevés directement sur le chiffre d'affaires avant le calcul du salaire : ils ne sont donc pas soumis aux cotisations sociales ni à l'impôt sur le revenu du consultant.
+- Quels sont les frais de gestion de HT Portage ? 5 % du chiffre d'affaires, fixes, sans frais d'entrée, sans option payante et sans marge arrière.
+
+## Calculer son salaire en portage salarial : du TJM au net
+URL : https://www.htportage.fr/guides/calcul-salaire-portage-salarial.html
+
+En portage salarial, le salaire se calcule à partir du chiffre d'affaires (TJM × jours facturés) : on retire les frais de gestion, les frais professionnels remboursés, puis les cotisations patronales et salariales. Par exemple, chez HT Portage, un TJM de 600 € sur 19 jours donne un chiffre d'affaires de 11 400 € et un salaire net estimé de 5 949 € avant impôt (taux 2026, sans frais professionnels).
+
+Les étapes du calcul Chiffre d'affaires = TJM × nombre de jours validés sur votre compte rendu d'activité (CRA). − Frais de gestion de la société de portage (5 % chez HT Portage). − Frais professionnels remboursés : ils vous sont versés à part, sans cotisations ni impôt. = Budget salaire , qui correspond au coût employeur. − Cotisations patronales = salaire brut. Le brut comprend le salaire de base, l'indemnité d'apport d'affaires (5 %), la réserve financière (10 %, en CDI) et l'indemnité de congés payés (10 %). − Cotisations salariales = salaire net avant impôt. − Prélèvement à la source = salaire net après impôt.
+
+Exemples de salaire net selon le TJM Salaire net mensuel estimé en portage salarial chez HT Portage, 19 jours facturés, sans frais professionnels (taux 2026) TJM Chiffre d'affaires Frais de gestion (5 %) Cotisations sociales Salaire net avant impôt 400 € 7 600 € 380 € 3 323 € 3 897 € 500 € 9 500 € 475 € 4 102 € 4 923 € 600 € 11 400 € 570 € 4 881 € 5 949 € 700 € 13 300 € 665 € 5 659 € 6 976 € 800 € 15 200 € 760 € 6 438 € 8 002 € 1000 € 19 000 € 950 € 7 996 € 10 054 € Ces montants sont calculés avec le moteur du simulateur HT Portage : statut cadre, CDI de portage, mutuelle d'entreprise comprise, taux de cotisations 2026. Ils sont indicatifs et ne tiennent pas compte de votre situation fiscale.
+
+Comment augmenter son net ? Faire rembourser ses frais professionnels : repas chez le client, télétravail, déplacements, matériel. Ils ne supportent ni cotisations ni impôt. Exemple : avec 452 € de frais par mois pour un TJM de 600 €, le total perçu passe de 5 949 € à 6 145 €. Négocier son TJM au juste niveau du marché, et le revoir à chaque renouvellement. Comparer les frais de gestion réellement prélevés, options comprises.
+
+Le salaire minimum à respecter La rémunération d'un salarié porté ne peut pas descendre sous un minimum légal : 75 % du plafond mensuel de la Sécurité sociale pour un temps plein à défaut d'accord de branche, soit 3 003,75 € brut par mois en 2026. En dessous d'un certain TJM, le portage salarial n'est donc pas adapté.
+
+Questions fréquentes :
+- Combien gagne-t-on en portage salarial avec un TJM de 500 € ? Chez HT Portage, avec 19 jours facturés et sans frais professionnels, un TJM de 500 € donne un chiffre d'affaires de 9 500 € et un salaire net estimé d'environ 4 923 € par mois avant impôt (taux 2026).
+- Combien gagne-t-on en portage salarial avec un TJM de 600 € ? Environ 5 949 € net par mois avant impôt pour 19 jours facturés, sans frais professionnels, chez HT Portage (taux 2026).
+- Quand le salaire est-il versé ? Chez HT Portage, le salaire est versé le 29 ou le 30 du mois, sans attendre le paiement du client.
+- Le salaire est-il le même chaque mois ? Non : il dépend des jours facturés dans le mois. La réserve financière constituée en CDI permet de lisser les périodes sans mission.
+
+## Les conditions pour travailler en portage salarial
+URL : https://www.htportage.fr/guides/conditions-portage-salarial.html
+
+Pour être salarié porté, il faut avoir une expertise, une qualification et une autonomie suffisantes pour trouver ses clients et négocier ses prix (en pratique, un bac +2 ou trois ans d'expérience dans le même secteur), percevoir au moins le salaire minimum du portage (3 003,75 € brut par mois à temps plein en 2026, à défaut d'accord de branche), et réaliser des prestations auprès d'entreprises, pour 36 mois maximum chez un même client.
+
+Les conditions côté consultant Expertise, qualification, autonomie : le Code du travail exige que le salarié porté puisse rechercher lui-même ses clients et convenir avec eux des conditions de sa prestation. Diplôme ou expérience : la convention collective retient un diplôme de niveau 5 (bac +2) ou au moins trois ans d'expérience significative dans le même secteur. Un niveau de rémunération suffisant : votre TJM doit permettre de financer au moins le salaire minimum du portage.
+
+Le salaire minimum en portage salarial À défaut d'accord de branche étendu, la rémunération mensuelle ne peut pas être inférieure à 75 % du plafond mensuel de la Sécurité sociale pour une activité à temps plein. En 2026, le plafond mensuel est de 4 005 € : le minimum est donc de 3 003,75 € brut par mois . La convention collective de branche prévoit des minima qui varient selon le niveau d'expertise du salarié porté.
+
+Les conditions côté client Le client doit être une entreprise (ou une organisation) : le portage salarial n'est pas ouvert aux particuliers pour les services à la personne. Il ne peut y recourir que pour une tâche occasionnelle hors de son activité normale et permanente, ou pour une expertise dont il ne dispose pas en interne. La durée de la prestation chez un même client est limitée à 36 mois . Le portage ne peut pas servir à remplacer un salarié gréviste ni pour certains travaux dangereux.
+
+Le contrat de travail Le salarié porté signe avec la société de portage un contrat de travail en portage salarial, à durée déterminée ou indéterminée. Le CDD peut être renouvelé deux fois, dans la limite de 18 mois au total. Le CDI permet d'enchaîner les missions sans changer de contrat : chez HT Portage, chaque nouvelle mission fait l'objet d'une annexe signée électroniquement.
+
+Les métiers du numérique, cadre naturel du portage Développement, data et IA, cloud et DevOps, cybersécurité, pilotage de projets, conseil fonctionnel : ce sont des prestations intellectuelles réalisées en autonomie, exactement le cadre prévu par la loi. Voir nos pages développeurs , data et IA , cloud et DevOps et chefs de projet .
+
+Questions fréquentes :
+- Faut-il un diplôme pour faire du portage salarial ? La convention collective retient un diplôme de niveau bac +2 ou, à défaut, au moins trois ans d'expérience significative dans le même secteur.
+- Peut-on faire du portage salarial à temps partiel ? Oui. Le salaire minimum est alors calculé au prorata du temps de travail.
+- Combien de temps peut durer une mission en portage salarial ? La prestation chez un même client est limitée à 36 mois. Le CDD de portage est limité à 18 mois renouvellements compris ; le CDI n'a pas de durée limitée.
+- Un débutant peut-il être salarié porté ? Un jeune diplômé de niveau bac +2 ou plus peut être salarié porté, à condition d'être autonome et d'avoir un TJM permettant de financer le salaire minimum.
+
+## Portage salarial et chômage : ce qu'il faut savoir
+URL : https://www.htportage.fr/guides/portage-salarial-chomage.html
+
+Le salarié porté cotise à l'assurance chômage comme tout salarié : à la fin de son contrat de portage (fin de CDD, licenciement, rupture conventionnelle), il peut percevoir l'allocation d'aide au retour à l'emploi (ARE) dans les conditions habituelles. Un demandeur d'emploi qui démarre en portage salarial peut aussi cumuler une partie de son ARE avec son salaire : 70 % de la rémunération brute du mois est déduite de l'allocation.
+
+Le portage salarial ouvre des droits au chômage Parce qu'il est salarié, le consultant porté cotise à l'assurance chômage. Ses périodes de travail en portage comptent pour ouvrir ou recharger des droits, comme n'importe quel emploi salarié. C'est l'une des grandes différences avec la micro-entreprise ou la présidence d'une SASU.
+
+Démarrer en portage pendant son indemnisation Si vous êtes indemnisé par France Travail et que vous démarrez une mission en portage salarial, vous pouvez cumuler votre salaire avec une partie de votre allocation, à condition de rester inscrit comme demandeur d'emploi. Selon les règles de l'Unédic : 70 % de la rémunération brute du mois est déduite du montant de l'allocation mensuelle ; le cumul salaire + allocation ne peut pas dépasser votre ancien salaire de référence ; les jours non indemnisés ne sont pas perdus : ils reportent la fin de vos droits. Avec un salaire de portage confortable, l'allocation est souvent entièrement suspendue, mais vos droits restants sont conservés pour plus tard.
+
+Que se passe-t-il entre deux missions ? En CDI de portage, les périodes sans mission ne sont pas rémunérées, mais le contrat continue. La réserve financière (10 % du salaire de base, prévue par la convention collective) peut être mobilisée pour lisser ces périodes. Si le contrat prend fin, vous retrouvez vos droits au chômage dans les conditions habituelles.
+
+À la fin du contrat La fin d'un CDD, un licenciement ou une rupture conventionnelle ouvrent droit à l'ARE, comme pour tout salarié. Une démission ne l'ouvre pas, sauf cas de démission légitime ou de projet de reconversion validé. Les règles d'indemnisation évoluent régulièrement : vérifiez votre situation personnelle auprès de France Travail.
+
+Questions fréquentes :
+- Peut-on toucher le chômage après du portage salarial ? Oui. Le salarié porté cotise à l'assurance chômage ; à la fin de son contrat (fin de CDD, licenciement, rupture conventionnelle), il peut percevoir l'ARE dans les conditions de droit commun.
+- Peut-on cumuler l'ARE et un salaire de portage salarial ? Oui, en restant inscrit à France Travail : 70 % du salaire brut du mois est déduit de l'allocation mensuelle, et le total ne peut pas dépasser l'ancien salaire de référence.
+- Est-on payé entre deux missions en portage salarial ? Non, les périodes sans mission ne sont pas rémunérées. En CDI, la réserve financière permet de lisser ces périodes, et le contrat se poursuit.
+
+## Les frais professionnels en portage salarial
+URL : https://www.htportage.fr/guides/frais-professionnels-portage-salarial.html
+
+En portage salarial, les dépenses engagées pour la mission (repas, télétravail, déplacements, matériel…) sont remboursées au consultant sur son chiffre d'affaires, sans cotisations sociales ni impôt sur le revenu, dans la limite des barèmes Urssaf ou sur justificatifs. Ils augmentent le total perçu chaque mois.
+
+Le principe Vos frais professionnels sont payés à partir de votre chiffre d'affaires, avant le calcul du salaire. Ils vous sont versés en plus de votre salaire net, sans cotisations sociales ni impôt sur le revenu . Ils doivent être réels, liés à votre activité et respecter les règles de l'Urssaf.
+
+Les allocations forfaitaires 2026 Plafonds Urssaf 2026 des principales allocations forfaitaires Frais Montant 2026 Repas pris hors des locaux (chez le client) 10,40 € par repas Repas au restaurant (en déplacement) 21,40 € par repas Télétravail 2,70 € par jour, 59,40 € par mois au maximum Grand déplacement : hôtel et petit-déjeuner 76,60 € par nuit (Paris et petite couronne), 56,80 € ailleurs Indemnités kilométriques, véhicule de 5 CV 0,636 € par km jusqu'à 5 000 km par an Vélo personnel 0,25 € par km Le détail complet, dont toutes les puissances fiscales, figure sur la page du simulateur .
+
+Les frais remboursés sur justificatifs Train, avion, taxi, péages, parking, hôtel, matériel informatique, logiciels, part professionnelle du téléphone et d'internet, formations, espace de coworking : ces frais réels sont remboursés sur présentation des justificatifs.
+
+Un exemple chiffré 18 repas chez le client (187 €), 4 jours de télétravail (11 €) et 400 km avec une voiture de 5 CV (254 €) représentent 452 € de frais dans le mois. Pour un TJM de 600 € sur 19 jours chez HT Portage, le total perçu passe de 5 949 € à 6 145 € par mois (estimation 2026).
+
+Bon à savoir Les frais professionnels ne doivent pas être confondus avec les frais de gestion , qui rémunèrent la société de portage. Les frais remboursés réduisent le salaire brut, donc les cotisations : ils diminuent aussi les droits à la retraite et au chômage correspondants. Chez HT Portage, le montant exact des frais est défini avec votre conseiller avant la signature.
+
+Questions fréquentes :
+- Les frais professionnels sont-ils imposables en portage salarial ? Non. Remboursés dans la limite des barèmes Urssaf ou sur justificatifs, ils ne sont soumis ni aux cotisations sociales ni à l'impôt sur le revenu.
+- Peut-on se faire rembourser un ordinateur en portage salarial ? Oui, le matériel informatique utilisé pour la mission peut être remboursé sur justificatif, au titre des frais réels.
+- Quel est le montant de l'allocation télétravail en 2026 ? 2,70 € par jour de télétravail, dans la limite de 59,40 € par mois.
+
+## Trouver une mission freelance IT en portage salarial
+URL : https://www.htportage.fr/guides/trouver-mission-freelance-it.html
+
+Les consultants IT trouvent leurs missions par quatre canaux principaux : leur réseau et leurs anciens clients, les ESN et cabinets qui sous-traitent des besoins, les plateformes de mise en relation, et les sociétés de portage adossées à une ESN. Chez HT Portage, filiale de Harington Technologies, les consultants portés accèdent aux besoins des clients du groupe avec la même priorité de staffing que les consultants en CDI.
+
+1. Le réseau, premier canal des missions Anciens collègues, managers, clients : la majorité des missions se trouvent par recommandation. Prévenez votre réseau de votre disponibilité, mettez votre profil LinkedIn à jour (titre clair, compétences, disponibilité) et relancez vos anciens clients avant la fin de votre mission en cours.
+
+2. Les ESN et cabinets de conseil Les ESN sous-traitent une partie de leurs besoins à des indépendants. Elles apportent l'accès aux grands comptes référencés, souvent fermés aux indépendants en direct. Le portage salarial est accepté par la plupart d'entre elles.
+
+3. Les plateformes de missions Les plateformes de mise en relation donnent de la visibilité, mais la concurrence y est forte et une commission s'applique souvent. Soignez votre profil et répondez vite.
+
+4. Une société de portage qui apporte des missions La plupart des sociétés de portage ne trouvent pas de missions : la loi ne les y oblige pas. HT Portage a fait un autre choix : en tant que filiale de Harington Technologies, elle ouvre à ses consultants portés les besoins des clients du groupe, avant publication, avec la même priorité de staffing que les consultants en CDI . Consultez les missions ouvertes ou inscrivez-vous à l'alerte missions ci-dessous.
+
+Bien se positionner Un CV par mission : mettez en avant les technologies et les résultats attendus par le client. Les consultants HT Portage disposent d'un outil qui adapte leur CV à chaque offre. Un TJM cohérent avec votre expérience et le marché ; utilisez le simulateur pour connaître le net correspondant. Une disponibilité précise : les clients recrutent souvent pour un démarrage sous deux à quatre semaines.
+
+Questions fréquentes :
+- Une société de portage doit-elle trouver des missions ? Non, la loi ne l'y oblige pas : le salarié porté recherche lui-même ses clients. Certaines sociétés de portage, comme HT Portage, proposent toutefois des missions issues de leur groupe.
+- Les ESN acceptent-elles les consultants en portage salarial ? Oui, la plupart des ESN travaillent avec des consultants en portage salarial : elles signent alors le contrat de sous-traitance avec la société de portage.
+- Comment être alerté des nouvelles missions HT Portage ? Inscrivez-vous à l'alerte missions sur le site htportage.fr : vous recevez les besoins correspondant à votre domaine.
+
+## Quitter son CDI pour devenir consultant IT indépendant
+URL : https://www.htportage.fr/guides/devenir-consultant-independant-it.html
+
+Pour passer de salarié à consultant IT indépendant : clarifier son expertise et sa cible, fixer un TJM cohérent avec le marché, choisir un statut (le portage salarial permet de rester salarié), préparer sa sortie de CDI (rupture conventionnelle ou démission), puis décrocher une première mission via son réseau, une ESN ou une société de portage qui apporte des missions.
+
+1. Clarifier son offre Quelle expertise allez-vous vendre, à quels clients, sur quelle technologie ? Les missions se gagnent sur des compétences précises : « data engineer Spark et Azure » se vend mieux que « consultant data ». Listez trois à cinq missions que vous savez réaliser de bout en bout.
+
+2. Fixer son TJM Votre taux journalier dépend de votre expérience, de votre rareté et du client. Observez les offres de missions de votre domaine et demandez autour de vous. Puis vérifiez ce que ce TJM vous laisse avec le simulateur de salaire : c'est le chiffre à comparer avec votre salaire actuel. Nos exemples de calcul donnent des ordres de grandeur de 400 € à 1 000 € par jour.
+
+3. Choisir son statut Micro-entreprise, SASU ou portage salarial : chaque statut a ses contraintes. Le portage salarial est souvent choisi pour une première mission, car il ne demande aucune création de société et conserve le statut de salarié (chômage, retraite complémentaire, mutuelle). Voir notre comparatif des statuts .
+
+4. Préparer sa sortie de CDI La rupture conventionnelle ouvre droit à l'assurance chômage, ce qui sécurise le démarrage. Une démission ne l'ouvre pas en règle générale. Vérifiez votre clause de non-concurrence et votre préavis. Prévoyez une épargne de précaution de deux à trois mois de charges.
+
+5. Décrocher sa première mission Activez votre réseau, contactez des ESN et positionnez-vous sur des missions ouvertes. Chez HT Portage, vous accédez aux besoins des clients du groupe Harington Technologies dès votre inscription : consultez les missions ou déposez votre CV .
+
+6. Démarrer sereinement Une fois la mission trouvée, HT Portage signe le contrat avec le client, vous signez votre contrat de travail et l'annexe de mission en ligne, et vous déclarez vos jours chaque mois depuis votre espace consultant. Votre salaire arrive le 29 ou le 30 du mois.
+
+Questions fréquentes :
+- Peut-on toucher le chômage en devenant consultant indépendant ? Après une rupture conventionnelle, vous pouvez percevoir l'ARE et la cumuler en partie avec un salaire de portage salarial, en restant inscrit à France Travail.
+- Quel statut choisir pour sa première mission de consultant IT ? Le portage salarial est le plus simple pour démarrer : pas de société à créer et le statut de salarié est conservé. Vous pourrez toujours créer une société plus tard.
+- Combien de temps faut-il pour trouver une première mission ? Cela dépend du domaine et du réseau : souvent quelques semaines pour un profil recherché. Commencez à prospecter avant la fin de votre préavis.
+
+## Glossaire du portage salarial
+URL : https://www.htportage.fr/guides/glossaire-portage-salarial.html
+
+Les principaux termes du portage salarial, définis simplement : du TJM au compte d'activité, en passant par l'indemnité d'apport d'affaires et la garantie financière.
+
+Annexe de mission Document rattaché au contrat de travail, qui décrit chaque mission : client, durée, lieu, TJM. Chez HT Portage, elle se signe électroniquement. Chiffre d'affaires Montant facturé au client : TJM × nombre de jours validés. Compte d'activité Compte tenu par la société de portage au nom du salarié porté. Il retrace le chiffre d'affaires encaissé, les frais de gestion, les frais professionnels, les cotisations et le salaire versé. Contrat commercial de prestation Contrat signé entre la société de portage et l'entreprise cliente pour la réalisation de la mission. CRA (compte rendu d'activité) Relevé mensuel des jours travaillés, validé par le client. Il sert de base à la facturation. Frais de gestion Rémunération de la société de portage, prélevée sur le chiffre d'affaires. 5 % fixes chez HT Portage. En savoir plus . Frais professionnels Dépenses engagées pour la mission, remboursées sans cotisations ni impôt. En savoir plus . Garantie financière Garantie obligatoire souscrite par la société de portage pour assurer le paiement des salaires et des cotisations, même en cas de défaillance. Chez HT Portage : AXA France IARD. Indemnité d'apport d'affaires Partie du salaire qui rémunère la prospection du salarié porté : 5 % de la rémunération à défaut d'accord de branche. PASS / PMSS Plafond annuel (48 060 € en 2026) et mensuel (4 005 € en 2026) de la Sécurité sociale. Le salaire minimum du portage s'y réfère. Réserve financière Part du salaire (10 % du salaire de base en CDI, selon la convention collective) mise de côté pour financer les périodes sans mission ou versée à la fin du contrat. Salarié porté Consultant employé par une société de portage pour réaliser des missions auprès de ses propres clients. Société de portage salarial Entreprise qui emploie les salariés portés, signe les contrats avec les clients, facture et verse les salaires. Elle doit avoir une garantie financière. TJM (taux journalier moyen) Prix d'une journée de prestation, négocié entre le consultant et le client, hors taxes.
+
+Questions fréquentes :
+- Que veut dire TJM ? Taux journalier moyen : le prix hors taxes d'une journée de prestation, négocié entre le consultant et son client.
+- Qu'est-ce que le compte d'activité en portage salarial ? C'est le compte tenu par la société de portage au nom du consultant, qui retrace le chiffre d'affaires, les frais de gestion, les frais professionnels, les cotisations et le salaire.
+- Qu'est-ce que l'indemnité d'apport d'affaires ? Une partie du salaire du consultant porté qui rémunère sa prospection : 5 % de sa rémunération à défaut d'accord de branche.
+
