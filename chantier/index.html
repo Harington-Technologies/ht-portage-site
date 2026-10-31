@@ -68,6 +68,10 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
 .reprise input[type=checkbox]{width:22px;height:22px}
 .vide{color:var(--doux);font-size:14px;text-align:center;padding:16px 0}
 .rouge{color:var(--ko)}.vert{color:var(--ok)}
+.liste li .ed{flex:1;min-width:0}
+.suppr{flex:none;border:0;background:none;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--doux)}
+.suppr svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.suppr:active{background:#FBE9E7;color:var(--ko)}
 .kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
 .kpi>div{background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:12px}
 .kpi span{display:block;font-size:12px;color:var(--doux)}.kpi b{display:block;font-size:19px;margin-top:2px;font-variant-numeric:tabular-nums}
@@ -206,7 +210,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
           '<button class="btn" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter la dépense') + '</button>' +
           (edit ? '<button class="btn btn--clair" type="button" data-annuler>Annuler</button>' + (!edit.deja_au_budget || S.role === 'admin' ? '<button class="lien rouge" type="button" data-suppr style="margin-top:14px">Supprimer cette dépense</button>' : '') : '') +
           '<p class="msg" role="status"></p></form>' +
-          (edit ? '' : repriseBloc())
+          (edit ? '' : dernieresSaisies() + repriseBloc())
       :
         '<form class="carte" id="f-vers" novalidate>' + (edit ? '<h2>Modifier l\'argent reçu</h2>' : '<h2>Argent reçu pour le chantier</h2>') +
           '<div class="ligne2"><div class="champ"><label for="vmontant">Montant (DT)</label><input class="montant" id="vmontant" inputmode="decimal" placeholder="0" value="' + (edit ? esc(edit.montant) : '') + '"></div>' +
@@ -214,18 +218,25 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
           '<div class="champ"><label for="vlib">De qui / pour quoi</label><input id="vlib" placeholder="Ex. : virement Wadi, avance clim…" value="' + esc(edit ? edit.libelle || '' : '') + '"></div>' +
           '<button class="btn" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter') + '</button>' +
           (edit ? '<button class="btn btn--clair" type="button" data-annuler>Annuler</button><button class="lien rouge" type="button" data-suppr style="margin-top:14px">Supprimer</button>' : '') +
-          '<p class="msg" role="status"></p></form>');
+          '<p class="msg" role="status"></p></form>' + (edit ? '' : dernieresSaisies()));
 
     v.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { S.mode = b.dataset.mode; vueSaisir(); }); });
+    var dern = v.querySelector('#dernieres');
+    if (dern) dern.onclick = function (e) {
+      var sx = e.target.closest('[data-sup]'); if (sx) return supprimerSaisie(sx.dataset.sup, sx.dataset.type);
+      var d = e.target.closest('[data-dep]'), w = e.target.closest('[data-ver]');
+      if (d) rendreEdition(S.depenses.find(function (y) { return y.id === d.dataset.dep; }));
+      if (w) rendreEdition(S.versements.find(function (y) { return y.id === w.dataset.ver; }));
+    };
     var f = v.querySelector('form'), msg = f.querySelector('.msg');
     function dire(t, ok) { msg.textContent = t; msg.className = 'msg ' + (ok ? 'ok' : 'ko'); }
     if (edit) {
-      f.querySelector('[data-annuler]').addEventListener('click', function () { S.vue = 'semaine'; rendre(); });
+      f.querySelector('[data-annuler]').addEventListener('click', function () { S.vue = S.retour || 'semaine'; rendre(); });
       var vp = f.querySelector('[data-voir-photo]'); if (vp) vp.addEventListener('click', function () { voirPhoto(edit.id); });
       var sp = f.querySelector('[data-suppr]');
       if (sp) sp.addEventListener('click', async function () {
         if (!confirm('Supprimer définitivement ?')) return;
-        try { await api(mode === 'depense' ? 'supprimer_depense' : 'supprimer_versement', { id: edit.id }); S.vue = 'semaine'; await rafraichir(); } catch (err) { dire(err.message); }
+        try { await api(mode === 'depense' ? 'supprimer_depense' : 'supprimer_versement', { id: edit.id }); S.vue = S.retour || 'semaine'; await rafraichir(); } catch (err) { dire(err.message); }
       });
     }
     if (mode === 'depense') {
@@ -251,7 +262,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
           await api('depense', corps);
           var lo = lot(corps.lot_id);
           await charger();
-          if (edit) { S.vue = 'semaine'; rendre(); return; }
+          if (edit) { S.vue = S.retour || 'semaine'; rendre(); return; }
           rendre();
           var f3 = document.getElementById('f-dep');
           var mm = f3.querySelector('.msg'); mm.className = 'msg ok'; mm.textContent = '✓ ' + dt(m) + ' ajouté' + (lo ? ' sur ' + lo.code : '') + '.';
@@ -266,7 +277,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
         if (!m) return dire('Indiquez le montant.');
         if (!dateOk(f.vdate.value)) return f.vdate.focus();
         var b = f.querySelector('[type=submit]'); b.disabled = true;
-        try { await api('versement', { id: edit && edit.id, date: f.vdate.value || auj(), montant: m, libelle: f.vlib.value }); await charger(); if (edit) { S.vue = 'semaine'; rendre(); return; } rendre(); var mm = document.querySelector('#f-vers .msg'); mm.className = 'msg ok'; mm.textContent = '✓ ' + dt(m) + ' ajouté à la caisse.'; }
+        try { await api('versement', { id: edit && edit.id, date: f.vdate.value || auj(), montant: m, libelle: f.vlib.value }); await charger(); if (edit) { S.vue = S.retour || 'semaine'; rendre(); return; } rendre(); var mm = document.querySelector('#f-vers .msg'); mm.className = 'msg ok'; mm.textContent = '✓ ' + dt(m) + ' ajouté à la caisse.'; }
         catch (err) { b.disabled = false; dire(err.message); }
       });
     }
@@ -287,6 +298,30 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
   function cap(s) { s = String(s || '').toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
 
   // Reprendre les paiements réguliers de la semaine précédente (salaires de l'équipe…)
+  // Dernières saisies : modifier ou supprimer en un geste
+  function dernieresSaisies() {
+    var t = S.depenses.filter(function (x) { return x.saisi_par !== 'import'; }).map(function (x) { return { x: x, type: 'dep' }; })
+      .concat(S.versements.filter(function (x) { return x.saisi_par !== 'import'; }).map(function (x) { return { x: x, type: 'ver' }; }))
+      .sort(function (a, b) { return String(b.x.cree_le) < String(a.x.cree_le) ? -1 : 1; }).slice(0, 6);
+    if (!t.length) return '';
+    return '<div class="carte" id="dernieres"><h2>Dernières saisies</h2><p class="imput" style="margin-top:-4px">Une erreur ? Touchez la ligne pour la modifier, ou la corbeille pour la supprimer.</p><ul class="liste">' + t.map(function (e) {
+      var x = e.x, dep = e.type === 'dep';
+      return '<li><button type="button" class="ed" data-' + e.type + '="' + x.id + '"><span class="q"><b>' + esc(dep ? (x.detail || x.poste) : (x.libelle || 'Argent reçu')) + '</b><span>' + court(x.date) + ' · ' + (dep ? esc(x.poste) : '<span class="vert">argent reçu</span>') + '</span></span><span class="m">' + (dep ? '' : '+') + dt(x.montant) + '</span></button>' + btnSuppr(x, e.type) + '</li>';
+    }).join('') + '</ul></div>';
+  }
+  function btnSuppr(x, type) {
+    type = type || (x.poste ? 'dep' : 'ver');
+    if (type === 'dep' && x.deja_au_budget && S.role !== 'admin') return '';
+    return '<button type="button" class="suppr" data-sup="' + x.id + '" data-type="' + type + '" aria-label="Supprimer"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>';
+  }
+  async function supprimerSaisie(id, type) {
+    var x = (type === 'dep' ? S.depenses : S.versements).find(function (y) { return y.id === id; });
+    if (!x) return;
+    var nom = type === 'dep' ? (x.detail || x.poste) : (x.libelle || 'Argent reçu');
+    if (!confirm('Supprimer « ' + nom + ' » (' + dt(x.montant) + ', ' + court(x.date) + ') ?')) return;
+    try { await api(type === 'dep' ? 'supprimer_depense' : 'supprimer_versement', { id: id }); var vue = S.vue; await charger(); S.vue = vue; rendre(); }
+    catch (err) { alert(err.message); }
+  }
   function repriseBloc() {
     var deb = plusJours(lundi(auj()), -7), fin = plusJours(deb, 6);
     var t = S.depenses.filter(function (x) { return x.date >= deb && x.date <= fin && x.montant > 0; });
@@ -327,23 +362,25 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
     dep.forEach(function (x) { var k = cap(x.poste); (groupes[k] = groupes[k] || []).push(x); });
     v.innerHTML = '<div class="sem"><button type="button" data-s="-7" aria-label="Semaine précédente">‹</button><div><b>Semaine ' + numSemaine(deb) + '</b><small>du ' + court(deb) + ' au ' + court(fin) + '</small></div><button type="button" data-s="7" aria-label="Semaine suivante">›</button></div>' +
       '<div class="chiffres"><div><span>Dépenses</span><b>' + dt(td) + '</b></div><div><span>Argent reçu</span><b>' + dt(tv) + '</b></div><div><span>Écart semaine</span><b class="' + (tv - td < 0 ? 'rouge' : 'vert') + '">' + dt(tv - td) + '</b></div></div>' +
-      '<div class="carte"><h2>Dépenses (' + dep.length + ')</h2>' + (dep.length ? Object.keys(groupes).sort().map(function (k) {
+      '<div class="carte"><h2>Dépenses (' + dep.length + ')</h2>' + (dep.length || ver.length ? '<p class="imput" style="margin-top:-4px">Touchez une ligne pour la modifier, ou la corbeille pour la supprimer.</p>' : '') + (dep.length ? Object.keys(groupes).sort().map(function (k) {
         var g = groupes[k];
         return '<div class="groupe"><span>' + esc(k) + '</span><span>' + dt(somme(g, 'montant')) + '</span></div><ul class="liste">' + g.map(function (x) {
           var lo = lot(x.lot_id);
-          return '<li><button type="button" class="ed" data-dep="' + x.id + '"><span class="q"><b>' + esc(x.detail || x.poste) + (x.photo ? ' 📎' : '') + '</b><span>' + court(x.date) + (lo ? ' · ' + esc(lo.code) : '') + (x.paye_par !== 'Caisse' ? ' · payé par ' + esc(x.paye_par) : '') + (x.deja_au_budget ? '<span class="tag">historique</span>' : '') + '</span></span><span class="m">' + dt(x.montant) + '</span></button></li>';
+          return '<li><button type="button" class="ed" data-dep="' + x.id + '"><span class="q"><b>' + esc(x.detail || x.poste) + (x.photo ? ' 📎' : '') + '</b><span>' + court(x.date) + (lo ? ' · ' + esc(lo.code) : '') + (x.paye_par !== 'Caisse' ? ' · payé par ' + esc(x.paye_par) : '') + (x.deja_au_budget ? '<span class="tag">historique</span>' : '') + '</span></span><span class="m">' + dt(x.montant) + '</span></button>' + btnSuppr(x) + '</li>';
         }).join('') + '</ul>';
       }).join('') : '<p class="vide">Aucune dépense cette semaine.</p>') + '</div>' +
       '<div class="carte"><h2>Argent reçu (' + ver.length + ')</h2>' + (ver.length ? '<ul class="liste">' + ver.map(function (x) {
-        return '<li><button type="button" class="ed" data-ver="' + x.id + '"><span class="q"><b>' + esc(x.libelle || 'Argent reçu') + '</b><span>' + court(x.date) + '</span></span><span class="m">' + dt(x.montant) + '</span></button></li>';
+        return '<li><button type="button" class="ed" data-ver="' + x.id + '"><span class="q"><b>' + esc(x.libelle || 'Argent reçu') + '</b><span>' + court(x.date) + '</span></span><span class="m">' + dt(x.montant) + '</span></button>' + btnSuppr(x) + '</li>';
       }).join('') + '</ul>' : '<p class="vide">Rien cette semaine.</p>') + '</div>' +
       (caisse() > 0.5 && deb === lundi(auj()) ? '<div class="carte" style="border-color:var(--acc)"><h2>Reste en caisse : ' + dt(caisse()) + '</h2><p class="imput" style="margin-top:0">En fin de semaine, le reste est remis à Haikel pour les petites dépenses : la caisse repart à 0.</p><button class="btn" type="button" data-solder>Remettre ' + dt(caisse()) + ' à Haikel</button></div>' : '') +
       '<button class="btn btn--clair" type="button" data-csv>Exporter la semaine (Excel)</button>';
     v.querySelectorAll('[data-s]').forEach(function (b) { b.addEventListener('click', function () { S.semaine = plusJours(S.semaine, Number(b.dataset.s)); vueSemaine(); }); });
     v.onclick = async function (e) {
+      var sx = e.target.closest('[data-sup]');
+      if (sx) return supprimerSaisie(sx.dataset.sup, sx.dataset.type);
       var d = e.target.closest('[data-dep]'), w = e.target.closest('[data-ver]');
-      if (d) { S.vue = 'saisir'; rendreEdition(S.depenses.find(function (y) { return y.id === d.dataset.dep; })); }
-      if (w) { S.vue = 'saisir'; rendreEdition(S.versements.find(function (y) { return y.id === w.dataset.ver; })); }
+      if (d) { rendreEdition(S.depenses.find(function (y) { return y.id === d.dataset.dep; })); }
+      if (w) { rendreEdition(S.versements.find(function (y) { return y.id === w.dataset.ver; })); }
       if (e.target.closest('[data-csv]')) exporter(dep, 'semaine-' + numSemaine(deb));
       var sb = e.target.closest('[data-solder]');
       if (sb) {
@@ -356,6 +393,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
     };
   }
   function rendreEdition(x) {
+    S.retour = S.vue === 'saisir' ? 'saisir' : 'semaine'; S.vue = 'saisir';
     rendre(); document.getElementById('v-saisir').hidden = false;
     app.querySelectorAll('nav.bas [data-vue]').forEach(function (b) { b.removeAttribute('aria-current'); });
     vueSaisir(x); window.scrollTo(0, 0);
