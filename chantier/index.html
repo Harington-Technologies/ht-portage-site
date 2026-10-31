@@ -12,84 +12,120 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Chantier">
 <style>
-:root{--vert:#1F3A2E;--vert2:#2F5A46;--sable:#F4EFE6;--fond:#FAF8F4;--carte:#FFFFFF;--encre:#1C2320;--doux:#6B746F;--ligne:#E6E1D7;--acc:#C8792B;--ok:#2E7D4F;--ko:#B3261E;--r:14px}
-*{box-sizing:border-box}html,body{margin:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fond);color:var(--encre);font-size:16px;-webkit-text-size-adjust:100%;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+:root{--vert:#1F3A2E;--vert2:#2F5A46;--vertc:#E8EFEA;--sable:#F2EEE6;--fond:#F7F5F1;--carte:#FFFFFF;--encre:#1E2522;--doux:#68716C;--pale:#8E9690;--ligne:#ECE8E0;--acc:#C8792B;--accc:#FBF1E6;--ok:#2E7D4F;--ko:#B3261E;--koc:#FCEDEB;--r:16px}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fond);color:var(--encre);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+b,strong{font-weight:600}
 button,input,select,textarea{font:inherit;color:inherit}
+.num,.m,.chiffres b,.kpi b,.caisse b,.tab td{font-variant-numeric:tabular-nums}
+
+/* En-tête */
 .tete{background:var(--vert);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 14px;position:sticky;top:0;z-index:5}
-.tete h1{margin:0;font-size:18px;font-weight:700}.tete .haut{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.sortir{flex:none;border:1px solid rgba(255,255,255,.35);background:none;color:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}.tete .sous{font-size:13px;opacity:.8;margin-top:2px}
-.caisse{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 12px}
-.caisse b{font-size:20px}.caisse span{font-size:13px;opacity:.85}
+.tete h1{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em}.tete .sous{font-size:13px;opacity:.7;margin-top:1px}
+.tete .haut{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sortir{flex:none;border:1px solid rgba(255,255,255,.3);background:none;color:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500}
+.caisse{display:flex;justify-content:space-between;align-items:center;margin-top:12px;background:rgba(255,255,255,.08);border-radius:12px;padding:10px 14px}
+.caisse b{font-size:19px;font-weight:600}.caisse span{font-size:14px;opacity:.8}
+
 main{padding:16px;max-width:640px;margin:0 auto}
 .vue[hidden]{display:none}
-.carte{background:var(--carte);border:1px solid var(--ligne);border-radius:var(--r);padding:16px;margin-bottom:14px}
-h2{font-size:15px;margin:0 0 10px;color:var(--vert)}
+.carte{background:var(--carte);border:1px solid var(--ligne);border-radius:var(--r);padding:18px 16px;margin-bottom:14px}
+h2{font-size:16px;font-weight:600;margin:0 0 12px;color:var(--encre)}
+h2 .n{color:var(--pale);font-weight:400}
+.sous-titre{font-size:12px;font-weight:600;color:var(--pale);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 4px}
+
+/* Saisie */
 .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--sable);border-radius:12px;padding:4px;margin-bottom:14px}
-.seg button{border:0;background:none;padding:10px;border-radius:9px;font-weight:600;color:var(--doux)}
-.seg button[aria-pressed=true]{background:#fff;color:var(--vert);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.postes{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
-.postes button{border:1.5px solid var(--ligne);background:#fff;border-radius:12px;padding:12px 8px;min-height:52px;font-weight:600;font-size:14px;line-height:1.2}
+.seg button{border:0;background:none;padding:10px;border-radius:9px;font-weight:500;color:var(--doux)}
+.seg button[aria-pressed=true]{background:#fff;color:var(--encre);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.postes{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+.postes button{border:1px solid var(--ligne);background:#fff;border-radius:12px;padding:10px 8px;min-height:48px;font-weight:500;font-size:14px;line-height:1.25;color:var(--encre)}
 .postes button[aria-pressed=true]{border-color:var(--vert);background:var(--vert);color:#fff}
-.champ{display:flex;flex-direction:column;gap:6px;margin-top:14px}.champ label{font-weight:600;font-size:14px}
-.champ input,.champ select,.champ textarea{border:1.5px solid var(--ligne);border-radius:12px;padding:12px 14px;background:#fff;min-height:50px;width:100%}
-.champ input:focus,.champ select:focus{outline:3px solid rgba(47,90,70,.25);border-color:var(--vert2)}
-.montant{font-size:26px!important;font-weight:700;text-align:right}
+.champ{display:flex;flex-direction:column;gap:6px;margin-top:16px}.champ label{font-weight:500;font-size:14px;color:var(--doux)}
+.champ input,.champ select,.champ textarea{border:1px solid #DDD8CE;border-radius:12px;padding:12px 14px;background:#fff;min-height:50px;width:100%}
+.champ input:focus,.champ select:focus{outline:3px solid rgba(47,90,70,.18);border-color:var(--vert2)}
+.montant{font-size:24px!important;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 .ligne2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.puces{display:flex;flex-wrap:wrap;gap:8px}.puces button{border:1.5px solid var(--ligne);background:#fff;border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px}
+.puces{display:flex;flex-wrap:wrap;gap:8px}.puces button{border:1px solid #DDD8CE;background:#fff;border-radius:999px;padding:8px 14px;font-weight:500;font-size:14px}
 .puces button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
-.imput{font-size:13px;color:var(--doux);margin-top:6px}
-.btn{display:block;width:100%;border:0;border-radius:14px;background:var(--vert);color:#fff;font-weight:700;font-size:17px;padding:16px;margin-top:18px}
-.btn:disabled{opacity:.6}.btn--clair{background:var(--sable);color:var(--vert)}.btn--petit{display:inline-block;width:auto;padding:10px 14px;font-size:14px;margin:0}
-.lien{background:none;border:0;color:var(--vert2);font-weight:600;text-decoration:underline;padding:4px 0}
-.msg{margin-top:12px;font-weight:600;min-height:1.2em}.msg.ok{color:var(--ok)}.msg.ko{color:var(--ko)}
-.sem{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.sem button{border:1.5px solid var(--ligne);background:#fff;border-radius:10px;width:44px;height:44px;font-size:20px}
-.sem b{font-size:17px}.sem small{display:block;color:var(--doux);font-size:13px;text-align:center}
+.imput{font-size:13px;color:var(--doux);margin-top:8px}
+.imput b{font-weight:500;color:var(--encre)}
+.btn{display:block;width:100%;border:0;border-radius:14px;background:var(--vert);color:#fff;font-weight:600;font-size:16px;padding:15px;margin-top:20px}
+.btn:disabled{opacity:.6}.btn--clair{background:var(--sable);color:var(--vert);font-weight:500}.btn--petit{display:inline-block;width:auto;padding:9px 14px;font-size:14px;margin:0}
+.lien{background:none;border:0;color:var(--vert2);font-weight:500;text-decoration:underline;text-underline-offset:3px;padding:4px 0}
+.msg{margin-top:12px;font-weight:500;min-height:1.2em;font-size:15px}.msg.ok{color:var(--ok)}.msg.ko{color:var(--ko)}
+
+/* Semaine */
+.sem{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sem button{border:1px solid var(--ligne);background:#fff;border-radius:12px;width:44px;height:44px;font-size:20px;color:var(--doux)}
+.sem b{font-size:17px;font-weight:600}.sem small{display:block;color:var(--doux);font-size:13px;text-align:center}
 .chiffres{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-.chiffres div{background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:10px}.chiffres span{display:block;font-size:12px;color:var(--doux)}.chiffres b{font-size:16px}
-.liste{list-style:none;margin:0;padding:0}.liste li{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--ligne);align-items:center}
-.liste li:last-child{border-bottom:0}.liste .q{min-width:0}.liste .q b{display:block;font-size:15px}.liste .q span{font-size:13px;color:var(--doux)}
-.liste .m{font-weight:700;white-space:nowrap}.liste button.ed{border:0;background:none;padding:0;text-align:left;width:100%;display:flex;justify-content:space-between;gap:10px;align-items:center}
-.groupe{font-size:13px;font-weight:700;color:var(--vert2);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 2px;display:flex;justify-content:space-between}
-.barre{height:8px;background:var(--sable);border-radius:5px;overflow:hidden;margin-top:6px}.barre i{display:block;height:100%;background:var(--vert2)}
+.chiffres div{background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:10px 12px}.chiffres span{display:block;font-size:12px;color:var(--doux)}.chiffres b{font-size:16px;font-weight:600}
+
+/* Listes */
+.liste{list-style:none;margin:0;padding:0}.liste li{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--ligne);align-items:center}
+.liste li:last-child{border-bottom:0}.liste .q{min-width:0}.liste .q b{display:block;font-size:15px;font-weight:500}.liste .q span{font-size:13px;color:var(--doux)}
+.liste .m{font-weight:500;white-space:nowrap}.liste button.ed{border:0;background:none;padding:0;text-align:left;width:100%;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.liste li .ed{flex:1;min-width:0}
+.groupe{font-size:12px;font-weight:600;color:var(--pale);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--ligne);display:flex;justify-content:space-between}
+.groupe:first-of-type{margin-top:4px}
+.tag{display:inline-block;font-size:11px;font-weight:500;padding:1px 7px;border-radius:999px;background:var(--sable);color:var(--pale);margin-left:6px;vertical-align:1px}
+.suppr{flex:none;border:0;background:none;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--pale)}
+.suppr svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.suppr:active{background:var(--koc);color:var(--ko)}
+
+/* Barres */
+.barre{height:6px;background:var(--sable);border-radius:4px;overflow:hidden;margin-top:8px}.barre i{display:block;height:100%;background:var(--vert2);border-radius:4px}
 .barre i.trop{background:var(--ko)}
-.lot{border-bottom:1px solid var(--ligne);padding:12px 0}.lot:last-child{border-bottom:0}
+
+/* Budget */
+.total .hero span{font-size:13px;color:var(--doux)}.total .hero b{display:block;font-size:28px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
+.lignes-kv{margin-top:14px;border-top:1px solid var(--ligne)}
+.lignes-kv div{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--ligne);font-size:15px}
+.lignes-kv div:last-child{border-bottom:0}.lignes-kv span{color:var(--doux)}.lignes-kv b{font-weight:500}
+.lot{border-bottom:1px solid var(--ligne);padding:14px 0}.lot:last-child{border-bottom:0}
 .lot summary{list-style:none;cursor:pointer}.lot summary::-webkit-details-marker{display:none}
-.lot .t{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14.5px}.lot .s{display:flex;justify-content:space-between;font-size:13px;color:var(--doux);margin-top:3px}
-.lot .det{font-size:13px;margin-top:10px;background:var(--fond);border-radius:10px;padding:10px}
-.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--sable);color:var(--doux);margin-left:4px;vertical-align:middle}
-nav.bas{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--ligne);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom);z-index:6}
-nav.bas button{border:0;background:none;padding:10px 4px 12px;font-size:12px;font-weight:600;color:var(--doux);display:flex;flex-direction:column;align-items:center;gap:3px}
-nav.bas button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lot .t{display:flex;justify-content:space-between;gap:12px;font-size:15px;align-items:baseline}
+.lot .t .nom{font-weight:500}.lot .t .code{color:var(--pale);font-size:13px;margin-right:6px;font-weight:400}
+.lot .t .r{white-space:nowrap;font-weight:500;font-variant-numeric:tabular-nums}
+.lot .s{display:flex;justify-content:space-between;font-size:13px;color:var(--doux);margin-top:2px}
+.lot .det{font-size:14px;margin-top:12px;background:var(--fond);border-radius:12px;padding:12px}
+.lot .det p{margin:0 0 6px;color:var(--doux)}.lot .det p b{color:var(--encre);font-weight:500}
+.lot .det .liste li{padding:9px 0}.lot .det .liste .q b{font-size:14px}.lot .det .liste .m{font-size:13px;font-weight:400}
+
+/* Navigation */
+nav.bas{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.97);border-top:1px solid var(--ligne);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav.bas button{border:0;background:none;padding:9px 4px 11px;font-size:12px;font-weight:500;color:var(--pale);display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.bas button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.bas button[aria-current=page]{color:var(--vert)}
 dialog{border:0;border-radius:18px;padding:0;width:min(560px,94vw);max-height:90vh}dialog::backdrop{background:rgba(0,0,0,.45)}
-dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
+dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
 .acces{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.acces .carte{width:100%;max-width:380px}
-.reprise li{align-items:center}.reprise input[type=number]{width:96px;border:1.5px solid var(--ligne);border-radius:10px;padding:8px;text-align:right;font-weight:700}
+.reprise li{align-items:center}.reprise input[type=number]{width:96px;border:1px solid #DDD8CE;border-radius:10px;padding:8px;text-align:right;font-weight:500}
 .reprise input[type=checkbox]{width:22px;height:22px}
 .vide{color:var(--doux);font-size:14px;text-align:center;padding:16px 0}
 .rouge{color:var(--ko)}.vert{color:var(--ok)}
-.liste li .ed{flex:1;min-width:0}
-.suppr{flex:none;border:0;background:none;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--doux)}
-.suppr svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.suppr:active{background:#FBE9E7;color:var(--ko)}
+
+/* Rapport */
 .kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-.kpi>div{background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:12px}
-.kpi span{display:block;font-size:12px;color:var(--doux)}.kpi b{display:block;font-size:19px;margin-top:2px;font-variant-numeric:tabular-nums}
-.kpi small{display:block;font-size:12px;color:var(--doux);margin-top:3px}
-.kpi .large{grid-column:1/-1}
-.graph svg{width:100%;height:auto;display:block}.graph .ax{font-size:10px;fill:var(--doux)}
+.kpi>div{background:#fff;border:1px solid var(--ligne);border-radius:14px;padding:14px}
+.kpi span{display:block;font-size:13px;color:var(--doux)}.kpi b{display:block;font-size:19px;font-weight:600;margin-top:4px;letter-spacing:-.01em}
+.kpi small{display:block;font-size:12px;color:var(--pale);margin-top:2px}
+.kpi .large{grid-column:1/-1}.kpi .large b{font-size:26px}
+.graph svg{width:100%;height:auto;display:block}.graph .ax{font-size:10px;fill:var(--pale)}
 .graph .bar{fill:var(--vert2)}.graph .bar.cur{fill:var(--acc)}.graph .bar.sel{fill:var(--vert)}
 .graph .hit{fill:transparent;cursor:pointer}
-.info{font-size:13px;min-height:1.3em;margin-top:6px;color:var(--encre)}
-.hb{margin:10px 0}.hb .t{display:flex;justify-content:space-between;gap:8px;font-size:14px}.hb .t span:last-child{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
-.hb .s{font-size:12px;color:var(--doux)}
-.tab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.tab th,.tab td{padding:8px 4px;border-bottom:1px solid var(--ligne);text-align:right}
-.tab th:first-child,.tab td:first-child{text-align:left}.tab th{font-size:12px;color:var(--doux);font-weight:600}
-.alerte{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--ligne);font-size:14px}.alerte:last-child{border-bottom:0}
-.alerte i{flex:none;font-style:normal;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;background:var(--acc)}
+.info{font-size:13px;min-height:1.3em;margin-top:8px;color:var(--doux)}.info b{color:var(--encre);font-weight:500}
+.hb{margin:12px 0}.hb .t{display:flex;justify-content:space-between;gap:10px;font-size:15px}.hb .t span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:500}
+.hb .s{font-size:12px;color:var(--pale);margin-top:3px}
+.tab{width:100%;border-collapse:collapse;font-size:14px}.tab th,.tab td{padding:10px 4px;border-bottom:1px solid var(--ligne);text-align:right}
+.tab th:first-child,.tab td:first-child{text-align:left}.tab th{font-size:12px;color:var(--pale);font-weight:500}
+.tab tr:last-child td{border-bottom:0}
+.alerte{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--ligne);font-size:14px;color:var(--encre)}.alerte:last-child{border-bottom:0}
+.alerte i{flex:none;font-style:normal;font-weight:600;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;background:var(--acc);margin-top:1px}
 .alerte i.ko{background:var(--ko)}
-@media print{nav.bas,.tete .caisse,.no-print{display:none!important}.tete{position:static}body{padding:0;background:#fff}.carte{break-inside:avoid}}
+.carte.avert{background:var(--accc);border-color:#F1DCC4}
+@media print{nav.bas,.tete .caisse,.no-print,.sortir{display:none!important}.tete{position:static}body{padding:0;background:#fff}.carte{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -122,6 +158,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
     if (!d || (d <= plusJours(auj(), 7) && d >= plusJours(auj(), -60))) return true;
     return confirm('La date choisie est le ' + court(d) + '/' + d.slice(0, 4) + ' (semaine ' + numSemaine(d) + '). Est-ce bien la bonne date ?');
   }
+  function dt0(n) { return nf.format(Math.round(Number(n) || 0)) + ' DT'; }
   function somme(t, k) { return t.reduce(function (s, x) { return s + (Number(x[k]) || 0); }, 0); }
 
   async function api(action, corps) {
@@ -368,17 +405,17 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
     dep.forEach(function (x) { var k = cap(x.poste); (groupes[k] = groupes[k] || []).push(x); });
     v.innerHTML = '<div class="sem"><button type="button" data-s="-7" aria-label="Semaine précédente">‹</button><div><b>Semaine ' + numSemaine(deb) + '</b><small>du ' + court(deb) + ' au ' + court(fin) + '</small></div><button type="button" data-s="7" aria-label="Semaine suivante">›</button></div>' +
       '<div class="chiffres"><div><span>Dépenses</span><b>' + dt(td) + '</b></div><div><span>Argent reçu</span><b>' + dt(tv) + '</b></div><div><span>Écart semaine</span><b class="' + (tv - td < 0 ? 'rouge' : 'vert') + '">' + dt(tv - td) + '</b></div></div>' +
-      '<div class="carte"><h2>Dépenses (' + dep.length + ')</h2>' + (dep.length || ver.length ? '<p class="imput" style="margin-top:-4px">Touchez une ligne pour la modifier, ou la corbeille pour la supprimer.</p>' : '') + (dep.length ? Object.keys(groupes).sort().map(function (k) {
+      '<div class="carte"><h2>Dépenses <span class="n">' + dep.length + '</span></h2>' + (dep.length || ver.length ? '<p class="imput" style="margin-top:-4px">Touchez une ligne pour la modifier, ou la corbeille pour la supprimer.</p>' : '') + (dep.length ? Object.keys(groupes).sort().map(function (k) {
         var g = groupes[k];
         return '<div class="groupe"><span>' + esc(k) + '</span><span>' + dt(somme(g, 'montant')) + '</span></div><ul class="liste">' + g.map(function (x) {
           var lo = lot(x.lot_id);
-          return '<li><button type="button" class="ed" data-dep="' + x.id + '"><span class="q"><b>' + esc(x.detail || x.poste) + (x.photo ? ' 📎' : '') + '</b><span>' + court(x.date) + (lo ? ' · ' + esc(lo.code) : '') + (x.paye_par !== 'Caisse' ? ' · payé par ' + esc(x.paye_par) : '') + (x.deja_au_budget ? '<span class="tag">historique</span>' : '') + '</span></span><span class="m">' + dt(x.montant) + '</span></button>' + btnSuppr(x) + '</li>';
+          return '<li><button type="button" class="ed" data-dep="' + x.id + '"><span class="q"><b>' + esc(x.detail || x.poste) + (x.photo ? ' 📎' : '') + '</b><span>' + court(x.date) + (lo ? ' · ' + esc(lo.code.replace('LOT ', 'Lot ')) : '') + (x.paye_par !== 'Caisse' ? ' · payé par ' + esc(x.paye_par) : '') + '</span></span><span class="m">' + dt(x.montant) + '</span></button>' + btnSuppr(x) + '</li>';
         }).join('') + '</ul>';
       }).join('') : '<p class="vide">Aucune dépense cette semaine.</p>') + '</div>' +
-      '<div class="carte"><h2>Argent reçu (' + ver.length + ')</h2>' + (ver.length ? '<ul class="liste">' + ver.map(function (x) {
+      '<div class="carte"><h2>Argent reçu <span class="n">' + ver.length + '</span></h2>' + (ver.length ? '<ul class="liste">' + ver.map(function (x) {
         return '<li><button type="button" class="ed" data-ver="' + x.id + '"><span class="q"><b>' + esc(x.libelle || 'Argent reçu') + '</b><span>' + court(x.date) + '</span></span><span class="m">' + dt(x.montant) + '</span></button>' + btnSuppr(x) + '</li>';
       }).join('') + '</ul>' : '<p class="vide">Rien cette semaine.</p>') + '</div>' +
-      (caisse() > 0.5 && deb === lundi(auj()) ? '<div class="carte" style="border-color:var(--acc)"><h2>Reste en caisse : ' + dt(caisse()) + '</h2><p class="imput" style="margin-top:0">En fin de semaine, le reste est remis à Haikel pour les petites dépenses : la caisse repart à 0.</p><button class="btn" type="button" data-solder>Remettre ' + dt(caisse()) + ' à Haikel</button></div>' : '') +
+      (caisse() > 0.5 && deb === lundi(auj()) ? '<div class="carte avert"><h2>Reste en caisse : ' + dt(caisse()) + '</h2><p class="imput" style="margin-top:0">En fin de semaine, le reste est remis à Haikel pour les petites dépenses : la caisse repart à 0.</p><button class="btn" type="button" data-solder>Remettre ' + dt(caisse()) + ' à Haikel</button></div>' : '') +
       '<button class="btn btn--clair" type="button" data-csv>Exporter la semaine (Excel)</button>';
     v.querySelectorAll('[data-s]').forEach(function (b) { b.addEventListener('click', function () { S.semaine = plusJours(S.semaine, Number(b.dataset.s)); vueSemaine(); }); });
     v.onclick = async function (e) {
@@ -422,19 +459,20 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
     var dus = {};
     S.lignes.forEach(function (x) { if (x.paye_par && Number(x.a_rembourser)) dus[x.paye_par.trim()] = (dus[x.paye_par.trim()] || 0) + Number(x.a_rembourser); });
     S.depenses.forEach(function (x) { if (x.paye_par !== 'Caisse' && !x.deja_au_budget) dus[x.paye_par] = (dus[x.paye_par] || 0) + x.montant; });
-    v.innerHTML = '<div class="carte"><h2>Total du chantier</h2><div class="chiffres" style="margin:0"><div><span>Marché</span><b>' + dt(M) + '</b></div><div><span>Payé</span><b>' + dt(P) + '</b></div><div><span>Reste à payer</span><b>' + dt(R) + '</b></div></div>' +
-      '<div class="barre" style="height:12px;margin-top:12px"><i style="width:' + pct + '%"></i></div><p class="imput">' + pct + ' % du budget payé · dépenses saisies ici : ' + dt(somme(S.depenses.filter(function (x) { return !x.deja_au_budget; }), 'montant')) + '</p></div>' +
-      (nonImp.length ? '<div class="carte" style="border-color:var(--acc)"><h2>Dépenses sans lot (' + nonImp.length + ')</h2><p class="imput">' + dt(somme(nonImp, 'montant')) + ' ne sont imputés sur aucun lot : reliez leur poste à un lot.</p></div>' : '') +
+    v.innerHTML = '<div class="carte total"><div class="hero"><span>Reste à payer</span><b>' + dt0(R) + '</b></div>' +
+      '<div class="barre" style="height:8px;margin-top:12px"><i style="width:' + pct + '%"></i></div><p class="imput" style="margin-top:6px">' + pct + ' % du budget payé</p>' +
+      '<div class="lignes-kv"><div><span>Marché total</span><b>' + dt0(M) + '</b></div><div><span>Déjà payé</span><b>' + dt0(P) + '</b></div><div><span>Dont saisi dans l\'outil</span><b>' + dt0(somme(S.depenses.filter(function (x) { return !x.deja_au_budget; }), 'montant')) + '</b></div></div></div>' +
+      (nonImp.length ? '<div class="carte avert"><h2>Dépenses sans lot <span class="n">' + nonImp.length + '</span></h2><p class="imput">' + dt(somme(nonImp, 'montant')) + ' ne sont imputés sur aucun lot : reliez leur poste à un lot.</p></div>' : '') +
       '<div class="carte"><h2>Par lot</h2>' + S.lots.map(function (l) {
         var p = payeLot(l), r = l.marche - p, w = l.marche ? Math.round(p / l.marche * 100) : (p ? 100 : 0);
         var deps = S.depenses.filter(function (x) { return x.lot_id === l.id && !x.deja_au_budget; });
         var lg = S.lignes.filter(function (x) { return x.lot_id === l.id; });
-        return '<details class="lot"><summary><div class="t"><span>' + esc(l.code) + ' · ' + esc(cap(l.nom)) + '</span><span>' + dt(r) + '</span></div>' +
-          '<div class="s"><span>Payé ' + dt(p) + ' / ' + dt(l.marche) + '</span><span>reste</span></div><div class="barre"><i class="' + (p > l.marche + 0.5 ? 'trop' : '') + '" style="width:' + Math.min(100, w) + '%"></i></div></summary>' +
-          '<div class="det">' + (l.remarque ? '<p style="margin:0 0 6px">' + esc(l.remarque) + '</p>' : '') +
-            '<p style="margin:0 0 6px">Payé au départ (fichier) : <b>' + dt(l.paye_initial) + '</b> · saisi ici : <b>' + dt(somme(deps, 'montant')) + '</b></p>' +
-            (lg.length ? '<p style="margin:8px 0 4px;font-weight:700">Détail du budget</p><ul class="liste">' + lg.map(function (x) { return '<li><span class="q"><b style="font-size:13.5px">' + esc([x.libelle, x.detail].filter(Boolean).join(' · ') || '—') + '</b><span>' + esc(x.remarque || '') + (x.paye_par ? ' · payé par ' + esc(x.paye_par) : '') + '</span></span><span class="m" style="font-size:13px">' + dt(x.paye) + ' / ' + dt(x.marche) + '</span></li>'; }).join('') + '</ul>' : '') +
-            (deps.length ? '<p style="margin:8px 0 4px;font-weight:700">Dernières dépenses saisies</p><ul class="liste">' + deps.slice(0, 8).map(function (x) { return '<li><span class="q"><b style="font-size:13.5px">' + esc(x.detail || x.poste) + '</b><span>' + court(x.date) + ' · ' + esc(x.poste) + '</span></span><span class="m" style="font-size:13px">' + dt(x.montant) + '</span></li>'; }).join('') + '</ul>' : '') +
+        return '<details class="lot"><summary><div class="t"><span><span class="code">' + esc(l.code.replace('LOT ', 'Lot ')) + '</span><span class="nom">' + esc(cap(l.nom)) + '</span></span><span class="r">' + dt0(r) + '</span></div>' +
+          '<div class="s"><span>payé ' + dt0(p) + ' sur ' + dt0(l.marche) + '</span><span>reste</span></div><div class="barre"><i class="' + (p > l.marche + 0.5 ? 'trop' : '') + '" style="width:' + Math.min(100, w) + '%"></i></div></summary>' +
+          '<div class="det">' + (l.remarque ? '<p>' + esc(l.remarque) + '</p>' : '') +
+            '<p>Payé au départ (fichier) : <b>' + dt(l.paye_initial) + '</b> · saisi ici : <b>' + dt(somme(deps, 'montant')) + '</b></p>' +
+            (lg.length ? '<p class="sous-titre">Détail du budget</p><ul class="liste">' + lg.map(function (x) { return '<li><span class="q"><b>' + esc([x.libelle, x.detail].filter(Boolean).join(' · ') || '—') + '</b><span>' + esc(x.remarque || '') + (x.paye_par ? ' · payé par ' + esc(x.paye_par) : '') + '</span></span><span class="m">' + dt(x.paye) + ' / ' + dt(x.marche) + '</span></li>'; }).join('') + '</ul>' : '') +
+            (deps.length ? '<p class="sous-titre">Dépenses saisies</p><ul class="liste">' + deps.slice(0, 8).map(function (x) { return '<li><span class="q"><b>' + esc(x.detail || x.poste) + '</b><span>' + court(x.date) + ' · ' + esc(x.poste) + '</span></span><span class="m">' + dt(x.montant) + '</span></li>'; }).join('') + '</ul>' : '') +
             (S.role === 'admin' ? '<button class="btn btn--clair btn--petit" type="button" data-lot="' + l.id + '" style="margin-top:10px">Modifier le marché / payé</button>' : '') +
           '</div></details>';
       }).join('') + '</div>' +
@@ -527,15 +565,15 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
 
     v.innerHTML =
       '<div class="kpi">' +
-        '<div class="large"><span>Avancement financier</span><b>' + (M ? Math.round(P / M * 100) : 0) + ' % payé</b><div class="barre" style="height:10px"><i style="width:' + (M ? Math.min(100, P / M * 100) : 0) + '%"></i></div><small>' + dt(P) + ' payés sur ' + dt(M) + '</small></div>' +
-        '<div><span>Reste à payer</span><b>' + dt(R) + '</b><small>sur ' + S.lots.length + ' lots</small></div>' +
-        '<div><span>Argent en caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '">' + dt(c) + '</b><small>' + (autonomie != null ? 'env. ' + (autonomie < 10 ? nf.format(Math.round(autonomie * 10) / 10) : Math.round(autonomie)) + ' sem. au rythme moyen' : (c < 0 ? 'à renflouer' : '—')) + '</small></div>' +
-        '<div><span>Dépensé S' + cur.num + ' (en cours)</span><b>' + dt(cur.dep) + '</b><small>' + (evol == null ? '—' : (evol > 0 ? '+' : '') + evol + ' % vs S' + prec.num) + '</small></div>' +
-        '<div><span>Moyenne par semaine</span><b>' + dt(moy) + '</b><small>' + (finies.length ? finies.length + ' dernière(s) semaine(s) finie(s)' : 'pas encore de semaine finie') + '</small></div>' +
-        '<div><span>Total dépensé (saisies)</span><b>' + dt(somme(S.depenses, 'montant')) + '</b><small>' + S.depenses.length + ' dépenses</small></div>' +
-        '<div><span>À rembourser</span><b>' + dt(dus) + '</b><small>avancé de leur poche</small></div>' +
+        '<div class="large"><span>Avancement financier</span><b>' + (M ? Math.round(P / M * 100) : 0) + ' % payé</b><div class="barre" style="height:8px"><i style="width:' + (M ? Math.min(100, P / M * 100) : 0) + '%"></i></div><small>' + dt0(P) + ' payés sur ' + dt0(M) + '</small></div>' +
+        '<div><span>Reste à payer</span><b>' + dt0(R) + '</b><small>sur ' + S.lots.length + ' lots</small></div>' +
+        '<div><span>En caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '">' + dt0(c) + '</b><small>' + (autonomie != null ? 'env. ' + (autonomie < 10 ? nf.format(Math.round(autonomie * 10) / 10) : Math.round(autonomie)) + ' sem. au rythme moyen' : (c < 0 ? 'à renflouer' : '—')) + '</small></div>' +
+        '<div><span>Cette semaine (S' + cur.num + ')</span><b>' + dt0(cur.dep) + '</b><small>' + (evol == null ? '—' : (evol > 0 ? '+' : '') + evol + ' % vs S' + prec.num) + '</small></div>' +
+        '<div><span>Moyenne par semaine</span><b>' + dt0(moy) + '</b><small>' + (finies.length ? finies.length + ' dernière(s) semaine(s) finie(s)' : 'pas encore de semaine finie') + '</small></div>' +
+        '<div><span>Total dépensé</span><b>' + dt0(somme(S.depenses, 'montant')) + '</b><small>' + S.depenses.length + ' dépenses</small></div>' +
+        '<div><span>À rembourser</span><b>' + dt0(dus) + '</b><small>avancé de leur poche</small></div>' +
       '</div>' +
-      (al.length ? '<div class="carte" style="border-color:var(--acc)"><h2>À surveiller (' + al.length + ')</h2>' + al.map(function (a) { return '<div class="alerte"><i class="' + a[0] + '">!</i><span>' + esc(a[1]) + '</span></div>'; }).join('') + '</div>' : '<div class="carte"><h2>À surveiller</h2><p class="vide" style="padding:4px 0">Rien à signaler.</p></div>') +
+      (al.length ? '<div class="carte avert"><h2>À surveiller <span class="n">' + al.length + '</span></h2>' + al.map(function (a) { return '<div class="alerte"><i class="' + a[0] + '">!</i><span>' + esc(a[1]) + '</span></div>'; }).join('') + '</div>' : '<div class="carte"><h2>À surveiller</h2><p class="vide" style="padding:4px 0">Rien à signaler.</p></div>') +
       '<div class="carte graph"><h2>Dépenses par semaine</h2>' + (n ? graphSemaines(sem.slice(-12)) + '<p class="info" id="g-info">Touchez une barre pour le détail. En orange : la semaine en cours.</p>' : '<p class="vide">Aucune dépense.</p>') + '</div>' +
       '<div class="carte"><h2>Caisse semaine par semaine</h2><table class="tab"><thead><tr><th>Semaine</th><th>Reçu</th><th>Dépensé</th><th>Reste</th><th>Caisse</th></tr></thead><tbody>' +
         sem.slice(-12).reverse().map(function (x) { return '<tr><td>S' + x.num + ' <span style="color:var(--doux)">' + court(x.lundi) + '</span></td><td>' + nf.format(Math.round(x.rec)) + '</td><td>' + nf.format(Math.round(x.dep)) + '</td><td class="' + (x.reste < 0 ? 'rouge' : '') + '">' + (x.reste > 0 ? '+' : '') + nf.format(Math.round(x.reste)) + '</td><td class="' + (x.solde < 0 ? 'rouge' : '') + '">' + nf.format(Math.round(x.solde)) + '</td></tr>'; }).join('') +
