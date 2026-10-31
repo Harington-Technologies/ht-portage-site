@@ -3,6 +3,7 @@
 // Chaque liste a sa recherche, ses filtres avec compteurs, son tri et sa pagination.
 (async function () {
   'use strict';
+  function estAlerte(c) { return c.type === 'alerte' || /^Alerte missions/.test(c.situation || ''); }
   var E = window.ESPACE, db = E.db, esc = E.esc;
   var st = await E.guard({ admin: true });
   if (!st) return;
@@ -844,12 +845,12 @@
     el: contEl, unites: ['demande', 'demandes'], placeholder: 'Nom, e-mail, message…',
     vide: 'Aucune demande pour le moment.',
     items: function () { return D.contacts; },
-    texte: function (c) { return [c.nom, c.email, c.telephone, c.message, c.situation, c.type === 'simulation' ? 'simulation' : c.type === 'alerte' ? 'alerte missions' : 'contact'].join(' '); },
+    texte: function (c) { return [c.nom, c.email, c.telephone, c.message, c.situation, c.type === 'simulation' ? 'simulation' : estAlerte(c) ? 'alerte missions' : 'contact'].join(' '); },
     filtres: [
       { id: 'non_traite', label: 'Non traitées', prioritaire: true, test: function (c) { return !c.traite; } },
       { id: 'simulation', label: 'Simulations', test: function (c) { return c.type === 'simulation'; } },
-      { id: 'contact', label: 'Contacts', test: function (c) { return c.type === 'contact' || !c.type; } },
-      { id: 'alerte', label: 'Alertes missions', test: function (c) { return c.type === 'alerte'; } },
+      { id: 'contact', label: 'Contacts', test: function (c) { return c.type !== 'simulation' && !estAlerte(c); } },
+      { id: 'alerte', label: 'Alertes missions', test: function (c) { return estAlerte(c); } },
       { id: 'traite', label: 'Traitées', test: function (c) { return !!c.traite; } },
       { id: 'tous', label: 'Toutes', test: function () { return true; } }
     ],
@@ -861,9 +862,9 @@
       return '<div class="table-wrap"><table class="table" style="min-width:820px"><thead><tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Contact</th><th scope="col">Message</th><th scope="col">Traité</th><th scope="col"><span class="visually-hidden">Supprimer</span></th></tr></thead><tbody>' +
         contacts.map(function (c) {
           var sim = c.type === 'simulation' ? 'TJM ' + E.eur(c.tjm) + ' · ' + c.jours + ' j · net ' + E.eur(c.net_estime) + '. ' : '';
-          return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td>' + (c.type === 'simulation' ? 'Simulation' : c.type === 'alerte' ? 'Alerte missions' : 'Contact') + '</td>' +
+          return '<tr data-id="' + c.id + '"><td style="white-space:nowrap">' + E.date(c.created_at) + '</td><td>' + (c.type === 'simulation' ? 'Simulation' : estAlerte(c) ? 'Alerte missions' : 'Contact') + '</td>' +
             '<td><strong>' + esc(c.nom) + '</strong>' + coordonnees(c.telephone, c.email) + '</td>' +
-            '<td style="max-width:360px">' + esc(sim + (c.type === 'alerte' ? [c.situation, c.message].filter(Boolean).join(' · ') : (c.message || c.situation || ''))) + '</td>' +
+            '<td style="max-width:360px">' + esc(sim + (estAlerte(c) ? [String(c.situation || '').replace(/^Alerte missions · /, ''), c.message].filter(Boolean).join(' · ') : (c.message || c.situation || ''))) + '</td>' +
             '<td><label class="check" style="font-size:14px"><input type="checkbox" data-champ="traite"' + (c.traite ? ' checked' : '') + '>Traité</label></td><td><button class="icon-suppr" type="button" data-suppr-demande>Supprimer</button></td></tr>';
         }).join('') + '</tbody></table></div>';
     }
@@ -995,7 +996,7 @@
       t.push({ d: c.created_at, prio: 4, html: '<strong>Nouvelle candidature</strong> — ' + esc(c.nom) + (c.mission_ref ? ' · ' + esc(c.mission_ref) : ''), lien: '#demandes', onglet: 'candidatures', q: c.nom });
     });
     D.contacts.filter(function (c) { return !c.traite; }).forEach(function (c) {
-      t.push({ d: c.created_at, prio: 5, html: '<strong>' + (c.type === 'simulation' ? 'Demande de simulation' : c.type === 'alerte' ? 'Inscription alerte missions' : 'Demande de contact') + '</strong> — ' + esc(c.nom), lien: '#demandes', onglet: 'contacts', q: c.nom });
+      t.push({ d: c.created_at, prio: 5, html: '<strong>' + (c.type === 'simulation' ? 'Demande de simulation' : estAlerte(c) ? 'Inscription alerte missions' : 'Demande de contact') + '</strong> — ' + esc(c.nom), lien: '#demandes', onglet: 'contacts', q: c.nom });
     });
     D.recos.filter(function (x) { return !x.statut || x.statut === 'nouvelle'; }).forEach(function (x) {
       t.push({ d: x.created_at, prio: 6, html: '<strong>Recommandation</strong> — ' + esc(x.ambassadeur_nom) + ' recommande ' + esc(x.contact_nom), lien: '#demandes', onglet: 'recos', q: x.contact_nom });
@@ -1051,7 +1052,7 @@
       { titre: 'Candidatures', lien: '#demandes', onglet: 'candidatures', items: D.cands.filter(function (c) { return correspond([c.nom, c.email, c.mission_ref].join(' '), q); }),
         ligne: function (c) { return [esc(c.nom), esc(c.mission_ref || 'Spontanée'), esc(E.date(c.created_at))]; }, q: function (c) { return c.nom; } },
       { titre: 'Contacts et simulations', lien: '#demandes', onglet: 'contacts', items: D.contacts.filter(function (c) { return correspond([c.nom, c.email, c.message].join(' '), q); }),
-        ligne: function (c) { return [esc(c.nom), c.type === 'simulation' ? 'Simulation' : c.type === 'alerte' ? 'Alerte missions' : 'Contact', esc(E.date(c.created_at))]; }, q: function (c) { return c.nom; } },
+        ligne: function (c) { return [esc(c.nom), c.type === 'simulation' ? 'Simulation' : estAlerte(c) ? 'Alerte missions' : 'Contact', esc(E.date(c.created_at))]; }, q: function (c) { return c.nom; } },
       { titre: 'Recommandations', lien: '#demandes', onglet: 'recos', items: D.recos.filter(function (x) { return correspond([x.ambassadeur_nom, x.contact_nom, x.contact_email].join(' '), q); }),
         ligne: function (x) { return [esc(x.contact_nom), 'par ' + esc(x.ambassadeur_nom), esc(E.date(x.created_at))]; }, q: function (x) { return x.contact_nom; } }
     ].filter(function (g) { return g.items.length; });

@@ -105,8 +105,11 @@
     setStatus(form, 'Envoi en cours…');
     try {
       var envoi = new FormData();
-      envoi.append('formulaire', kind);
-      envoi.append('donnees', JSON.stringify(payloadFrom(form)));
+      var donnees = payloadFrom(form);
+      // L'alerte missions est enregistrée comme une demande de contact marquée « Alerte missions »
+      if (kind === 'alerte') donnees.situation = 'Alerte missions · ' + (donnees.situation || '');
+      envoi.append('formulaire', kind === 'alerte' ? 'contact' : kind);
+      envoi.append('donnees', JSON.stringify(donnees));
       envoi.append('site_web', hp ? hp.value : '');
       envoi.append('delai', String(Date.now() - (form._htpDebut || 0)));
       if (form._htpCaptcha && form._htpCaptcha.actif) {
