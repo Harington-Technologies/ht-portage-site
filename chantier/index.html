@@ -16,7 +16,8 @@
 *{box-sizing:border-box}html,body{margin:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fond);color:var(--encre);font-size:16px;-webkit-text-size-adjust:100%;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 button,input,select,textarea{font:inherit;color:inherit}
 .tete{background:var(--vert);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 14px;position:sticky;top:0;z-index:5}
-.tete h1{margin:0;font-size:18px;font-weight:700}.tete .sous{font-size:13px;opacity:.8;margin-top:2px}
+.tete h1{margin:0;font-size:18px;font-weight:700}.tete .haut{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sortir{flex:none;border:1px solid rgba(255,255,255,.35);background:none;color:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}.tete .sous{font-size:13px;opacity:.8;margin-top:2px}
 .caisse{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 12px}
 .caisse b{font-size:20px}.caisse span{font-size:13px;opacity:.85}
 main{padding:16px;max-width:640px;margin:0 auto}
@@ -149,7 +150,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
   function ecranAcces(msg) {
     app.innerHTML = '<div class="acces"><form class="carte" id="f-acces"><h2 style="font-size:20px">Chantier · Dépenses</h2>' +
       '<p style="color:var(--doux);margin:0 0 6px;font-size:15px">Saisissez le code d\'accès qui vous a été donné.</p>' +
-      '<div class="champ"><label for="code">Code d\'accès</label><input id="code" type="password" autocomplete="current-password" required></div>' +
+      '<div class="champ"><label for="code">Code d\'accès</label><input id="code" type="password" autocomplete="off" required></div>' +
       '<button class="btn" type="submit">Entrer</button><p class="msg ko">' + esc(msg || '') + '</p></form></div>';
     var f = document.getElementById('f-acces');
     f.code.focus();
@@ -170,15 +171,20 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
   };
   function rendre() {
     var c = caisse();
-    app.innerHTML = '<header class="tete"><h1>Chantier · Dépenses</h1><div class="sous">' + (S.role === 'admin' ? 'Accès administrateur' : 'Saisie des dépenses') + '</div>' +
+    app.innerHTML = '<header class="tete"><div class="haut"><div><h1>Chantier · Dépenses</h1><div class="sous">' + (S.role === 'admin' ? 'Accès administrateur' : 'Saisie des dépenses') + '</div></div><button type="button" class="sortir" data-sortir>Se déconnecter</button></div>' +
       '<div class="caisse"><span>Argent en caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '" style="color:' + (c < 0 ? '#FFB4AB' : '#fff') + '">' + dt(c) + '</b></div></header>' +
       '<main><section class="vue" id="v-saisir"></section><section class="vue" id="v-semaine" hidden></section><section class="vue" id="v-global" hidden></section><section class="vue" id="v-rapport" hidden></section></main>' +
       '<nav class="bas">' + [['saisir', 'Saisir'], ['semaine', 'Semaine'], ['global', 'Budget'], ['rapport', 'Rapport']].map(function (x) {
         return '<button type="button" data-vue="' + x[0] + '"' + (S.vue === x[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24">' + ICON[x[0]] + '</svg>' + x[1] + '</button>';
       }).join('') + '</nav><dialog id="dlg"><div class="in"></div></dialog>';
+    app.querySelector('.tete [data-sortir]').addEventListener('click', sortir);
     app.querySelector('nav.bas').addEventListener('click', function (e) { var b = e.target.closest('[data-vue]'); if (b) { S.vue = b.dataset.vue; rendre(); window.scrollTo(0, 0); } });
     ['saisir', 'semaine', 'global', 'rapport'].forEach(function (v) { document.getElementById('v-' + v).hidden = S.vue !== v; });
     if (S.vue === 'saisir') vueSaisir(); else if (S.vue === 'semaine') vueSemaine(); else if (S.vue === 'rapport') vueRapport(); else vueGlobal();
+  }
+  function sortir() {
+    try { localStorage.removeItem('chantier-code'); } catch (x) { /* rien */ }
+    S.code = ''; S.role = ''; S.vue = 'saisir'; S.poste = null; window.scrollTo(0, 0); ecranAcces();
   }
   async function rafraichir() { await charger(); rendre(); }
 
@@ -441,7 +447,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
       if ((b = e.target.closest('[data-lot]'))) return editerLot(lot(Number(b.dataset.lot)));
       if ((b = e.target.closest('[data-poste-ed]'))) return editerPoste(S.postes.find(function (p) { return p.id === Number(b.dataset.posteEd); }));
       if (e.target.closest('[data-csv-tout]')) return exporter(S.depenses, 'toutes-depenses');
-      if (e.target.closest('[data-sortir]')) { try { localStorage.removeItem('chantier-code'); } catch (x) { /* rien */ } S.code = ''; ecranAcces(); }
+      if (e.target.closest('[data-sortir]')) sortir();
     };
   }
   // ---------- rapport et indicateurs clés ----------
