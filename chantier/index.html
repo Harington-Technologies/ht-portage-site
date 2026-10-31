@@ -112,6 +112,11 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
   function court(s) { var d = parse(s); return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2); }
   function lot(id) { return S.lots.find(function (l) { return l.id === id; }); }
   function posteNom(n) { return S.postes.find(function (p) { return p.nom.toLowerCase() === String(n || '').toLowerCase(); }); }
+  // Évite les erreurs de calendrier (ex. 04/12 au lieu de 04/11)
+  function dateOk(d) {
+    if (!d || (d <= plusJours(auj(), 7) && d >= plusJours(auj(), -60))) return true;
+    return confirm('La date choisie est le ' + court(d) + '/' + d.slice(0, 4) + ' (semaine ' + numSemaine(d) + '). Est-ce bien la bonne date ?');
+  }
   function somme(t, k) { return t.reduce(function (s, x) { return s + (Number(x[k]) || 0); }, 0); }
 
   async function api(action, corps) {
@@ -236,6 +241,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
         var m = Number(String(f.montant.value).replace(/\s/g, '').replace(',', '.'));
         if (!S.poste) return dire('Choisissez le poste (Maçonnerie, Plombier…).');
         if (!(m > 0)) { f.montant.focus(); return dire('Indiquez le montant.'); }
+        if (!dateOk(f.date.value)) return f.date.focus();
         var pp = posteNom(S.poste), corps = { id: edit && edit.id, date: f.date.value || auj(), poste: S.poste, lot_id: pp ? pp.lot_id : (edit && edit.lot_id), detail: f.detail.value, montant: m, paye_par: S.payePar };
         if (edit && f.deja) corps.deja_au_budget = f.deja.checked;
         var b = f.querySelector('[type=submit]'); b.disabled = true; dire('Enregistrement…', true);
@@ -258,6 +264,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
         e.preventDefault();
         var m = Number(String(f.vmontant.value).replace(/\s/g, '').replace(',', '.'));
         if (!m) return dire('Indiquez le montant.');
+        if (!dateOk(f.vdate.value)) return f.vdate.focus();
         var b = f.querySelector('[type=submit]'); b.disabled = true;
         try { await api('versement', { id: edit && edit.id, date: f.vdate.value || auj(), montant: m, libelle: f.vlib.value }); await charger(); if (edit) { S.vue = 'semaine'; rendre(); return; } rendre(); var mm = document.querySelector('#f-vers .msg'); mm.className = 'msg ok'; mm.textContent = '✓ ' + dt(m) + ' ajouté à la caisse.'; }
         catch (err) { b.disabled = false; dire(err.message); }
