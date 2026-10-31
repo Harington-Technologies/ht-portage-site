@@ -57,7 +57,7 @@ h2{font-size:15px;margin:0 0 10px;color:var(--vert)}
 .lot .t{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14.5px}.lot .s{display:flex;justify-content:space-between;font-size:13px;color:var(--doux);margin-top:3px}
 .lot .det{font-size:13px;margin-top:10px;background:var(--fond);border-radius:10px;padding:10px}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--sable);color:var(--doux);margin-left:4px;vertical-align:middle}
-nav.bas{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--ligne);display:grid;grid-template-columns:repeat(3,1fr);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav.bas{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--ligne);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom);z-index:6}
 nav.bas button{border:0;background:none;padding:10px 4px 12px;font-size:12px;font-weight:600;color:var(--doux);display:flex;flex-direction:column;align-items:center;gap:3px}
 nav.bas button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 nav.bas button[aria-current=page]{color:var(--vert)}
@@ -68,6 +68,23 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
 .reprise input[type=checkbox]{width:22px;height:22px}
 .vide{color:var(--doux);font-size:14px;text-align:center;padding:16px 0}
 .rouge{color:var(--ko)}.vert{color:var(--ok)}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.kpi>div{background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:12px}
+.kpi span{display:block;font-size:12px;color:var(--doux)}.kpi b{display:block;font-size:19px;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi small{display:block;font-size:12px;color:var(--doux);margin-top:3px}
+.kpi .large{grid-column:1/-1}
+.graph svg{width:100%;height:auto;display:block}.graph .ax{font-size:10px;fill:var(--doux)}
+.graph .bar{fill:var(--vert2)}.graph .bar.cur{fill:var(--acc)}.graph .bar.sel{fill:var(--vert)}
+.graph .hit{fill:transparent;cursor:pointer}
+.info{font-size:13px;min-height:1.3em;margin-top:6px;color:var(--encre)}
+.hb{margin:10px 0}.hb .t{display:flex;justify-content:space-between;gap:8px;font-size:14px}.hb .t span:last-child{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hb .s{font-size:12px;color:var(--doux)}
+.tab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.tab th,.tab td{padding:8px 4px;border-bottom:1px solid var(--ligne);text-align:right}
+.tab th:first-child,.tab td:first-child{text-align:left}.tab th{font-size:12px;color:var(--doux);font-weight:600}
+.alerte{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--ligne);font-size:14px}.alerte:last-child{border-bottom:0}
+.alerte i{flex:none;font-style:normal;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;background:var(--acc)}
+.alerte i.ko{background:var(--ko)}
+@media print{nav.bas,.tete .caisse,.no-print{display:none!important}.tete{position:static}body{padding:0;background:#fff}.carte{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -138,19 +155,20 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
   var ICON = {
     saisir: '<path d="M12 5v14M5 12h14"/>',
     semaine: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
-    global: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+    global: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    rapport: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/>'
   };
   function rendre() {
     var c = caisse();
     app.innerHTML = '<header class="tete"><h1>Chantier · Dépenses</h1><div class="sous">' + (S.role === 'admin' ? 'Accès administrateur' : 'Saisie des dépenses') + '</div>' +
       '<div class="caisse"><span>Argent en caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '" style="color:' + (c < 0 ? '#FFB4AB' : '#fff') + '">' + dt(c) + '</b></div></header>' +
-      '<main><section class="vue" id="v-saisir"></section><section class="vue" id="v-semaine" hidden></section><section class="vue" id="v-global" hidden></section></main>' +
-      '<nav class="bas">' + [['saisir', 'Saisir'], ['semaine', 'Semaine'], ['global', 'Budget global']].map(function (x) {
+      '<main><section class="vue" id="v-saisir"></section><section class="vue" id="v-semaine" hidden></section><section class="vue" id="v-global" hidden></section><section class="vue" id="v-rapport" hidden></section></main>' +
+      '<nav class="bas">' + [['saisir', 'Saisir'], ['semaine', 'Semaine'], ['global', 'Budget'], ['rapport', 'Rapport']].map(function (x) {
         return '<button type="button" data-vue="' + x[0] + '"' + (S.vue === x[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24">' + ICON[x[0]] + '</svg>' + x[1] + '</button>';
       }).join('') + '</nav><dialog id="dlg"><div class="in"></div></dialog>';
     app.querySelector('nav.bas').addEventListener('click', function (e) { var b = e.target.closest('[data-vue]'); if (b) { S.vue = b.dataset.vue; rendre(); window.scrollTo(0, 0); } });
-    ['saisir', 'semaine', 'global'].forEach(function (v) { document.getElementById('v-' + v).hidden = S.vue !== v; });
-    if (S.vue === 'saisir') vueSaisir(); else if (S.vue === 'semaine') vueSemaine(); else vueGlobal();
+    ['saisir', 'semaine', 'global', 'rapport'].forEach(function (v) { document.getElementById('v-' + v).hidden = S.vue !== v; });
+    if (S.vue === 'saisir') vueSaisir(); else if (S.vue === 'semaine') vueSemaine(); else if (S.vue === 'rapport') vueRapport(); else vueGlobal();
   }
   async function rafraichir() { await charger(); rendre(); }
 
@@ -369,6 +387,116 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
       if ((b = e.target.closest('[data-poste-ed]'))) return editerPoste(S.postes.find(function (p) { return p.id === Number(b.dataset.posteEd); }));
       if (e.target.closest('[data-csv-tout]')) return exporter(S.depenses, 'toutes-depenses');
       if (e.target.closest('[data-sortir]')) { try { localStorage.removeItem('chantier-code'); } catch (x) { /* rien */ } S.code = ''; ecranAcces(); }
+    };
+  }
+  // ---------- rapport et indicateurs clés ----------
+  function semaines() {
+    // Une entrée par semaine (lundi), de la première saisie à la semaine en cours
+    var cur = lundi(auj()), dates = S.depenses.map(function (x) { return x.date; }).concat(S.versements.map(function (x) { return x.date; })).sort();
+    var deb = dates.length ? lundi(dates[0]) : cur, t = [], solde = 0;
+    for (var w = deb; w <= cur && t.length < 200; w = plusJours(w, 7)) {
+      var fin = plusJours(w, 6);
+      var dep = S.depenses.filter(function (x) { return x.date >= w && x.date <= fin; });
+      var rec = somme(S.versements.filter(function (x) { return x.date >= w && x.date <= fin; }), 'montant');
+      var depCaisse = somme(dep.filter(function (x) { return x.paye_par === 'Caisse'; }), 'montant');
+      solde += rec - depCaisse;
+      t.push({ lundi: w, num: numSemaine(w), dep: somme(dep, 'montant'), rec: rec, solde: solde, n: dep.length });
+    }
+    return t;
+  }
+  function grouper(t, cle) {
+    var g = {};
+    t.forEach(function (x) { var k = cle(x); if (!k) return; var e = g[k.toLowerCase()] = g[k.toLowerCase()] || { nom: k, total: 0, n: 0, postes: {} }; e.total += x.montant; e.n++; e.postes[cap(x.poste)] = 1; });
+    return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return b.total - a.total; });
+  }
+  function barresH(t, max, sous) {
+    return t.map(function (x) {
+      return '<div class="hb"><div class="t"><span>' + esc(x.nom) + '</span><span>' + dt(x.total) + '</span></div>' +
+        '<div class="barre"><i style="width:' + (max ? Math.max(1, Math.round(x.total / max * 100)) : 0) + '%"></i></div>' + (sous ? '<div class="s">' + sous(x) + '</div>' : '') + '</div>';
+    }).join('');
+  }
+  function graphSemaines(t) {
+    var W = 340, H = 160, g = 26, b = 18, n = t.length, max = Math.max.apply(null, t.map(function (x) { return x.dep; }).concat([1]));
+    var pas = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / pas) * pas; if (top / pas > 5) pas *= 2; top = Math.ceil(max / pas) * pas;
+    var lw = (W - g) / n, bw = Math.min(28, lw - 4), y = function (v) { return H - b - (v / top) * (H - b - 8); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Dépenses par semaine">';
+    for (var v = 0; v <= top; v += pas) s += '<line x1="' + g + '" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#E6E1D7"/><text class="ax" x="' + (g - 4) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + (v >= 1000 ? Math.round(v / 1000) + 'k' : v) + '</text>';
+    t.forEach(function (x, i) {
+      var cx = g + lw * i + lw / 2, x0 = cx - bw / 2, y0 = y(x.dep), h = H - b - y0, r = Math.min(4, h);
+      if (h > 0) s += '<path class="bar' + (i === n - 1 ? ' cur' : '') + '" data-i="' + i + '" d="M' + x0 + ' ' + (H - b) + 'V' + (y0 + r) + 'Q' + x0 + ' ' + y0 + ' ' + (x0 + r) + ' ' + y0 + 'H' + (x0 + bw - r) + 'Q' + (x0 + bw) + ' ' + y0 + ' ' + (x0 + bw) + ' ' + (y0 + r) + 'V' + (H - b) + 'Z"/>';
+      if (n <= 14 || i % 2 === (n - 1) % 2) s += '<text class="ax" x="' + cx + '" y="' + (H - 4) + '" text-anchor="middle">S' + x.num + '</text>';
+      s += '<rect class="hit" data-i="' + i + '" x="' + (g + lw * i) + '" y="0" width="' + lw + '" height="' + H + '"><title>S' + x.num + ' : ' + dt(x.dep) + '</title></rect>';
+    });
+    return s + '</svg>';
+  }
+  function vueRapport() {
+    var v = document.getElementById('v-rapport');
+    var sem = semaines(), n = sem.length, cur = sem[n - 1] || { dep: 0, rec: 0, num: numSemaine(auj()) }, prec = sem[n - 2];
+    var finies = sem.slice(Math.max(0, n - 5), n - 1), moy = finies.length ? somme(finies, 'dep') / finies.length : 0;
+    var M = 0, P = 0; S.lots.forEach(function (l) { M += l.marche; P += payeLot(l); });
+    var R = M - P, c = caisse(), autonomie = moy > 0 && c > 0 ? c / moy : null;
+    var dus = 0;
+    S.lignes.forEach(function (x) { if (x.paye_par && Number(x.a_rembourser)) dus += Number(x.a_rembourser); });
+    S.depenses.forEach(function (x) { if (x.paye_par !== 'Caisse' && !x.deja_au_budget) dus += x.montant; });
+    var evol = prec && prec.dep ? Math.round((cur.dep - prec.dep) / prec.dep * 100) : null;
+
+    // Période des classements
+    var per = S.periode || 'tout', depuis = per === 'tout' ? '0000' : plusJours(lundi(auj()), -7 * (Number(per) - 1));
+    var dp = S.depenses.filter(function (x) { return x.date >= depuis; });
+    var postes = grouper(dp, function (x) { return cap(x.poste); });
+    var gens = grouper(dp, function (x) { return (x.detail || '').trim(); });
+    var postesAff = postes.slice(0, 7); if (postes.length > 7) postesAff.push({ nom: 'Autres postes', total: somme(postes.slice(7), 'total'), n: 0, postes: {} });
+
+    // Lots à surveiller
+    var lots = S.lots.map(function (l) { var p = payeLot(l); return { l: l, p: p, r: l.marche - p, pct: l.marche ? p / l.marche : (p ? 2 : 0) }; });
+    var depasses = lots.filter(function (x) { return x.p > x.l.marche + 0.5; });
+    var presque = lots.filter(function (x) { return x.pct >= 0.9 && x.pct <= 1 && x.r > 0.5; });
+    var restes = lots.filter(function (x) { return x.r > 0.5; }).sort(function (a, b) { return b.r - a.r; }).slice(0, 6);
+
+    // Alertes
+    var al = [];
+    if (c < 0) al.push(['ko', 'Caisse négative : ' + dt(c) + '. Il manque de l\'argent pour couvrir les dépenses payées par la caisse.']);
+    depasses.forEach(function (x) { al.push(['ko', x.l.code + ' · ' + cap(x.l.nom) + ' : dépassement de ' + dt(-x.r) + ' sur le marché.']); });
+    presque.forEach(function (x) { al.push(['', x.l.code + ' · ' + cap(x.l.nom) + ' : il ne reste que ' + dt(x.r) + ' sur le marché.']); });
+    var sansLot = S.depenses.filter(function (x) { return !x.lot_id && !x.deja_au_budget; });
+    if (sansLot.length) al.push(['', sansLot.length + ' dépense(s) sans lot (' + dt(somme(sansLot, 'montant')) + ') : relier leur poste à un lot.']);
+    if (moy && cur.dep > moy * 1.5) al.push(['', 'Semaine en cours au-dessus de la moyenne : ' + dt(cur.dep) + ' contre ' + dt(moy) + ' en moyenne.']);
+    var sansPhoto = S.depenses.filter(function (x) { return !x.deja_au_budget && !x.photo && x.montant >= 1000; });
+    if (sansPhoto.length) al.push(['', sansPhoto.length + ' dépense(s) de 1 000 DT ou plus sans photo de ticket.']);
+
+    v.innerHTML =
+      '<div class="kpi">' +
+        '<div class="large"><span>Avancement financier</span><b>' + (M ? Math.round(P / M * 100) : 0) + ' % payé</b><div class="barre" style="height:10px"><i style="width:' + (M ? Math.min(100, P / M * 100) : 0) + '%"></i></div><small>' + dt(P) + ' payés sur ' + dt(M) + '</small></div>' +
+        '<div><span>Reste à payer</span><b>' + dt(R) + '</b><small>sur ' + S.lots.length + ' lots</small></div>' +
+        '<div><span>Argent en caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '">' + dt(c) + '</b><small>' + (autonomie != null ? 'env. ' + (autonomie < 10 ? nf.format(Math.round(autonomie * 10) / 10) : Math.round(autonomie)) + ' sem. au rythme moyen' : (c < 0 ? 'à renflouer' : '—')) + '</small></div>' +
+        '<div><span>Dépensé S' + cur.num + ' (en cours)</span><b>' + dt(cur.dep) + '</b><small>' + (evol == null ? '—' : (evol > 0 ? '+' : '') + evol + ' % vs S' + prec.num) + '</small></div>' +
+        '<div><span>Moyenne par semaine</span><b>' + dt(moy) + '</b><small>' + (finies.length ? finies.length + ' dernière(s) semaine(s) finie(s)' : 'pas encore de semaine finie') + '</small></div>' +
+        '<div><span>Total dépensé (saisies)</span><b>' + dt(somme(S.depenses, 'montant')) + '</b><small>' + S.depenses.length + ' dépenses</small></div>' +
+        '<div><span>À rembourser</span><b>' + dt(dus) + '</b><small>avancé de leur poche</small></div>' +
+      '</div>' +
+      (al.length ? '<div class="carte" style="border-color:var(--acc)"><h2>À surveiller (' + al.length + ')</h2>' + al.map(function (a) { return '<div class="alerte"><i class="' + a[0] + '">!</i><span>' + esc(a[1]) + '</span></div>'; }).join('') + '</div>' : '<div class="carte"><h2>À surveiller</h2><p class="vide" style="padding:4px 0">Rien à signaler.</p></div>') +
+      '<div class="carte graph"><h2>Dépenses par semaine</h2>' + (n ? graphSemaines(sem.slice(-12)) + '<p class="info" id="g-info">Touchez une barre pour le détail. En orange : la semaine en cours.</p>' : '<p class="vide">Aucune dépense.</p>') + '</div>' +
+      '<div class="carte"><h2>Caisse semaine par semaine</h2><table class="tab"><thead><tr><th>Semaine</th><th>Reçu</th><th>Dépensé</th><th>Caisse fin</th></tr></thead><tbody>' +
+        sem.slice(-12).reverse().map(function (x) { return '<tr><td>S' + x.num + ' <span style="color:var(--doux)">' + court(x.lundi) + '</span></td><td>' + nf.format(Math.round(x.rec)) + '</td><td>' + nf.format(Math.round(x.dep)) + '</td><td class="' + (x.solde < 0 ? 'rouge' : '') + '">' + nf.format(Math.round(x.solde)) + '</td></tr>'; }).join('') +
+      '</tbody></table><p class="imput">En DT. « Dépensé » compte toutes les dépenses ; la caisse ne baisse que de celles payées par la caisse.</p></div>' +
+      '<div class="seg no-print" style="grid-template-columns:repeat(3,1fr)">' + [['4', '4 semaines'], ['12', '12 semaines'], ['tout', 'Depuis le début']].map(function (x) { return '<button type="button" data-per="' + x[0] + '" aria-pressed="' + (per === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="carte"><h2>Où part l\'argent (par poste)</h2>' + (postesAff.length ? barresH(postesAff, postesAff[0].total, function (x) { return x.n ? x.n + ' dépense(s)' : ''; }) : '<p class="vide">Aucune dépense sur la période.</p>') + '<p class="imput">Total période : <b>' + dt(somme(dp, 'montant')) + '</b></p></div>' +
+      '<div class="carte"><h2>Qui a été payé (top 10)</h2>' + (gens.length ? barresH(gens.slice(0, 10), gens[0].total, function (x) { return Object.keys(x.postes).join(', ') + ' · ' + x.n + ' paiement(s)'; }) : '<p class="vide">Aucune dépense sur la période.</p>') + '</div>' +
+      '<div class="carte"><h2>Plus gros restes à payer</h2>' + restes.map(function (x) {
+        return '<div class="hb"><div class="t"><span>' + esc(x.l.code + ' · ' + cap(x.l.nom)) + '</span><span>' + dt(x.r) + '</span></div><div class="barre"><i style="width:' + Math.min(100, Math.round(x.pct * 100)) + '%"></i></div><div class="s">payé ' + dt(x.p) + ' sur ' + dt(x.l.marche) + '</div></div>';
+      }).join('') + '</div>' +
+      '<button class="btn btn--clair no-print" type="button" data-imprimer>Imprimer / enregistrer en PDF</button>';
+
+    var info = v.querySelector('#g-info'), aff = sem.slice(-12);
+    v.onclick = function (e) {
+      var b;
+      if ((b = e.target.closest('[data-per]'))) { S.periode = b.dataset.per; return vueRapport(); }
+      if (e.target.closest('[data-imprimer]')) return window.print();
+      if ((b = e.target.closest('[data-i]')) && info) {
+        var x = aff[Number(b.dataset.i)];
+        v.querySelectorAll('.graph .bar').forEach(function (p) { p.classList.toggle('sel', p.dataset.i === b.dataset.i); });
+        info.innerHTML = '<b>S' + x.num + '</b> (du ' + court(x.lundi) + ' au ' + court(plusJours(x.lundi, 6)) + ') : dépensé <b>' + dt(x.dep) + '</b> en ' + x.n + ' ligne(s) · reçu ' + dt(x.rec) + ' · caisse fin ' + dt(x.solde);
+      }
     };
   }
   function dialogue(html, onSubmit) {
