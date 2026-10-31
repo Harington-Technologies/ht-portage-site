@@ -124,6 +124,23 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
 .alerte{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--ligne);font-size:14px;color:var(--encre)}.alerte:last-child{border-bottom:0}
 .alerte i{flex:none;font-style:normal;font-weight:600;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;background:var(--acc);margin-top:1px}
 .alerte i.ko{background:var(--ko)}
+:root{--dep:#B5532C;--depc:#FBEEE7;--rec:#2E7D4F;--recc:#E6F2EA}
+.ls .ed{display:flex;align-items:center;gap:12px}
+.ls .ico{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.ls .ico svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ls.dep .ico{background:var(--depc);color:var(--dep)}.ls.rec .ico{background:var(--recc);color:var(--rec)}
+.ls .q{flex:1;min-width:0}.ls .q b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls .q>span{display:block;line-height:1.35;margin-top:1px}
+.chiffres b{font-size:14.5px!important;white-space:nowrap}
+.ls .m{font-weight:600}.ls.dep .m{color:var(--dep)}.ls.rec .m{color:var(--rec)}
+.ls .clip{font-size:12px}
+.lot .det .ls .ico{width:28px;height:28px}.lot .det .ls .m{font-weight:500}
+.seg--type button.t-dep[aria-pressed=true]{color:var(--dep)}.seg--type button.t-rec[aria-pressed=true]{color:var(--rec)}
+.btn--dep{background:var(--dep)}.btn--rec{background:var(--rec)}
+.chiffres .c-dep b{color:var(--dep)}.chiffres .c-rec b{color:var(--rec)}
+.chiffres .c-dep{border-top:3px solid var(--dep)}.chiffres .c-rec{border-top:3px solid var(--rec)}
+.tab td.t-dep{color:var(--dep)}.tab td.t-rec{color:var(--rec)}
+.graph .bar{fill:var(--dep)!important}.graph .bar.cur{fill:#E3A587!important}.graph .bar.sel{fill:#7E3418!important}
 .carte.avert{background:var(--accc);border-color:#F1DCC4}
 @media print{nav.bas,.tete .caisse,.no-print,.sortir{display:none!important}.tete{position:static}body{padding:0;background:#fff}.carte{break-inside:avoid}}
 </style>
@@ -238,7 +255,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
     var p = S.poste && posteNom(S.poste), l = p && lot(p.lot_id);
     var noms = S.depenses.filter(function (x) { return S.poste && x.poste.toLowerCase() === S.poste.toLowerCase() && x.detail; }).map(function (x) { return x.detail; }).filter(function (x, i, t) { return t.indexOf(x) === i; }).slice(0, 30);
     v.innerHTML =
-      (edit ? '' : '<div class="seg" role="group" aria-label="Type"><button type="button" data-mode="depense" aria-pressed="' + (mode === 'depense') + '">Dépense</button><button type="button" data-mode="versement" aria-pressed="' + (mode === 'versement') + '">Argent reçu</button></div>') +
+      (edit ? '' : '<div class="seg seg--type" role="group" aria-label="Type"><button type="button" class="t-dep" data-mode="depense" aria-pressed="' + (mode === 'depense') + '">Dépense</button><button type="button" class="t-rec" data-mode="versement" aria-pressed="' + (mode === 'versement') + '">Argent reçu</button></div>') +
       (mode === 'depense' ?
         '<form class="carte" id="f-dep" novalidate>' + (edit ? '<h2>Modifier la dépense</h2>' : '') +
           '<h2 style="margin-bottom:8px">Pour quoi ?</h2>' + boutonsPostes() +
@@ -250,7 +267,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
           (edit && edit.photo ? '<p style="margin:12px 0 0"><button class="lien" type="button" data-voir-photo>Voir la photo du ticket</button></p>' : '') +
           '<div class="champ"><label for="photo">' + (edit && edit.photo ? 'Remplacer la photo' : 'Photo du ticket') + ' <span style="font-weight:400;color:var(--doux)">(facultatif)</span></label><input id="photo" type="file" accept="image/*" capture="environment"></div>' +
           (edit && S.role === 'admin' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px"><input type="checkbox" name="deja"' + (edit.deja_au_budget ? ' checked' : '') + '> Déjà comptée dans le « payé » initial du budget</label>' : '') +
-          '<button class="btn" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter la dépense') + '</button>' +
+          '<button class="btn btn--dep" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter la dépense') + '</button>' +
           (edit ? '<button class="btn btn--clair" type="button" data-annuler>Annuler</button>' + (!edit.deja_au_budget || S.role === 'admin' ? '<button class="lien rouge" type="button" data-suppr style="margin-top:14px">Supprimer cette dépense</button>' : '') : '') +
           '<p class="msg" role="status"></p></form>' +
           (edit ? '' : dernieresSaisies() + repriseBloc())
@@ -259,7 +276,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
           '<div class="ligne2"><div class="champ"><label for="vmontant">Montant (DT)</label><input class="montant" id="vmontant" inputmode="decimal" placeholder="0" value="' + (edit ? esc(edit.montant) : '') + '"></div>' +
           '<div class="champ"><label for="vdate">Date</label><input id="vdate" type="date" value="' + (edit ? edit.date : auj()) + '"></div></div>' +
           '<div class="champ"><label for="vlib">De qui / pour quoi</label><input id="vlib" placeholder="Ex. : virement Wadi, avance clim…" value="' + esc(edit ? edit.libelle || '' : '') + '"></div>' +
-          '<button class="btn" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter') + '</button>' +
+          '<button class="btn btn--rec" type="submit">' + (edit ? 'Enregistrer' : 'Ajouter l\'argent reçu') + '</button>' +
           (edit ? '<button class="btn btn--clair" type="button" data-annuler>Annuler</button><button class="lien rouge" type="button" data-suppr style="margin-top:14px">Supprimer</button>' : '') +
           '<p class="msg" role="status"></p></form>' + (edit ? '' : dernieresSaisies()));
 
@@ -349,8 +366,25 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
     if (!t.length) return '';
     return '<div class="carte" id="dernieres"><h2>Dernières saisies</h2><p class="imput" style="margin-top:-4px">Une erreur ? Touchez la ligne pour la modifier, ou la corbeille pour la supprimer.</p><ul class="liste">' + t.map(function (e) {
       var x = e.x, dep = e.type === 'dep';
-      return '<li><button type="button" class="ed" data-' + e.type + '="' + x.id + '"><span class="q"><b>' + esc(dep ? (x.detail || x.poste) : (x.libelle || 'Argent reçu')) + '</b><span>' + court(x.date) + ' · ' + (dep ? esc(x.poste) : '<span class="vert">argent reçu</span>') + '</span></span><span class="m">' + (dep ? '' : '+') + dt(x.montant) + '</span></button>' + btnSuppr(x, e.type) + '</li>';
+      return ligneSaisie(x, e.type, true);
     }).join('') + '</ul></div>';
+  }
+  var ICO_DEP = '<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
+  var ICO_REC = '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+  var JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+  function jour(d) { return JOURS[parse(d).getDay()] + ' ' + court(d); }
+  // Une ligne de saisie : dépense (terre cuite, −) ou argent reçu (vert, +)
+  function ligneSaisie(x, type, avecPoste) {
+    var dep = type === 'dep', lo = dep && lot(x.lot_id), sous = [];
+    if (dep) {
+      if (avecPoste) sous.push(esc(cap(x.poste)));
+      if (lo) sous.push(esc(lo.code.replace('LOT ', 'Lot ')));
+      sous.push(jour(x.date));
+      if (x.paye_par && x.paye_par !== 'Caisse') sous.push('payé par ' + esc(x.paye_par));
+    } else { sous.push('Argent reçu'); sous.push(jour(x.date)); }
+    return '<li class="ls ' + (dep ? 'dep' : 'rec') + '"><button type="button" class="ed" data-' + type + '="' + x.id + '"><span class="ico">' + (dep ? ICO_DEP : ICO_REC) + '</span>' +
+      '<span class="q"><b>' + esc(dep ? (x.detail || cap(x.poste)) : (x.libelle || 'Argent reçu')) + (x.photo ? ' <span class="clip" title="Photo du ticket">📎</span>' : '') + '</b><span>' + sous.join(' · ') + '</span></span>' +
+      '<span class="m">' + (dep ? '−' : '+') + dt(x.montant) + '</span></button>' + btnSuppr(x, type) + '</li>';
   }
   function btnSuppr(x, type) {
     type = type || (x.poste ? 'dep' : 'ver');
@@ -404,16 +438,16 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
     var groupes = {};
     dep.forEach(function (x) { var k = cap(x.poste); (groupes[k] = groupes[k] || []).push(x); });
     v.innerHTML = '<div class="sem"><button type="button" data-s="-7" aria-label="Semaine précédente">‹</button><div><b>Semaine ' + numSemaine(deb) + '</b><small>du ' + court(deb) + ' au ' + court(fin) + '</small></div><button type="button" data-s="7" aria-label="Semaine suivante">›</button></div>' +
-      '<div class="chiffres"><div><span>Dépenses</span><b>' + dt(td) + '</b></div><div><span>Argent reçu</span><b>' + dt(tv) + '</b></div><div><span>Écart semaine</span><b class="' + (tv - td < 0 ? 'rouge' : 'vert') + '">' + dt(tv - td) + '</b></div></div>' +
+      '<div class="chiffres"><div class="c-dep"><span>Dépenses</span><b>−' + dt0(td) + '</b></div><div class="c-rec"><span>Argent reçu</span><b>+' + dt0(tv) + '</b></div><div><span>Écart semaine</span><b>' + (tv - td > 0 ? '+' : '') + dt0(tv - td) + '</b></div></div>' +
       '<div class="carte"><h2>Dépenses <span class="n">' + dep.length + '</span></h2>' + (dep.length || ver.length ? '<p class="imput" style="margin-top:-4px">Touchez une ligne pour la modifier, ou la corbeille pour la supprimer.</p>' : '') + (dep.length ? Object.keys(groupes).sort().map(function (k) {
         var g = groupes[k];
         return '<div class="groupe"><span>' + esc(k) + '</span><span>' + dt(somme(g, 'montant')) + '</span></div><ul class="liste">' + g.map(function (x) {
           var lo = lot(x.lot_id);
-          return '<li><button type="button" class="ed" data-dep="' + x.id + '"><span class="q"><b>' + esc(x.detail || x.poste) + (x.photo ? ' 📎' : '') + '</b><span>' + court(x.date) + (lo ? ' · ' + esc(lo.code.replace('LOT ', 'Lot ')) : '') + (x.paye_par !== 'Caisse' ? ' · payé par ' + esc(x.paye_par) : '') + '</span></span><span class="m">' + dt(x.montant) + '</span></button>' + btnSuppr(x) + '</li>';
+          return ligneSaisie(x, 'dep', false);
         }).join('') + '</ul>';
       }).join('') : '<p class="vide">Aucune dépense cette semaine.</p>') + '</div>' +
       '<div class="carte"><h2>Argent reçu <span class="n">' + ver.length + '</span></h2>' + (ver.length ? '<ul class="liste">' + ver.map(function (x) {
-        return '<li><button type="button" class="ed" data-ver="' + x.id + '"><span class="q"><b>' + esc(x.libelle || 'Argent reçu') + '</b><span>' + court(x.date) + '</span></span><span class="m">' + dt(x.montant) + '</span></button>' + btnSuppr(x) + '</li>';
+        return ligneSaisie(x, 'ver');
       }).join('') + '</ul>' : '<p class="vide">Rien cette semaine.</p>') + '</div>' +
       (caisse() > 0.5 && deb === lundi(auj()) ? '<div class="carte avert"><h2>Reste en caisse : ' + dt(caisse()) + '</h2><p class="imput" style="margin-top:0">En fin de semaine, le reste est remis à Haikel pour les petites dépenses : la caisse repart à 0.</p><button class="btn" type="button" data-solder>Remettre ' + dt(caisse()) + ' à Haikel</button></div>' : '') +
       '<button class="btn btn--clair" type="button" data-csv>Exporter la semaine (Excel)</button>';
@@ -472,7 +506,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
           '<div class="det">' + (l.remarque ? '<p>' + esc(l.remarque) + '</p>' : '') +
             '<p>Payé au départ (fichier) : <b>' + dt(l.paye_initial) + '</b> · saisi ici : <b>' + dt(somme(deps, 'montant')) + '</b></p>' +
             (lg.length ? '<p class="sous-titre">Détail du budget</p><ul class="liste">' + lg.map(function (x) { return '<li><span class="q"><b>' + esc([x.libelle, x.detail].filter(Boolean).join(' · ') || '—') + '</b><span>' + esc(x.remarque || '') + (x.paye_par ? ' · payé par ' + esc(x.paye_par) : '') + '</span></span><span class="m">' + dt(x.paye) + ' / ' + dt(x.marche) + '</span></li>'; }).join('') + '</ul>' : '') +
-            (deps.length ? '<p class="sous-titre">Dépenses saisies</p><ul class="liste">' + deps.slice(0, 8).map(function (x) { return '<li><span class="q"><b>' + esc(x.detail || x.poste) + '</b><span>' + court(x.date) + ' · ' + esc(x.poste) + '</span></span><span class="m">' + dt(x.montant) + '</span></li>'; }).join('') + '</ul>' : '') +
+            (deps.length ? '<p class="sous-titre">Dépenses saisies</p><ul class="liste">' + deps.slice(0, 8).map(function (x) { return '<li class="ls dep"><span class="ico">' + ICO_DEP + '</span><span class="q"><b>' + esc(x.detail || x.poste) + '</b><span>' + esc(cap(x.poste)) + ' · ' + jour(x.date) + '</span></span><span class="m">−' + dt(x.montant) + '</span></li>'; }).join('') + '</ul>' : '') +
             (S.role === 'admin' ? '<button class="btn btn--clair btn--petit" type="button" data-lot="' + l.id + '" style="margin-top:10px">Modifier le marché / payé</button>' : '') +
           '</div></details>';
       }).join('') + '</div>' +
@@ -574,9 +608,9 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
         '<div><span>À rembourser</span><b>' + dt0(dus) + '</b><small>avancé de leur poche</small></div>' +
       '</div>' +
       (al.length ? '<div class="carte avert"><h2>À surveiller <span class="n">' + al.length + '</span></h2>' + al.map(function (a) { return '<div class="alerte"><i class="' + a[0] + '">!</i><span>' + esc(a[1]) + '</span></div>'; }).join('') + '</div>' : '<div class="carte"><h2>À surveiller</h2><p class="vide" style="padding:4px 0">Rien à signaler.</p></div>') +
-      '<div class="carte graph"><h2>Dépenses par semaine</h2>' + (n ? graphSemaines(sem.slice(-12)) + '<p class="info" id="g-info">Touchez une barre pour le détail. En orange : la semaine en cours.</p>' : '<p class="vide">Aucune dépense.</p>') + '</div>' +
-      '<div class="carte"><h2>Caisse semaine par semaine</h2><table class="tab"><thead><tr><th>Semaine</th><th>Reçu</th><th>Dépensé</th><th>Reste</th><th>Caisse</th></tr></thead><tbody>' +
-        sem.slice(-12).reverse().map(function (x) { return '<tr><td>S' + x.num + ' <span style="color:var(--doux)">' + court(x.lundi) + '</span></td><td>' + nf.format(Math.round(x.rec)) + '</td><td>' + nf.format(Math.round(x.dep)) + '</td><td class="' + (x.reste < 0 ? 'rouge' : '') + '">' + (x.reste > 0 ? '+' : '') + nf.format(Math.round(x.reste)) + '</td><td class="' + (x.solde < 0 ? 'rouge' : '') + '">' + nf.format(Math.round(x.solde)) + '</td></tr>'; }).join('') +
+      '<div class="carte graph"><h2>Dépenses par semaine</h2>' + (n ? graphSemaines(sem.slice(-12)) + '<p class="info" id="g-info">Touchez une barre pour le détail. Plus clair : la semaine en cours.</p>' : '<p class="vide">Aucune dépense.</p>') + '</div>' +
+      '<div class="carte"><h2>Caisse semaine par semaine</h2><table class="tab"><thead><tr><th>Semaine</th><th class="t-rec">Reçu</th><th class="t-dep">Dépensé</th><th>Reste</th><th>Caisse</th></tr></thead><tbody>' +
+        sem.slice(-12).reverse().map(function (x) { return '<tr><td>S' + x.num + ' <span style="color:var(--doux)">' + court(x.lundi) + '</span></td><td class="t-rec">' + (x.rec ? '+' + nf.format(Math.round(x.rec)) : '–') + '</td><td class="t-dep">' + (x.dep ? '−' + nf.format(Math.round(x.dep)) : '–') + '</td><td class="' + (x.reste < 0 ? 'rouge' : '') + '">' + (x.reste > 0 ? '+' : '') + nf.format(Math.round(x.reste)) + '</td><td class="' + (x.solde < 0 ? 'rouge' : '') + '">' + nf.format(Math.round(x.solde)) + '</td></tr>'; }).join('') +
       '</tbody></table><p class="imput">En DT. Reste = argent reçu − dépenses payées par la caisse. Il est remis à Haikel en fin de semaine (poste « Haikel (petites dépenses) »), la caisse repart alors à 0.</p></div>' +
       '<div class="seg no-print" style="grid-template-columns:repeat(3,1fr)">' + [['4', '4 semaines'], ['12', '12 semaines'], ['tout', 'Depuis le début']].map(function (x) { return '<button type="button" data-per="' + x[0] + '" aria-pressed="' + (per === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
       '<div class="carte"><h2>Où part l\'argent (par poste)</h2>' + (postesAff.length ? barresH(postesAff, postesAff[0].total, function (x) { return x.n ? x.n + ' dépense(s)' : ''; }) : '<p class="vide">Aucune dépense sur la période.</p>') + '<p class="imput">Total période : <b>' + dt(somme(dp, 'montant')) + '</b></p></div>' +
