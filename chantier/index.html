@@ -301,7 +301,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
     return '<div class="postes" role="group" aria-label="Poste">' + freq.map(b).join('') + '</div>' +
       (autres.length ? '<details style="margin-top:10px"' + (choisi ? ' open' : '') + '><summary class="lien" style="cursor:pointer">Autres postes (' + autres.length + ')</summary><div class="postes" style="margin-top:10px">' + autres.map(b).join('') + '</div></details>' : '');
   }
-  function cap(s) { s = String(s || '').toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function cap(s) { s = String(s || '').trim(); if (s === s.toUpperCase()) s = s.toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
 
   // Reprendre les paiements réguliers de la semaine précédente (salaires de l'équipe…)
   // Dernières saisies : modifier ou supprimer en un geste
