@@ -161,7 +161,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
   function rendre() {
     var c = caisse();
     app.innerHTML = '<header class="tete"><h1>Chantier · Dépenses</h1><div class="sous">' + (S.role === 'admin' ? 'Accès administrateur' : 'Saisie des dépenses') + '</div>' +
-      '<div class="caisse"><span>Argent en caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '" style="color:' + (c < 0 ? '#FFB4AB' : '#fff') + '">' + dt(c) + '</b></div></header>' +
+      '<div class="caisse"><span>Caisse chez Haikel</span><b class="' + (c < 0 ? 'rouge' : '') + '" style="color:' + (c < 0 ? '#FFB4AB' : '#fff') + '">' + dt(c) + '</b></div></header>' +
       '<main><section class="vue" id="v-saisir"></section><section class="vue" id="v-semaine" hidden></section><section class="vue" id="v-global" hidden></section><section class="vue" id="v-rapport" hidden></section></main>' +
       '<nav class="bas">' + [['saisir', 'Saisir'], ['semaine', 'Semaine'], ['global', 'Budget'], ['rapport', 'Rapport']].map(function (x) {
         return '<button type="button" data-vue="' + x[0] + '"' + (S.vue === x[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24">' + ICON[x[0]] + '</svg>' + x[1] + '</button>';
@@ -400,7 +400,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
       var rec = somme(S.versements.filter(function (x) { return x.date >= w && x.date <= fin; }), 'montant');
       var depCaisse = somme(dep.filter(function (x) { return x.paye_par === 'Caisse'; }), 'montant');
       solde += rec - depCaisse;
-      t.push({ lundi: w, num: numSemaine(w), dep: somme(dep, 'montant'), rec: rec, solde: solde, n: dep.length });
+      t.push({ lundi: w, num: numSemaine(w), dep: somme(dep, 'montant'), rec: rec, reste: rec - depCaisse, solde: solde, n: dep.length });
     }
     return t;
   }
@@ -468,7 +468,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
       '<div class="kpi">' +
         '<div class="large"><span>Avancement financier</span><b>' + (M ? Math.round(P / M * 100) : 0) + ' % payé</b><div class="barre" style="height:10px"><i style="width:' + (M ? Math.min(100, P / M * 100) : 0) + '%"></i></div><small>' + dt(P) + ' payés sur ' + dt(M) + '</small></div>' +
         '<div><span>Reste à payer</span><b>' + dt(R) + '</b><small>sur ' + S.lots.length + ' lots</small></div>' +
-        '<div><span>Argent en caisse</span><b class="' + (c < 0 ? 'rouge' : '') + '">' + dt(c) + '</b><small>' + (autonomie != null ? 'env. ' + (autonomie < 10 ? nf.format(Math.round(autonomie * 10) / 10) : Math.round(autonomie)) + ' sem. au rythme moyen' : (c < 0 ? 'à renflouer' : '—')) + '</small></div>' +
+        '<div><span>Caisse chez Haikel</span><b class="' + (c < 0 ? 'rouge' : '') + '">' + dt(c) + '</b><small>' + (autonomie != null ? 'env. ' + (autonomie < 10 ? nf.format(Math.round(autonomie * 10) / 10) : Math.round(autonomie)) + ' sem. au rythme moyen' : (c < 0 ? 'à renflouer' : '—')) + '</small></div>' +
         '<div><span>Dépensé S' + cur.num + ' (en cours)</span><b>' + dt(cur.dep) + '</b><small>' + (evol == null ? '—' : (evol > 0 ? '+' : '') + evol + ' % vs S' + prec.num) + '</small></div>' +
         '<div><span>Moyenne par semaine</span><b>' + dt(moy) + '</b><small>' + (finies.length ? finies.length + ' dernière(s) semaine(s) finie(s)' : 'pas encore de semaine finie') + '</small></div>' +
         '<div><span>Total dépensé (saisies)</span><b>' + dt(somme(S.depenses, 'montant')) + '</b><small>' + S.depenses.length + ' dépenses</small></div>' +
@@ -476,9 +476,9 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
       '</div>' +
       (al.length ? '<div class="carte" style="border-color:var(--acc)"><h2>À surveiller (' + al.length + ')</h2>' + al.map(function (a) { return '<div class="alerte"><i class="' + a[0] + '">!</i><span>' + esc(a[1]) + '</span></div>'; }).join('') + '</div>' : '<div class="carte"><h2>À surveiller</h2><p class="vide" style="padding:4px 0">Rien à signaler.</p></div>') +
       '<div class="carte graph"><h2>Dépenses par semaine</h2>' + (n ? graphSemaines(sem.slice(-12)) + '<p class="info" id="g-info">Touchez une barre pour le détail. En orange : la semaine en cours.</p>' : '<p class="vide">Aucune dépense.</p>') + '</div>' +
-      '<div class="carte"><h2>Caisse semaine par semaine</h2><table class="tab"><thead><tr><th>Semaine</th><th>Reçu</th><th>Dépensé</th><th>Caisse fin</th></tr></thead><tbody>' +
-        sem.slice(-12).reverse().map(function (x) { return '<tr><td>S' + x.num + ' <span style="color:var(--doux)">' + court(x.lundi) + '</span></td><td>' + nf.format(Math.round(x.rec)) + '</td><td>' + nf.format(Math.round(x.dep)) + '</td><td class="' + (x.solde < 0 ? 'rouge' : '') + '">' + nf.format(Math.round(x.solde)) + '</td></tr>'; }).join('') +
-      '</tbody></table><p class="imput">En DT. « Dépensé » compte toutes les dépenses ; la caisse ne baisse que de celles payées par la caisse.</p></div>' +
+      '<div class="carte"><h2>Caisse semaine par semaine</h2><table class="tab"><thead><tr><th>Semaine</th><th>Reçu</th><th>Dépensé</th><th>Reste</th><th>Caisse</th></tr></thead><tbody>' +
+        sem.slice(-12).reverse().map(function (x) { return '<tr><td>S' + x.num + ' <span style="color:var(--doux)">' + court(x.lundi) + '</span></td><td>' + nf.format(Math.round(x.rec)) + '</td><td>' + nf.format(Math.round(x.dep)) + '</td><td class="' + (x.reste < 0 ? 'rouge' : '') + '">' + (x.reste > 0 ? '+' : '') + nf.format(Math.round(x.reste)) + '</td><td class="' + (x.solde < 0 ? 'rouge' : '') + '">' + nf.format(Math.round(x.solde)) + '</td></tr>'; }).join('') +
+      '</tbody></table><p class="imput">En DT. Reste = argent reçu − dépenses payées par la caisse de la semaine ; il reste chez Haikel pour les petites dépenses. Caisse = ce qu\'il a en main en fin de semaine.</p></div>' +
       '<div class="seg no-print" style="grid-template-columns:repeat(3,1fr)">' + [['4', '4 semaines'], ['12', '12 semaines'], ['tout', 'Depuis le début']].map(function (x) { return '<button type="button" data-per="' + x[0] + '" aria-pressed="' + (per === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
       '<div class="carte"><h2>Où part l\'argent (par poste)</h2>' + (postesAff.length ? barresH(postesAff, postesAff[0].total, function (x) { return x.n ? x.n + ' dépense(s)' : ''; }) : '<p class="vide">Aucune dépense sur la période.</p>') + '<p class="imput">Total période : <b>' + dt(somme(dp, 'montant')) + '</b></p></div>' +
       '<div class="carte"><h2>Qui a été payé (top 10)</h2>' + (gens.length ? barresH(gens.slice(0, 10), gens[0].total, function (x) { return Object.keys(x.postes).join(', ') + ' · ' + x.n + ' paiement(s)'; }) : '<p class="vide">Aucune dépense sur la période.</p>') + '</div>' +
@@ -495,7 +495,7 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;color:var(--vert)}
       if ((b = e.target.closest('[data-i]')) && info) {
         var x = aff[Number(b.dataset.i)];
         v.querySelectorAll('.graph .bar').forEach(function (p) { p.classList.toggle('sel', p.dataset.i === b.dataset.i); });
-        info.innerHTML = '<b>S' + x.num + '</b> (du ' + court(x.lundi) + ' au ' + court(plusJours(x.lundi, 6)) + ') : dépensé <b>' + dt(x.dep) + '</b> en ' + x.n + ' ligne(s) · reçu ' + dt(x.rec) + ' · caisse fin ' + dt(x.solde);
+        info.innerHTML = '<b>S' + x.num + '</b> (du ' + court(x.lundi) + ' au ' + court(plusJours(x.lundi, 6)) + ') : dépensé <b>' + dt(x.dep) + '</b> en ' + x.n + ' ligne(s) · reçu ' + dt(x.rec) + ' · reste ' + dt(x.reste) + ' · caisse ' + dt(x.solde);
       }
     };
   }
