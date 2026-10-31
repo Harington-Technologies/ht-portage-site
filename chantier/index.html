@@ -655,6 +655,24 @@ dialog .in{padding:18px}dialog h3{margin:0 0 4px;font-weight:600;font-size:17px}
     });
   }
 
+  // ---------- mise à jour automatique ----------
+  // Le téléphone garde la page en mémoire : on compare avec version.txt et on recharge si une nouvelle version est en ligne.
+  var VERSION = '202610311447';
+  async function verifierVersion() {
+    try {
+      var r = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      var v = (await r.text()).trim();
+      if (!v || v === VERSION) return;
+      var k = 'chantier-maj-' + v, n = 0;
+      try { n = Number(sessionStorage.getItem(k)) || 0; sessionStorage.setItem(k, n + 1); } catch (e) { /* rien */ }
+      if (n < 2) location.replace(location.pathname + '?v=' + encodeURIComponent(v));
+    } catch (e) { /* hors ligne : on garde la version actuelle */ }
+  }
+  verifierVersion();
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) verifierVersion(); });
+  setInterval(verifierVersion, 5 * 60 * 1000);
+
   // ---------- démarrage ----------
   (async function () {
     if (!S.code) return ecranAcces();
