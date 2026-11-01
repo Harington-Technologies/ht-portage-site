@@ -336,7 +336,7 @@
       var enCours = lies.some(function (d) { return d.statut === 'a_signer'; });
       if (!confirm('Supprimer la mission « ' + mi.intitule + ' »' + (mi.client ? ' (' + mi.client + ')' : '') + ' ?' +
         (lies.length ? '\n\n' + lies.length + ' document(s) liés seront conservés, sans mission.' : '') +
-        (enCours ? '\n\nAttention : une signature Yousign est en cours pour cette mission ; annulez-la aussi dans Yousign.' : '') + '\n\nCette action est irréversible.')) return;
+        (enCours ? '\n\nAttention : une signature électronique est en cours pour cette mission ; annulez-la aussi dans Firma.' : '') + '\n\nCette action est irréversible.')) return;
       var r = await db.from('consultant_missions').delete().eq('id', mi.id);
       if (r.error) { alert(E.errText(r.error)); return; }
       if (fm.edit_id.value === mi.id) reinitMission();
@@ -356,7 +356,7 @@
     if (b.dataset.supprDoc) {
       var doc = ficheData.docs.find(function (x) { return x.id === b.dataset.supprDoc; }); if (!doc) return;
       if (!confirm('Supprimer le document « ' + doc.titre + ' » ?\n\nIl disparaîtra de l\'espace du consultant et le fichier sera effacé.' +
-        (doc.statut === 'a_signer' ? '\n\nAttention : une signature Yousign est en cours ; annulez-la aussi dans Yousign.' : '') + '\n\nCette action est irréversible.')) return;
+        (doc.statut === 'a_signer' ? '\n\nAttention : une signature électronique est en cours ; annulez-la aussi dans Firma.' : '') + '\n\nCette action est irréversible.')) return;
       var rd = await db.from('documents').delete().eq('id', doc.id);
       if (rd.error) { alert(E.errText(rd.error)); return; }
       if (doc.storage_path) await db.storage.from('documents').remove([doc.storage_path]);
@@ -560,7 +560,7 @@
     var annexe = actifs.find(function (d) { return d.type === 'annexe' && d.mission_id === m.id; });
     var enAttente = actifs.filter(function (d) { return d.statut === 'a_signer'; });
     var probleme = !annexe && sesDocs.some(function (d) { return d.mission_id === m.id && ['refuse', 'annule'].indexOf(d.statut) >= 0; });
-    // Une mission active ou terminée sans annexe Yousign a été contractualisée hors de l'espace : rien à envoyer
+    // Une mission active ou terminée sans annexe signée en ligne a été contractualisée hors de l'espace : rien à envoyer
     var cle = !annexe ? (m.statut === 'validee' ? 'a_envoyer' : 'signe') : enAttente.length ? 'en_attente' : 'signe';
     var envoye = enAttente.reduce(function (a, d) { return !a || d.envoye_le < a ? d.envoye_le : a; }, null);
     return { cle: cle, docs: sesDocs, probleme: probleme, envoye: envoye };
@@ -767,9 +767,9 @@
     var b = e.target.closest('[data-contrat]');
     if (!b) return;
     var art = b.closest('[data-mission]'), status = art.querySelector('.form-status');
-    if (b.dataset.contrat === 'envoyer' && !confirm('Envoyer les contrats en signature ? Le consultant, le client et vous recevrez en même temps un e-mail de Yousign pour signer.')) return;
+    if (b.dataset.contrat === 'envoyer' && !confirm('Envoyer les contrats en signature ? Le consultant, le client et vous recevrez en même temps un e-mail de Firma (signature électronique) pour signer.')) return;
     art.querySelectorAll('[data-contrat]').forEach(function (x) { x.disabled = true; });
-    E.setStatus(status, b.dataset.contrat === 'apercu' ? 'Génération des contrats…' : 'Envoi à Yousign…');
+    E.setStatus(status, b.dataset.contrat === 'apercu' ? 'Génération des contrats…' : 'Envoi en signature…');
     try {
       var data = await appelContrats(art.dataset.mission, b.dataset.contrat);
       if (b.dataset.contrat === 'apercu') {

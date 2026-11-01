@@ -8,7 +8,7 @@ const {
 
 const C = { navy: '21324E', navy7: '304870', rose: 'C187A1', rose50: 'F3E6EC', plum: '784E61', slate: '435B7B', ink: '1B1C1C', muted: '4A5468', bg: 'F1F4F7', line: 'D7D7D7' };
 const FONT = 'Open Sans';
-const MODELE = process.env.MODE === 'modele'; // modele = balises [[champ]] + ancres de signature Yousign
+const MODELE = process.env.MODE === 'modele'; // modele = balises [[champ]] + ancres de signature (Firma)
 const TUILE = fs.readFileSync(__dirname + '/logo/tuile.png');
 const MONO_BLANC = fs.readFileSync(__dirname + '/logo/HT-Portage_monogramme_blanc.png');
 const W = 9638; // largeur utile A4 avec marges de 2 cm (11906 - 2*1134)

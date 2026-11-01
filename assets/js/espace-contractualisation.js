@@ -75,7 +75,7 @@
       zone.innerHTML = formulaire(enCours);
     } else {
       zone.innerHTML = '<div class="alerte alerte--info" role="status"><strong>Votre dernière mission a été validée' + (derniereValidee.validee_le ? ' le ' + E.date(derniereValidee.validee_le) : '') + '</strong>' +
-        '<span>' + esc(derniereValidee.intitule) + (derniereValidee.client ? ' · ' + esc(derniereValidee.client) : '') + '. ' + (signe ? 'Vos contrats sont signés : retrouvez-les dans « Contrats et missions ».' : aSigner ? 'Vos contrats vous ont été envoyés par e-mail par Yousign : signez-les depuis le lien reçu (pensez à vérifier vos courriers indésirables).' : 'Vos contrats sont en préparation : vous les recevrez par e-mail pour signature.') + '</span></div>' +
+        '<span>' + esc(derniereValidee.intitule) + (derniereValidee.client ? ' · ' + esc(derniereValidee.client) : '') + '. ' + (signe ? 'Vos contrats sont signés : retrouvez-les dans « Contrats et missions ».' : aSigner ? 'Vos contrats vous ont été envoyés par e-mail par Firma, notre service de signature électronique : signez-les depuis le lien reçu (pensez à vérifier vos courriers indésirables).' : 'Vos contrats sont en préparation : vous les recevrez par e-mail pour signature.') + '</span></div>' +
         '<button class="btn btn--ghost-dark btn--sm" type="button" id="btn-nouvelle" style="align-self:flex-start">Déclarer une nouvelle mission</button>';
       document.getElementById('btn-nouvelle').addEventListener('click', function () { nouveau = true; rendre(); });
     }

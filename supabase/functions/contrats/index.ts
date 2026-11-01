@@ -1,9 +1,11 @@
-// HT Portage — génération des contrats (CDI + annexe 1) et envoi en signature Yousign.
+// HT Portage — génération des contrats (CDI + annexe 1) et envoi en signature électronique (Firma.dev).
 // Appelée depuis l'administration de l'espace (utilisateur connecté et administrateur).
 //   POST { mission_id, action: "apercu" }  → renvoie les .docx remplis (base64) pour relecture
-//   POST { mission_id, action: "envoyer" } → crée les demandes de signature Yousign
+//   POST { mission_id, action: "envoyer" } → crée et envoie les demandes de signature Firma
 //
-// Secrets : YOUSIGN_API_KEY, YOUSIGN_ENV ("sandbox" | "production"), MODELES_URL (facultatif).
+// Secrets : FIRMA_API_KEY (clé de l'espace de travail Firma ; une clé de test produit des documents filigranés),
+//           MODELES_URL (facultatif).
+// Les identifiants Firma sont rangés dans les colonnes documents.yousign_sr_id / yousign_statut (noms historiques).
 // SUPABASE_URL et la clé serveur sont fournis par Supabase.
 // Déploiement : « Verify JWT » désactivé — l'identité est vérifiée dans la fonction (getUser + table admins).
 
@@ -16,10 +18,9 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const YS_KEY = Deno.env.get("YOUSIGN_API_KEY") ?? "";
-const YS_URL = Deno.env.get("YOUSIGN_ENV") === "production" ? "https://api.yousign.app/v3" : "https://api-sandbox.yousign.app/v3";
+const FIRMA_KEY = Deno.env.get("FIRMA_API_KEY") ?? "";
+const FIRMA_URL = "https://api.firma.dev/functions/v1/signing-request-api";
 const MODELES_URL = Deno.env.get("MODELES_URL") ?? "https://raw.githubusercontent.com/Harington-Technologies/ht-portage-site/main/contrats/modeles/";
-const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function serverKey(): string {
   const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -106,81 +107,42 @@ export function remplir(modele: ArrayBuffer, donnees: Record<string, string>): U
   return doc.getZip().generate({ type: "uint8array", compression: "DEFLATE" });
 }
 
-async function ys(path: string, init: RequestInit = {}) {
-  const r = await fetch(YS_URL + path, { ...init, headers: { Authorization: "Bearer " + YS_KEY, ...(init.headers ?? {}) } });
+async function firma(path: string, init: RequestInit = {}) {
+  const r = await fetch(FIRMA_URL + path, { ...init, headers: { Authorization: FIRMA_KEY, ...(init.headers ?? {}) } });
   const txt = await r.text();
-  if (!r.ok) throw new Error("Yousign " + (init.method ?? "GET") + " " + path + " → " + r.status + " " + txt.slice(0, 300));
+  if (!r.ok) throw new Error("Firma " + (init.method ?? "GET") + " " + path + " → " + r.status + " " + txt.slice(0, 300));
   return txt ? JSON.parse(txt) : {};
 }
 
-type Signataire = { first_name: string; last_name: string; email: string; texte?: { request_subject: string; request_body: string; reminder_subject: string; reminder_body: string } };
+type Signataire = { first_name: string; last_name: string; email: string; ancre: string };
 
-// Textes des e-mails Yousign (texte brut, sans HTML ; insérés dans l'e-mail standard Yousign)
-const SIGNATURE_MAIL = "\n\nBien cordialement,\nService Administratif HT PORTAGE\ncontact@htportage.fr · www.htportage.fr";
-export function textesInvitation(role: "consultant" | "client" | "htp", doc: "cdi" | "annexe", o: { prenom?: string; consultant: string; client?: string; numero?: string }) {
-  const bj = "Bonjour" + (o.prenom ? " " + o.prenom : "") + ",\n\n";
-  const ref = o.numero ? " (réf. " + o.numero + ")" : "";
-  let sujet = "", corps = "";
-  if (doc === "cdi") {
-    if (role === "consultant") {
-      sujet = "HT Portage — votre contrat de travail à signer";
-      corps = bj + "Nous avons le plaisir de vous adresser votre contrat de travail à durée indéterminée en portage salarial. Nous vous invitons à le relire attentivement puis à le signer en ligne : un code de vérification vous sera envoyé par e-mail au moment de la signature.\n\nUne fois toutes les signatures recueillies, le document signé sera disponible dans votre espace consultant.";
-    } else {
-      sujet = "À signer — CDI de portage salarial de " + o.consultant;
-      corps = bj + "Le contrat de travail de " + o.consultant + " est prêt à être signé pour HT Portage.";
-    }
-  } else if (role === "consultant") {
-    sujet = "HT Portage — l'annexe de votre mission chez " + (o.client || "votre client") + " à signer";
-    corps = bj + "Votre mission chez " + (o.client || "votre client") + ref + " a été validée. Voici l'annexe à votre contrat de travail, qui en précise les conditions. Merci de la relire puis de la signer en ligne. Votre client et HT Portage la signent en parallèle.";
-  } else if (role === "client") {
-    sujet = "HT Portage — conditions de la mission de " + o.consultant + " à signer";
-    corps = bj + "Dans le cadre de la mission de " + o.consultant + " au sein de " + (o.client || "votre société") + ref + ", HT Portage vous adresse le document fixant les conditions de la prestation. Nous vous remercions de bien vouloir le signer en ligne : un code de vérification vous sera envoyé par e-mail au moment de la signature.\n\nPour toute question, notre équipe reste à votre disposition à l'adresse contact@htportage.fr.";
-  } else {
-    sujet = "À signer — annexe de mission " + o.consultant + (o.client ? " · " + o.client : "");
-    corps = bj + "L'annexe de la mission de " + o.consultant + (o.client ? " chez " + o.client : "") + ref + " est prête à être signée pour HT Portage.";
-  }
-  const rappel = (o.prenom ? "Bonjour " + o.prenom + ",\n\n" : "Bonjour,\n\n") + "Petit rappel : un document HT Portage est toujours en attente de votre signature. La signature en ligne ne prend que quelques minutes.";
-  return { request_subject: sujet.slice(0, 150), request_body: (corps + SIGNATURE_MAIL).slice(0, 1000), reminder_subject: ("Rappel : " + sujet).slice(0, 150), reminder_body: (rappel + SIGNATURE_MAIL).slice(0, 1000) };
+// Demande de signature Firma : le .docx rempli, les signataires (tous en même temps) et une zone de signature
+// posée sur chaque repère {{sN|signature|l|h}} du modèle (texte blanc, effacé par Firma).
+export function corpsDemande(nom: string, fichier: string, signataires: Signataire[], externalId: string) {
+  return {
+    name: nom.slice(0, 255),
+    description: "HT Portage · " + externalId,
+    document: fichier,
+    language: "fr",
+    expiration_hours: 14 * 24,
+    reminders: [{ hours_before_expiration: 7 * 24 }, { hours_before_expiration: 48 }],
+    recipients: signataires.map((s, i) => ({
+      id: "temp_" + (i + 1), first_name: s.first_name, last_name: s.last_name, email: s.email, designation: "Signer", order: i + 1,
+    })),
+    anchor_tags: signataires.map((s, i) => ({ anchor_string: s.ancre, type: "signature", recipient_id: "temp_" + (i + 1), case_sensitive: true, match_whole_word: false })),
+    settings: { use_signing_order: false, allow_decline: true },
+    completion_title: "Merci, votre signature est enregistrée",
+    completion_message: "Le document signé par toutes les parties vous sera envoyé par e-mail. Il sera aussi disponible dans votre espace HT Portage. Pour toute question : contact@htportage.fr",
+  };
 }
 
-async function creerDemande(nom: string, externalId: string) {
-  const base = { name: nom, delivery_mode: "email", ordered_signers: false, timezone: "Europe/Paris", external_id: externalId };
-  // Personnalisation : expéditeur « Service Administratif HT PORTAGE » + relances tous les 2 jours (3 max).
-  // Si l'offre Yousign ne permet pas une option, on réessaie sans elle plutôt que de bloquer l'envoi.
-  const essais = [
-    { ...base, email_notification: { sender: { type: "custom", custom_name: "HT PORTAGE" } }, reminder_settings: { interval_in_days: 2, max_occurrences: 3 } },
-    { ...base, reminder_settings: { interval_in_days: 2, max_occurrences: 3 } },
-    base,
-  ];
-  let derniere: unknown;
-  for (const corps of essais) {
-    try {
-      return await ys("/signature_requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
-    } catch (e) { derniere = e; console.warn("Création demande Yousign, nouvel essai sans option :", (e as Error).message); }
-  }
-  throw derniere;
-}
-
-async function envoyerYousign(nom: string, fichier: Uint8Array, nomFichier: string, signataires: Signataire[], externalId: string) {
-  const sr = await creerDemande(nom, externalId);
-  const fd = new FormData();
-  fd.append("file", new Blob([fichier], { type: DOCX }), nomFichier);
-  fd.append("nature", "signable_document");
-  fd.append("parse_anchors", "true");
-  const doc = await ys("/signature_requests/" + sr.id + "/documents", { method: "POST", body: fd });
-  if (!doc.total_anchors) throw new Error("Aucune zone de signature détectée dans " + nomFichier);
-  for (const s of signataires) {
-    const { texte, ...info } = s;
-    const corps = { info: { ...info, locale: "fr" }, signature_level: "electronic_signature", signature_authentication_mode: "otp_email" };
-    try {
-      await ys("/signature_requests/" + sr.id + "/signers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(texte ? { ...corps, custom_text: texte } : corps) });
-    } catch (e) {
-      if (!texte) throw e;
-      console.warn("Texte personnalisé refusé, signataire ajouté sans :", (e as Error).message);
-      await ys("/signature_requests/" + sr.id + "/signers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
-    }
-  }
-  await ys("/signature_requests/" + sr.id + "/activate", { method: "POST" });
+async function envoyerFirma(nom: string, fichier: Uint8Array, signataires: Signataire[], externalId: string) {
+  const sr = await firma("/signing-requests/create-and-send", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(corpsDemande(nom, b64(fichier), signataires, externalId)),
+  });
+  if (!sr.id) throw new Error("Firma : réponse sans identifiant de demande");
+  if (sr.warnings?.length) console.warn("Firma", sr.id, JSON.stringify(sr.warnings));
   return sr.id as string;
 }
 
@@ -251,23 +213,22 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
       return json({ fichiers: fichiers.map((f) => ({ nom: f.nom, type: f.type, base64: b64(f.contenu) })) });
     }
 
-    // 4. Envoi Yousign : CDI (consultant + HT Portage) et annexe (consultant + client + HT Portage), séparément, tous les signataires en même temps
-    if (!YS_KEY) return json({ erreur: "Clé Yousign absente (secret YOUSIGN_API_KEY)." }, 500);
+    // 4. Envoi Firma : CDI (consultant + HT Portage) et annexe (consultant + client + HT Portage), séparément, tous les signataires en même temps
+    if (!FIRMA_KEY) return json({ erreur: "Clé Firma absente (secret FIRMA_API_KEY)." }, 500);
     const consultant = { ...decouperNom(nomComplet(p)), first_name: p.prenom, last_name: p.nom, email: p.email };
     const client = { ...decouperNom(m.client_representant), email: m.client_signataire_email };
     const htpNom = decouperNom(nomComplet(htp ?? {}) || "HT Portage");
     const signataireHtp = { ...htpNom, email: htp?.email ?? u.user.email ?? "" };
     const resultats = [];
-    const ctx = { consultant: nomComplet(p), client: m.client || "", numero: m.numero_contrat || "" };
     for (const f of fichiers) {
-      const t = (role: "consultant" | "client" | "htp", prenom?: string) => textesInvitation(role, f.type as "cdi" | "annexe", { ...ctx, prenom });
+      // Repères des modèles : CDI = s1 consultant, s2 HT Portage · Annexe = s1 consultant, s2 client, s3 HT Portage
       const signataires: Signataire[] = f.type === "cdi"
-        ? [{ ...consultant, texte: t("consultant", p.prenom) }, { ...signataireHtp, texte: t("htp", signataireHtp.first_name) }]
-        : [{ ...consultant, texte: t("consultant", p.prenom) }, { ...client, texte: t("client", client.first_name) }, { ...signataireHtp, texte: t("htp", signataireHtp.first_name) }];
-      const srId = await envoyerYousign(f.titre + " · " + nomComplet(p), f.contenu, f.nom, signataires, f.type + "-" + m.id);
+        ? [{ ...consultant, ancre: "{{s1|signature|180|70}}" }, { ...signataireHtp, ancre: "{{s2|signature|180|70}}" }]
+        : [{ ...consultant, ancre: "{{s1|signature|150|70}}" }, { ...client, ancre: "{{s2|signature|150|70}}" }, { ...signataireHtp, ancre: "{{s3|signature|150|70}}" }];
+      const srId = await envoyerFirma(f.titre + " · " + nomComplet(p), f.contenu, signataires, f.type + "-" + m.id);
       const { error } = await admin.from("documents").insert({
         user_id: m.user_id, mission_id: m.id, type: f.type, titre: f.titre, statut: "a_signer",
-        yousign_sr_id: srId, yousign_statut: "ongoing", envoye_le: new Date().toISOString(),
+        yousign_sr_id: srId, yousign_statut: "sent", envoye_le: new Date().toISOString(),
       });
       if (error) throw new Error("Enregistrement du document : " + error.message);
       resultats.push({ type: f.type, yousign_sr_id: srId });

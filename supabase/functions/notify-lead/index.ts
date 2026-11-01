@@ -207,7 +207,7 @@ async function mission(payload: { type?: string; record?: Record<string, unknown
       corps: bonjour +
         `<p style="margin:0 0 14px">Bonne nouvelle : votre dossier de contractualisation a été validé par nos équipes${r.numero_contrat ? ` sous la référence <strong>${esc(r.numero_contrat)}</strong>` : ""}.</p>` +
         resume +
-        `<p style="margin:14px 0 0">Vous allez recevoir très prochainement, de la part de notre partenaire de signature électronique Yousign, un e-mail vous invitant à signer vos documents en ligne. Votre client recevra en parallèle l'annexe relative à la mission.</p>`,
+        `<p style="margin:14px 0 0">Vous allez recevoir très prochainement, de la part de notre partenaire de signature électronique Firma, un e-mail vous invitant à signer vos documents en ligne. Votre client recevra en parallèle l'annexe relative à la mission.</p>`,
       bouton: { texte: "Suivre mon dossier", url: `${SITE}/espace/contractualisation.html` },
     });
     return (await envoyer([p.email], "Votre dossier HT Portage est validé", html, true)) ? new Response("OK") : new Response("Email failed", { status: 502 });
