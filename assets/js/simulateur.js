@@ -43,7 +43,7 @@
     out('net-principal', eur((avecImpot ? r.netApresImpot : r.net) * m));
     var plus = document.querySelector('[data-out="plus-frais"]');
     plus.hidden = !(r.frais > 0);
-    plus.textContent = r.frais > 0 ? '+ ' + eur(r.frais * m) + ' de frais remboursés · total perçu ' + eur(r.totalPercu * m) : '';
+    plus.textContent = r.frais > 0 ? '+ ' + eur(r.frais * m) + ' de remboursement de frais · montant versé ' + eur(r.totalPercu * m) : '';
 
     out('ca', eur(r.ca * m));
     out('gestion', '− ' + eur(r.gestion * m));

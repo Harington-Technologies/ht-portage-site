@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20261031b">
+<link rel="stylesheet" href="assets/css/style.css?v=20261101a">
 <link rel="canonical" href="https://www.htportage.fr/simulateur.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Simulateur de revenus — HT Portage">
@@ -69,7 +69,7 @@
           </div>
           <input id="frais" type="range" min="0" max="2000" step="10" value="0" aria-describedby="frais-note">
           <div class="range-scale"><span>0 €</span><span id="frais-max-label">2 000 €</span></div>
-          <p class="small" id="frais-note" style="margin-top:8px">Montant mensuel remboursé sans cotisations ni impôt, selon les barèmes URSSAF. Le montant exact est défini avec votre conseiller HT Portage.</p>
+          <p class="small" id="frais-note" style="margin-top:8px">Estimation de vos dépenses réelles liées à la mission (repas, déplacements, télétravail…). Elles sont remboursées chaque mois sur justificatifs, dans le respect des règles de l'Urssaf.</p>
         </div>
         <div>
           <div class="range-head"><label for="pas">Taux de prélèvement à la source <span class="hint">(facultatif)</span></label><output id="pas-out" for="pas">—</output></div>
@@ -100,7 +100,7 @@
           <div><dt><span class="swatch" style="background: var(--on-dark-2)"></span>Cotisations sociales</dt><dd data-out="cotisations">—</dd></div>
           <div class="total"><dt><span class="swatch" style="background: var(--rose)"></span>Salaire net avant impôt</dt><dd data-out="net">—</dd></div>
           <div data-ligne="impot" hidden><dt>Prélèvement à la source</dt><dd data-out="impot">—</dd></div>
-          <div class="total" data-ligne="total"><dt>Total perçu (net + frais remboursés)</dt><dd data-out="total">—</dd></div>
+          <div class="total" data-ligne="total"><dt>Montant versé (salaire net + remboursement de vos frais)</dt><dd data-out="total">—</dd></div>
         </dl>
         <details class="calcul">
           <summary>Voir le calcul détaillé</summary>
@@ -119,8 +119,8 @@
             <div><dt>= Salaire net avant impôt</dt><dd data-out="d-net">—</dd></div>
             <div><dt>− Prélèvement à la source</dt><dd data-out="d-impot">—</dd></div>
             <div><dt>= Salaire net après impôt</dt><dd data-out="d-net-apres">—</dd></div>
-            <div><dt>+ Frais professionnels remboursés</dt><dd data-out="d-frais2">—</dd></div>
-            <div class="total"><dt>= Total perçu</dt><dd data-out="d-total">—</dd></div>
+            <div><dt>+ Remboursement des frais professionnels</dt><dd data-out="d-frais2">—</dd></div>
+            <div class="total"><dt>= Montant versé</dt><dd data-out="d-total">—</dd></div>
           </dl>
           <p class="calcul__note" data-out="alerte" hidden></p>
         </details>
@@ -136,7 +136,7 @@
       <div class="grid grid--4" style="margin-top: 40px">
         <div class="card card--flat"><h3 style="margin-top: 0">1. Votre chiffre d'affaires</h3><p>TJM × jours validés sur votre CRA. C'est le montant facturé à votre client.</p></div>
         <div class="card card--flat"><h3 style="margin-top: 0">2. Nos frais de gestion : 5 %</h3><p>C'est la seule rémunération de HT Portage : un taux fixe, sans option payante ni marge arrière. À ne pas confondre avec vos frais professionnels, qui vous sont remboursés.</p></div>
-        <div class="card card--flat"><h3 style="margin-top: 0">3. Vos frais remboursés</h3><p>Repas, déplacements, télétravail… remboursés sans cotisations ni impôt, selon les barèmes URSSAF.</p></div>
+        <div class="card card--flat"><h3 style="margin-top: 0">3. Vos frais de mission</h3><p>Repas, déplacements, télétravail… : les dépenses réellement engagées pour la mission vous sont remboursées sur justificatifs, selon les règles de l'Urssaf. Ce n'est pas un complément de salaire.</p></div>
         <div class="card card--flat"><h3 style="margin-top: 0">4. Votre salaire</h3><p>Après cotisations (retraite, chômage, santé), versé le 29-30 du mois, sans attendre le paiement client.</p></div>
       </div>
     </div>
@@ -148,8 +148,9 @@
         <h2 id="popup-frais-titre">Les frais professionnels</h2>
         <button class="popup__fermer" type="button" data-fermer aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <p>Les dépenses engagées pour votre mission vous sont remboursées sur votre chiffre d'affaires, <strong>sans cotisations sociales ni impôt sur le revenu</strong>. Elles doivent être réelles, liées à votre activité et respecter les barèmes de l'URSSAF.</p>
-      <h3>Allocations forfaitaires 2026 (plafonds URSSAF)</h3>
+      <p>Les dépenses <strong>réellement engagées pour votre mission</strong> vous sont remboursées sur votre chiffre d'affaires. Ce remboursement n'est soumis ni aux cotisations sociales ni à l'impôt sur le revenu, à condition que les frais soient <strong>réels, justifiés et nécessités par la mission</strong>, dans la limite des règles de l'Urssaf. Un remboursement qui ne correspond pas à une dépense réelle serait requalifié en salaire.</p>
+      <h3>Allocations forfaitaires 2026 (plafonds Urssaf)</h3>
+      <p class="small">Elles ne s'appliquent que si la situation est réelle : repas pris chez le client un jour travaillé, télétravail prévu avec le client, déplacement effectué…</p>
       <table class="popup__table">
         <tbody>
           <tr><th scope="row">Repas pris hors des locaux (chez le client)</th><td>10,40 € / repas</td></tr>
@@ -157,7 +158,6 @@
           <tr><th scope="row">Télétravail</th><td>2,70 € / jour, 59,40 € / mois max.</td></tr>
           <tr><th scope="row">Grand déplacement : repas</th><td>21,40 € / repas</td></tr>
           <tr><th scope="row">Grand déplacement : hôtel et petit-déjeuner</th><td>76,60 € / nuit (Paris et petite couronne), 56,80 € ailleurs</td></tr>
-          <tr><th scope="row">Vélo personnel</th><td>0,25 € / km</td></tr>
         </tbody>
       </table>
       <h3>Indemnités kilométriques (véhicule personnel)</h3>
@@ -175,9 +175,9 @@
       <p>Train, avion, taxi, péages, parking, hôtel, matériel informatique, logiciels, part professionnelle du téléphone et d'internet, formations, coworking…</p>
       <div class="popup__encart">
         <strong>Un exemple</strong>
-        <span>18 repas chez le client (187 €) + 4 jours de télétravail (11 €) + 400 km avec une 5 CV (254 €) = <strong>452 € de frais par mois</strong>, remboursés sans cotisations.</span>
+        <span>Sur 19 jours travaillés : 15 repas chez le client (156 €) + 4 jours de télétravail prévus avec le client (11 €) + 400 km avec une 5 CV pour un déplacement de mission (254 €) = <strong>421 € de dépenses dans le mois</strong>, remboursées sur justificatifs.</span>
       </div>
-      <p>Le simulateur propose un montant indicatif : votre salaire ne peut pas descendre sous le minimum de la convention du portage salarial. <strong>Le montant exact de vos frais est défini avec votre conseiller HT Portage</strong>, selon votre mission et vos déplacements réels.</p>
+      <p>Le simulateur sert seulement à estimer. <strong>Chaque mois, seuls vos frais réels, justifiés et liés à la mission sont remboursés</strong>, et votre salaire ne peut pas descendre sous le minimum de la convention du portage salarial. Votre conseiller HT Portage vous indique les justificatifs à fournir.</p>
       <div class="popup__actions"><a class="btn btn--dark" href="#simulation-detaillee" data-fermer>Faire le point avec un conseiller</a></div>
     </div>
   </dialog>
@@ -258,10 +258,10 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="assets/js/config.js?v=20261031b"></script>
-<script src="assets/js/captcha.js?v=20261031b"></script>
-<script src="assets/js/main.js?v=20261031b"></script>
-<script src="assets/js/calcul-portage.js?v=20261031b"></script>
-<script src="assets/js/simulateur.js?v=20261031b"></script>
+<script src="assets/js/config.js?v=20261101a"></script>
+<script src="assets/js/captcha.js?v=20261101a"></script>
+<script src="assets/js/main.js?v=20261101a"></script>
+<script src="assets/js/calcul-portage.js?v=20261101a"></script>
+<script src="assets/js/simulateur.js?v=20261101a"></script>
 </body>
 </html>
