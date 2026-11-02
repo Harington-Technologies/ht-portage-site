@@ -187,10 +187,11 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
       const dt = donneesContrats(fm, fp, moi, new Date().toISOString().slice(0, 10));
       const charger = async (nom: string) => { const r = await fetch(MODELES_URL + nom + "?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw new Error("Modèle introuvable : " + nom); return await r.arrayBuffer(); };
       const sig = (prenom: string, nom: string, ancre: string) => ({ first_name: prenom, last_name: nom, email, ancre });
-      const ids = [];
-      ids.push(await envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "{{sig1}}"), sig("Test", "HT Portage", "{{sig2}}")], "test-cdi"));
-      ids.push(await envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "{{sig1}}"), sig("Test", "Client", "{{sig2}}"), sig("Test", "HT Portage", "{{sig3}}")], "test-annexe"));
-      return json({ ok: true, envoyes_a: email, firma_ids: ids });
+      const res: Record<string, string> = {};
+      const essai = async (cle: string, f: () => Promise<string>) => { try { res[cle] = "envoyé (" + await f() + ")"; } catch (e) { res[cle] = "échec : " + (e as Error).message.slice(0, 300); } };
+      await essai("CDI", async () => envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "HT Portage", "HTPSIGB")], "test-cdi"));
+      await essai("Annexe", async () => envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "Client", "HTPSIGB"), sig("Test", "HT Portage", "HTPSIGC")], "test-annexe"));
+      return json({ ok: true, envoyes_a: email, resultats: res });
     }
     if (!mission_id || !["apercu", "envoyer"].includes(action)) return json({ erreur: "Requête incomplète." }, 400);
 
@@ -239,8 +240,8 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     for (const f of fichiers) {
       // Repères des modèles : CDI = s1 consultant, s2 HT Portage · Annexe = s1 consultant, s2 client, s3 HT Portage
       const signataires: Signataire[] = f.type === "cdi"
-        ? [{ ...consultant, ancre: "{{sig1}}" }, { ...signataireHtp, ancre: "{{sig2}}" }]
-        : [{ ...consultant, ancre: "{{sig1}}" }, { ...client, ancre: "{{sig2}}" }, { ...signataireHtp, ancre: "{{sig3}}" }];
+        ? [{ ...consultant, ancre: "HTPSIGA" }, { ...signataireHtp, ancre: "HTPSIGB" }]
+        : [{ ...consultant, ancre: "HTPSIGA" }, { ...client, ancre: "HTPSIGB" }, { ...signataireHtp, ancre: "HTPSIGC" }];
       const srId = await envoyerFirma(f.titre + " · " + nomComplet(p), f.contenu, signataires, f.type + "-" + m.id);
       const { error } = await admin.from("documents").insert({
         user_id: m.user_id, mission_id: m.id, type: f.type, titre: f.titre, statut: "a_signer",

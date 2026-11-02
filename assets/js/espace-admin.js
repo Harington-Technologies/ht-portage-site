@@ -628,7 +628,7 @@
     btnTestSig.disabled = true; st.textContent = 'Envoi du test à Firma…';
     try {
       var r = await appelContrats(null, 'test_signature');
-      st.textContent = 'Test envoyé à ' + r.envoyes_a + ' : 2 demandes de signature (CDI et annexe). Ouvrez les e-mails de Firma pour signer.';
+      st.textContent = 'Test (' + r.envoyes_a + ') — ' + Object.keys(r.resultats || {}).map(function (k) { return k + ' : ' + r.resultats[k]; }).join(' · ');
     } catch (e) { st.textContent = 'Échec : ' + e.message; }
     finally { btnTestSig.disabled = false; }
   });
