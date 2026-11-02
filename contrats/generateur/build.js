@@ -112,25 +112,26 @@ function titre(sur, l1, l2) {
   });
 }
 
-// Encadré de signature
+// Encadré de signature : deux blocs par ligne au plus (un repère seul sur sa ligne dans une colonne étroite
+// n'était pas retrouvé par Firma après conversion) ; un bloc restant occupe toute la largeur.
 function signatures(blocs) {
-  const w = Math.floor(W / blocs.length);
-  const widths = blocs.map((_, i) => i === blocs.length - 1 ? W - w * (blocs.length - 1) : w);
+  const w = Math.floor(W / 2);
+  const widths = [w, W - w];
   const bord = { top: { style: BorderStyle.SINGLE, size: 6, color: C.line }, bottom: { style: BorderStyle.SINGLE, size: 6, color: C.line }, left: { style: BorderStyle.SINGLE, size: 6, color: C.line }, right: { style: BorderStyle.SINGLE, size: 6, color: C.line } };
-  return new Table({
-    width: { size: W, type: WidthType.DXA }, columnWidths: widths, layout: TableLayoutType.FIXED,
-    rows: [new TableRow({
-      cantSplit: true,
-      children: blocs.map((b, i) => cell([
-        etiquette(b.titre),
-        ...b.lignes.map(l => new Paragraph({ spacing: { after: 40 }, children: runs(l, { size: 18, color: C.muted }) })),
-        ...Array.from({ length: 3 - b.lignes.length }, () => new Paragraph({ spacing: { after: 40 }, children: [run(' ', { size: 18 })] })),
-        MODELE && b.ancre
-          ? new Paragraph({ spacing: { before: 300 }, children: [new TextRun({ text: b.ancre, font: 'Arial', size: 20, color: 'FFFFFF' })] })
-          : new Paragraph({ spacing: { before: 1100 }, children: [run('Signature', { size: 16, color: 'A7B3C6' })] })
-      ], widths[i], { borders: bord, pad: 200 }))
-    })]
-  });
+  const bloc = (b, largeur, span) => cell([
+    etiquette(b.titre),
+    ...b.lignes.map(l => new Paragraph({ spacing: { after: 40 }, children: runs(l, { size: 18, color: C.muted }) })),
+    ...Array.from({ length: 3 - b.lignes.length }, () => new Paragraph({ spacing: { after: 40 }, children: [run(' ', { size: 18 })] })),
+    MODELE && b.ancre
+      ? new Paragraph({ spacing: { before: 300 }, children: [new TextRun({ text: b.ancre, font: 'Arial', size: 20, color: 'FFFFFF' })] })
+      : new Paragraph({ spacing: { before: 1100 }, children: [run('Signature', { size: 16, color: 'A7B3C6' })] })
+  ], largeur, { borders: bord, pad: 200, span });
+  const lignes = [];
+  for (let i = 0; i < blocs.length; i += 2) {
+    const paire = blocs.slice(i, i + 2);
+    lignes.push(new TableRow({ cantSplit: true, children: paire.length === 2 ? paire.map((b, j) => bloc(b, widths[j])) : [bloc(paire[0], W, 2)] }));
+  }
+  return new Table({ width: { size: W, type: WidthType.DXA }, columnWidths: widths, layout: TableLayoutType.FIXED, rows: lignes });
 }
 
 function entete(docTitre) {
