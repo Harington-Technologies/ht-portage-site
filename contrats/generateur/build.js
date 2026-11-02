@@ -394,8 +394,8 @@ const cdi = [
 
   p('Fait à Bois-Colombes, en deux exemplaires originaux, le ‹date_signature›.', { before: 300, after: 240, keepNext: true }),
   signatures([
-    { titre: 'Pour l’EPS · HT Portage', lignes: ['SARL Wadi ESSAFI, Président'], ancre: '{{s2|signature|180|70}}' },
-    { titre: 'Le Salarié porté', lignes: ['Nom : ‹salarie_nom›', MODELE ? 'Signature électronique' : 'Précédée de la mention « Lu et approuvé »'], ancre: '{{s1|signature|180|70}}' }
+    { titre: 'Pour l’EPS · HT Portage', lignes: ['SARL Wadi ESSAFI, Président'], ancre: '{{sig2}}' },
+    { titre: 'Le Salarié porté', lignes: ['Nom : ‹salarie_nom›', MODELE ? 'Signature électronique' : 'Précédée de la mention « Lu et approuvé »'], ancre: '{{sig1}}' }
   ])
 ];
 
@@ -477,9 +477,9 @@ const annexe = [
 
   p('Fait à ‹lieu_signature›, le ‹date_signature›.', { before: 300, after: 240, keepNext: true }),
   signatures([
-    { titre: 'Pour le Prestataire', lignes: ['HT Portage', 'Nom et qualité : ‹htp_signataire›'], ancre: '{{s3|signature|150|70}}' },
-    { titre: 'Pour le Client', lignes: ['Société : ‹client›', 'Nom et qualité : ‹client_signataire›'], ancre: '{{s2|signature|150|70}}' },
-    { titre: 'Le Salarié porté', lignes: ['Nom : ‹salarie_nom›', 'Pour acceptation des articles 7 à 11'], ancre: '{{s1|signature|150|70}}' }
+    { titre: 'Pour le Prestataire', lignes: ['HT Portage', 'Nom et qualité : ‹htp_signataire›'], ancre: '{{sig3}}' },
+    { titre: 'Pour le Client', lignes: ['Société : ‹client›', 'Nom et qualité : ‹client_signataire›'], ancre: '{{sig2}}' },
+    { titre: 'Le Salarié porté', lignes: ['Nom : ‹salarie_nom›', 'Pour acceptation des articles 7 à 11'], ancre: '{{sig1}}' }
   ])
 ];
 

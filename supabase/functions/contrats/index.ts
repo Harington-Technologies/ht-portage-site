@@ -188,8 +188,8 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
       const charger = async (nom: string) => { const r = await fetch(MODELES_URL + nom, { cache: "no-store" }); if (!r.ok) throw new Error("Modèle introuvable : " + nom); return await r.arrayBuffer(); };
       const sig = (prenom: string, nom: string, ancre: string) => ({ first_name: prenom, last_name: nom, email, ancre });
       const ids = [];
-      ids.push(await envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "{{s1|signature|180|70}}"), sig("Test", "HT Portage", "{{s2|signature|180|70}}")], "test-cdi"));
-      ids.push(await envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "{{s1|signature|150|70}}"), sig("Test", "Client", "{{s2|signature|150|70}}"), sig("Test", "HT Portage", "{{s3|signature|150|70}}")], "test-annexe"));
+      ids.push(await envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "{{sig1}}"), sig("Test", "HT Portage", "{{sig2}}")], "test-cdi"));
+      ids.push(await envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "{{sig1}}"), sig("Test", "Client", "{{sig2}}"), sig("Test", "HT Portage", "{{sig3}}")], "test-annexe"));
       return json({ ok: true, envoyes_a: email, firma_ids: ids });
     }
     if (!mission_id || !["apercu", "envoyer"].includes(action)) return json({ erreur: "Requête incomplète." }, 400);
@@ -239,8 +239,8 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     for (const f of fichiers) {
       // Repères des modèles : CDI = s1 consultant, s2 HT Portage · Annexe = s1 consultant, s2 client, s3 HT Portage
       const signataires: Signataire[] = f.type === "cdi"
-        ? [{ ...consultant, ancre: "{{s1|signature|180|70}}" }, { ...signataireHtp, ancre: "{{s2|signature|180|70}}" }]
-        : [{ ...consultant, ancre: "{{s1|signature|150|70}}" }, { ...client, ancre: "{{s2|signature|150|70}}" }, { ...signataireHtp, ancre: "{{s3|signature|150|70}}" }];
+        ? [{ ...consultant, ancre: "{{sig1}}" }, { ...signataireHtp, ancre: "{{sig2}}" }]
+        : [{ ...consultant, ancre: "{{sig1}}" }, { ...client, ancre: "{{sig2}}" }, { ...signataireHtp, ancre: "{{sig3}}" }];
       const srId = await envoyerFirma(f.titre + " · " + nomComplet(p), f.contenu, signataires, f.type + "-" + m.id);
       const { error } = await admin.from("documents").insert({
         user_id: m.user_id, mission_id: m.id, type: f.type, titre: f.titre, statut: "a_signer",
