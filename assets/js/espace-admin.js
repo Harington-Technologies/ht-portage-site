@@ -621,6 +621,17 @@
     if (r.data && r.data.erreur) throw new Error(r.data.erreur);
     return r.data;
   }
+  var btnTestSig = document.getElementById('btn-test-signature');
+  if (btnTestSig) btnTestSig.addEventListener('click', async function () {
+    var st = document.getElementById('test-signature-statut');
+    if (!confirm('Envoyer un contrat de test ? Vous recevrez les e-mails de signature de Firma pour tous les signataires.')) return;
+    btnTestSig.disabled = true; st.textContent = 'Envoi du test à Firma…';
+    try {
+      var r = await appelContrats(null, 'test_signature');
+      st.textContent = 'Test envoyé à ' + r.envoyes_a + ' : 2 demandes de signature (CDI et annexe). Ouvrez les e-mails de Firma pour signer.';
+    } catch (e) { st.textContent = 'Échec : ' + e.message; }
+    finally { btnTestSig.disabled = false; }
+  });
   // =====================================================================
   // Import CSV des comptes d'activité
   // =====================================================================
