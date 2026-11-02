@@ -4,7 +4,8 @@
 //   POST { mission_id, action: "envoyer" } → crée et envoie les demandes de signature Firma
 //
 // Secrets : FIRMA_API_KEY (clé de l'espace de travail Firma ; une clé de test produit des documents filigranés),
-//           MODELES_URL (facultatif).
+//           CLOUDCONVERT_API_KEY (conversion fidèle du .docx en PDF avant envoi ; sans elle, Firma convertit lui-même,
+//           avec une mise en page approximative), MODELES_URL (facultatif).
 // Les identifiants Firma sont rangés dans les colonnes documents.yousign_sr_id / yousign_statut (noms historiques).
 // SUPABASE_URL et la clé serveur sont fournis par Supabase.
 // Déploiement : « Verify JWT » désactivé — l'identité est vérifiée dans la fonction (getUser + table admins).
@@ -20,6 +21,7 @@ const CORS = {
 };
 const FIRMA_KEY = Deno.env.get("FIRMA_API_KEY") ?? "";
 const FIRMA_URL = "https://api.firma.dev/functions/v1/signing-request-api";
+const CC_KEY = Deno.env.get("CLOUDCONVERT_API_KEY") ?? "";
 const MODELES_URL = Deno.env.get("MODELES_URL") ?? "https://raw.githubusercontent.com/Harington-Technologies/ht-portage-site/main/contrats/modeles/";
 
 function serverKey(): string {
@@ -136,7 +138,37 @@ export function corpsDemande(nom: string, fichier: string, signataires: Signatai
   };
 }
 
-async function envoyerFirma(nom: string, fichier: Uint8Array, signataires: Signataire[], externalId: string, diag = false) {
+// Conversion fidèle .docx → PDF (CloudConvert, moteur bureautique) ; le travail est supprimé aussitôt après.
+async function enPdf(docx: Uint8Array, nom: string): Promise<Uint8Array> {
+  const cc = (url: string, init: RequestInit = {}) => fetch(url, { ...init, headers: { Authorization: "Bearer " + CC_KEY, "Content-Type": "application/json", ...(init.headers ?? {}) } });
+  const r = await cc("https://sync.api.cloudconvert.com/v2/jobs", { method: "POST", body: JSON.stringify({
+    tag: "htp-contrat",
+    tasks: {
+      importer: { operation: "import/base64", file: b64(docx), filename: nom },
+      convertir: { operation: "convert", input: "importer", input_format: "docx", output_format: "pdf" },
+      exporter: { operation: "export/url", input: "convertir" },
+    },
+  }) });
+  const txt = await r.text();
+  if (!r.ok) throw new Error("CloudConvert → " + r.status + " " + txt.slice(0, 300));
+  const job = JSON.parse(txt).data ?? {};
+  try {
+    const exp = (job.tasks ?? []).find((t: { operation: string }) => t.operation === "export/url");
+    const erreur = (job.tasks ?? []).find((t: { status: string }) => t.status === "error");
+    if (erreur) throw new Error("CloudConvert : " + (erreur.message ?? erreur.code ?? "échec de conversion"));
+    const url = exp?.result?.files?.[0]?.url;
+    if (!url) throw new Error("CloudConvert : PDF introuvable");
+    const f = await fetch(url);
+    if (!f.ok) throw new Error("CloudConvert : téléchargement du PDF → " + f.status);
+    return new Uint8Array(await f.arrayBuffer());
+  } finally {
+    if (job.id) await cc("https://api.cloudconvert.com/v2/jobs/" + job.id, { method: "DELETE" }).catch(() => null);
+  }
+}
+
+async function envoyerFirma(nom: string, docx: Uint8Array, signataires: Signataire[], externalId: string, diag = false) {
+  // PDF fidèle si la conversion est configurée ; sinon le .docx, converti par Firma
+  const fichier = CC_KEY ? await enPdf(docx, externalId + ".docx") : docx;
   const sr = await firma("/signing-requests/create-and-send", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(corpsDemande(nom, b64(fichier), signataires, externalId, diag)),
@@ -146,7 +178,8 @@ async function envoyerFirma(nom: string, fichier: Uint8Array, signataires: Signa
   if (diag) {
     // Diagnostic : où Firma a posé chaque zone de signature (page, position en %), et ses avertissements
     const qui = Object.fromEntries((sr.recipients ?? []).map((r: { id: string; first_name: string; last_name: string }) => [r.id, r.last_name || r.first_name]));
-    const zones = (sr.fields ?? []).map((f: Record<string, unknown>) => (qui[String(f.recipient_id)] ?? f.recipient_id) + " p" + (f.page ?? f.page_number) + " x" + Math.round(Number(f.x ?? 0)) + " y" + Math.round(Number(f.y ?? 0)));
+    // deno-lint-ignore no-explicit-any
+    const zones = (sr.fields ?? []).map((f: any) => (qui[String(f.recipient_id ?? f.signing_request_user_id ?? "")] ?? "?") + " p" + (f.page ?? f.page_number ?? f.position?.page ?? "?") + " y" + Math.round(Number(f.y ?? f.position?.y ?? 0)));
     return sr.id + " · " + (sr.page_count ?? "?") + " pages · zones : " + (zones.join(", ") || "aucune") + (sr.warnings?.length ? " · avertissements : " + JSON.stringify(sr.warnings).slice(0, 300) : "");
   }
   return sr.id as string;
