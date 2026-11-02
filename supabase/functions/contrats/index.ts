@@ -176,6 +176,22 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     if (niveauAuth(token) !== "aal2") return json({ erreur: "Validez d'abord votre code de double authentification (reconnectez-vous)." }, 403);
 
     const { mission_id, action } = await req.json().catch(() => ({}));
+    // Test de bout en bout de la signature (dossier fictif, tous les signataires = l'administrateur connecté) : rien n'est enregistré
+    if (action === "test_signature") {
+      if (!FIRMA_KEY) return json({ erreur: "Clé Firma absente (secret FIRMA_API_KEY)." }, 500);
+      const moi = (await admin.from("profils").select("*").eq("id", u.user.id).maybeSingle()).data ?? {};
+      const email = moi.email || u.user.email || "";
+      const fm = { numero_contrat: "TEST-0001", client: "Client Test SAS", client_adresse: "1 rue de l'Exemple, 75001 Paris", client_representant: "Camille Client", client_representant_qualite: "Directrice des achats",
+        intitule: "Mission de test — développement", date_debut: new Date().toISOString().slice(0, 10), tjm: 600, frais_gestion: 5, competences: "Java, Spring, Angular" };
+      const fp = { civilite: "M.", prenom: "Test", nom: "CONSULTANT", date_naissance: "1990-01-15", lieu_naissance: "Paris", nationalite: "Française", adresse: "2 rue du Test", code_postal: "92270", ville: "Bois-Colombes", num_secu: "1900175000000" };
+      const dt = donneesContrats(fm, fp, moi, new Date().toISOString().slice(0, 10));
+      const charger = async (nom: string) => { const r = await fetch(MODELES_URL + nom, { cache: "no-store" }); if (!r.ok) throw new Error("Modèle introuvable : " + nom); return await r.arrayBuffer(); };
+      const sig = (prenom: string, nom: string, ancre: string) => ({ first_name: prenom, last_name: nom, email, ancre });
+      const ids = [];
+      ids.push(await envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "{{s1|signature|180|70}}"), sig("Test", "HT Portage", "{{s2|signature|180|70}}")], "test-cdi"));
+      ids.push(await envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "{{s1|signature|150|70}}"), sig("Test", "Client", "{{s2|signature|150|70}}"), sig("Test", "HT Portage", "{{s3|signature|150|70}}")], "test-annexe"));
+      return json({ ok: true, envoyes_a: email, firma_ids: ids });
+    }
     if (!mission_id || !["apercu", "envoyer"].includes(action)) return json({ erreur: "Requête incomplète." }, 400);
 
     // 2. Dossier
