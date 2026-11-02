@@ -118,7 +118,7 @@ type Signataire = { first_name: string; last_name: string; email: string; ancre:
 
 // Demande de signature Firma : le .docx rempli, les signataires (tous en même temps) et une zone de signature
 // posée sur chaque repère {{sN|signature|l|h}} du modèle (texte blanc, effacé par Firma).
-export function corpsDemande(nom: string, fichier: string, signataires: Signataire[], externalId: string) {
+export function corpsDemande(nom: string, fichier: string, signataires: Signataire[], externalId: string, diag = false) {
   return {
     name: nom.slice(0, 255),
     description: "HT Portage · " + externalId,
@@ -129,20 +129,26 @@ export function corpsDemande(nom: string, fichier: string, signataires: Signatai
     recipients: signataires.map((s, i) => ({
       id: "temp_" + (i + 1), first_name: s.first_name, last_name: s.last_name, email: s.email, designation: "Signer", order: i + 1,
     })),
-    anchor_tags: signataires.map((s, i) => ({ anchor_string: s.ancre, type: "signature", recipient_id: "temp_" + (i + 1), case_sensitive: true, match_whole_word: false })),
+    anchor_tags: signataires.map((s, i) => ({ anchor_string: s.ancre, type: "signature", recipient_id: "temp_" + (i + 1), case_sensitive: true, match_whole_word: false, ...(diag ? { ignore_if_not_present: true } : {}) })),
     settings: { use_signing_order: false, allow_decline: true },
     completion_title: "Merci, votre signature est enregistrée",
     completion_message: "Le document signé par toutes les parties vous sera envoyé par e-mail. Il sera aussi disponible dans votre espace HT Portage. Pour toute question : contact@htportage.fr",
   };
 }
 
-async function envoyerFirma(nom: string, fichier: Uint8Array, signataires: Signataire[], externalId: string) {
+async function envoyerFirma(nom: string, fichier: Uint8Array, signataires: Signataire[], externalId: string, diag = false) {
   const sr = await firma("/signing-requests/create-and-send", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(corpsDemande(nom, b64(fichier), signataires, externalId)),
+    body: JSON.stringify(corpsDemande(nom, b64(fichier), signataires, externalId, diag)),
   });
   if (!sr.id) throw new Error("Firma : réponse sans identifiant de demande");
   if (sr.warnings?.length) console.warn("Firma", sr.id, JSON.stringify(sr.warnings));
+  if (diag) {
+    // Diagnostic : où Firma a posé chaque zone de signature (page, position en %), et ses avertissements
+    const qui = Object.fromEntries((sr.recipients ?? []).map((r: { id: string; first_name: string; last_name: string }) => [r.id, r.last_name || r.first_name]));
+    const zones = (sr.fields ?? []).map((f: Record<string, unknown>) => (qui[String(f.recipient_id)] ?? f.recipient_id) + " p" + (f.page ?? f.page_number) + " x" + Math.round(Number(f.x ?? 0)) + " y" + Math.round(Number(f.y ?? 0)));
+    return sr.id + " · " + (sr.page_count ?? "?") + " pages · zones : " + (zones.join(", ") || "aucune") + (sr.warnings?.length ? " · avertissements : " + JSON.stringify(sr.warnings).slice(0, 300) : "");
+  }
   return sr.id as string;
 }
 
@@ -190,7 +196,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
       const res: Record<string, string> = {};
       const essai = async (cle: string, f: () => Promise<string>) => { try { res[cle] = "envoyé (" + await f() + ")"; } catch (e) { res[cle] = "échec : " + (e as Error).message.slice(0, 300); } };
       await essai("CDI", async () => envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "HT Portage", "HTPSIGB")], "test-cdi"));
-      await essai("Annexe", async () => envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "Client", "HTPSIGB"), sig("Test", "HT Portage", "HTPSIGC")], "test-annexe"));
+      await essai("Annexe", async () => envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "Client", "HTPSIGB"), sig("Test", "HT Portage", "HTPSIGC")], "test-annexe", true));
       return json({ ok: true, envoyes_a: email, resultats: res });
     }
     if (!mission_id || !["apercu", "envoyer"].includes(action)) return json({ erreur: "Requête incomplète." }, 400);
