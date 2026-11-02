@@ -190,7 +190,7 @@ function document(docTitre, enfants, garde) {
 function pageDeGarde(o) {
   const bloc = new Table({
     width: { size: W, type: WidthType.DXA }, columnWidths: [W], layout: TableLayoutType.FIXED,
-    rows: [new TableRow({ height: { value: 9200, rule: 'atLeast' }, children: [new TableCell({
+    rows: [new TableRow({ height: { value: 8000, rule: 'atLeast' }, children: [new TableCell({
       width: { size: W, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, borders: noBorders,
       shading: { type: ShadingType.CLEAR, color: 'auto', fill: C.navy }, margins: { top: 700, bottom: 700, left: 700, right: 700 },
       children: [
