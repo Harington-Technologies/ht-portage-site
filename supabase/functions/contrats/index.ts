@@ -185,7 +185,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
         intitule: "Mission de test — développement", date_debut: new Date().toISOString().slice(0, 10), tjm: 600, frais_gestion: 5, competences: "Java, Spring, Angular" };
       const fp = { civilite: "M.", prenom: "Test", nom: "CONSULTANT", date_naissance: "1990-01-15", lieu_naissance: "Paris", nationalite: "Française", adresse: "2 rue du Test", code_postal: "92270", ville: "Bois-Colombes", num_secu: "1900175000000" };
       const dt = donneesContrats(fm, fp, moi, new Date().toISOString().slice(0, 10));
-      const charger = async (nom: string) => { const r = await fetch(MODELES_URL + nom, { cache: "no-store" }); if (!r.ok) throw new Error("Modèle introuvable : " + nom); return await r.arrayBuffer(); };
+      const charger = async (nom: string) => { const r = await fetch(MODELES_URL + nom + "?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw new Error("Modèle introuvable : " + nom); return await r.arrayBuffer(); };
       const sig = (prenom: string, nom: string, ancre: string) => ({ first_name: prenom, last_name: nom, email, ancre });
       const ids = [];
       ids.push(await envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "{{sig1}}"), sig("Test", "HT Portage", "{{sig2}}")], "test-cdi"));
@@ -216,7 +216,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
     // 3. Remplissage des modèles
     const d = donneesContrats(m, p, htp ?? {}, new Date().toISOString().slice(0, 10));
     const charger = async (nom: string) => {
-      const r = await fetch(MODELES_URL + nom, { cache: "no-store" });
+      const r = await fetch(MODELES_URL + nom + "?t=" + Date.now(), { cache: "no-store" });
       if (!r.ok) throw new Error("Modèle introuvable : " + nom);
       return await r.arrayBuffer();
     };
