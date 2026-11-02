@@ -229,7 +229,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
       const res: Record<string, string> = {};
       const essai = async (cle: string, f: () => Promise<string>) => { try { res[cle] = "envoyé (" + await f() + ")"; } catch (e) { res[cle] = "échec : " + (e as Error).message.slice(0, 300); } };
       await essai("CDI", async () => envoyerFirma("TEST · CDI de portage salarial", remplir(await charger("cdi.docx"), dt.cdi), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "HT Portage", "HTPSIGB")], "test-cdi"));
-      await essai("Annexe", async () => envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "Client", "HTPSIGB"), sig("Test", "HT Portage", "HTPSIGC")], "test-annexe", true));
+      await essai("Annexe", async () => envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "Client", "HTPSIGB"), sig("Test", "HT Portage", "HTPSIGC")], "test-annexe"));
       return json({ ok: true, envoyes_a: email, resultats: res });
     }
     if (!mission_id || !["apercu", "envoyer"].includes(action)) return json({ erreur: "Requête incomplète." }, 400);
