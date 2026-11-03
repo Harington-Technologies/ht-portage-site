@@ -1,7 +1,7 @@
 /* Chantiers — application (administration, chefs de chantier, clients) */
 (function () {
   'use strict';
-  var VERSION = '202611031305';
+  var VERSION = '202611031317';
   var sb = window.supabase.createClient(window.CFG.url, window.CFG.cle, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'chantiers-session' }, db: { schema: 'chantiers' } });
   var BUCKET = 'chantiers-fichiers';
   var app = document.getElementById('app');
@@ -317,10 +317,10 @@
     if (!lots.length) html += '<div class="vide">' + (estAdmin() ? 'Aucun lot. Ajoutez-les avec « Modifier les lots » (ou depuis un modèle).' : 'Aucun lot défini.') + '</div>';
     lots.forEach(function (l) {
       var d = depLot(l.id), r = l.marche - d;
-      html += '<div class="lot"><button type="button" class="ouvrir" data-lot="' + l.id + '"><div class="t"><span>' + (l.code ? '<span class="code">' + esc(l.code) + '</span>' : '') + '<span class="nom">' + esc(l.nom) + '</span></span><span class="r">' + fmt(l.marche) + '</span></div>' +
+      html += '<div class="lot"><button type="button" class="ouvrir" data-lot="' + l.id + '"><div class="t"><span>' + (l.code ? '<span class="code">' + esc(l.code) + '</span>' : '') + '<span class="nom">' + esc(l.nom) + '</span></span><span class="r">' + (l.marche > 0 ? fmt(l.marche, true) : '—') + '</span></div>' +
         '<div class="barres2"><div class="lb"><span>Avancement</span><span>' + pct(l.avancement) + '</span></div><div class="barre"><i style="width:' + l.avancement + '%"></i></div>' +
-        '<div class="lb" style="margin-top:3px"><span>Dépensé ' + fmt(d) + '</span><span' + (r < 0 ? ' class="rouge"' : '') + '>' + (r < 0 ? 'Dépassement ' + fmt(-r) : 'Reste ' + fmt(r)) + '</span></div>' +
-        '<div class="barre"><i class="dep' + (r < 0 ? ' trop' : '') + '" style="width:' + (l.marche > 0 ? Math.min(100, d / l.marche * 100) : (d > 0 ? 100 : 0)) + '%"></i></div></div></button></div>';
+        (l.marche > 0 || d > 0 ? '<div class="lb" style="margin-top:3px"><span>Dépensé ' + fmt(d) + '</span><span' + (r < 0 ? ' class="rouge"' : '') + '>' + (l.marche <= 0 ? 'Budget non défini' : r < 0 ? 'Dépassement ' + fmt(-r) : 'Reste ' + fmt(r)) + '</span></div>' +
+        '<div class="barre"><i class="dep' + (r < 0 ? ' trop' : '') + '" style="width:' + (l.marche > 0 ? Math.min(100, d / l.marche * 100) : 100) + '%"></i></div>' : '<div class="lb" style="margin-top:3px"><span>Budget non défini</span><span></span></div>') + '</div></button></div>';
     });
     var hors = somme(depDe(c.id).filter(function (d) { return !d.lot_id; }), function (d) { return d.montant; });
     if (hors > 0) html += '<p class="aide" style="margin-top:12px">Dépenses non rattachées à un lot : <b>' + fmt(hors, true) + '</b></p>';
@@ -462,7 +462,7 @@
       html: html, apres: function () {
         brancherDepenses(c);
         $('#f-lot').onchange = function () { f.lot = this.value; route(); };
-        var t; $('#f-rech').oninput = function () { var v = this.value; clearTimeout(t); t = setTimeout(function () { f.recherche = v; route(); var i = $('#f-rech'); i.focus(); i.setSelectionRange(v.length, v.length); }, 300); };
+        var t; $('#f-rech').oninput = function () { var v = this.value; clearTimeout(t); t = setTimeout(function () { f.recherche = v; route(); var i = $('#f-rech'); if (!i) return; i.focus(); i.setSelectionRange(v.length, v.length); }, 300); };
       }
     };
   }
@@ -500,7 +500,7 @@
       (d && d.photo ? '<label class="case" style="margin-top:6px"><input type="checkbox" id="d-photo-suppr"> Retirer la photo actuelle</label>' : '') + '</div>' +
       '<button type="submit" class="btn btn--dep">' + (d ? 'Enregistrer' : 'Ajouter la dépense') + '</button><div class="msg" id="d-msg"></div></form>';
     ouvrir(d ? 'Modifier la dépense' : 'Nouvelle dépense', html, function (dd) {
-      if (!d) setTimeout(function () { $('#d-mt', dd).focus(); }, 50);
+      if (!d) setTimeout(function () { var i = $('#d-mt', dd); if (i) i.focus(); }, 50);
       $('#fd', dd).onsubmit = async function (e) {
         e.preventDefault();
         var msg = $('#d-msg', dd), btn = $('button[type=submit]', dd);
@@ -732,7 +732,7 @@
       }).join('') + '</ul>' : '<div class="vide">' + (S.clients.length ? 'Aucun résultat.' : 'Aucun client pour l’instant.') + '</div>') + '</div>';
     cadre({ titre: 'Clients', nav: 'cl', html: html });
     $('#n-cl').onclick = function () { formClient(null); };
-    if ($('#r-cl')) { var t; $('#r-cl').oninput = function () { var v = this.value; clearTimeout(t); t = setTimeout(function () { S.filtre.recherche_cl = v; vueClients(); var i = $('#r-cl'); i.focus(); i.setSelectionRange(v.length, v.length); }, 250); }; }
+    if ($('#r-cl')) { var t; $('#r-cl').oninput = function () { var v = this.value; clearTimeout(t); t = setTimeout(function () { S.filtre.recherche_cl = v; vueClients(); var i = $('#r-cl'); if (!i) return; i.focus(); i.setSelectionRange(v.length, v.length); }, 250); }; }
   }
   function vueClient(id) {
     var c = client(id); if (!c) { location.replace('#/clients'); return; }
@@ -1033,6 +1033,8 @@
   async function demarrer() {
     app.innerHTML = '<div class="acces"><div style="color:#fff;opacity:.8">Chargement…</div></div>';
     document.body.classList.add('sans-nav');
+    var pp = await sb.from('parametres').select('entreprise, devise, decimales, logo').eq('id', 1).maybeSingle();
+    if (pp.data) { S.p = pp.data; document.title = S.p.entreprise + ' · Chantiers'; }
     var s = (await sb.auth.getSession()).data.session;
     if (!s) {
       var inst = await sb.rpc('installation_requise');

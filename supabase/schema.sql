@@ -201,6 +201,7 @@ begin
     execute format('grant all on chantiers.%I to service_role', t);
   end loop;
 end $$;
+grant select on chantiers.parametres to anon;
 revoke execute on function chantiers.maj_avancement(uuid, int) from anon, public;
 grant execute on function chantiers.maj_avancement(uuid, int) to authenticated;
 
@@ -214,7 +215,8 @@ begin
   end loop;
 end $$;
 
-create policy lire on chantiers.parametres for select to authenticated using (true);
+-- nom et logo de l'entreprise affichés sur l'écran de connexion
+create policy lire on chantiers.parametres for select to anon, authenticated using (true);
 create policy admin on chantiers.parametres for update to authenticated using (chantiers.est_admin()) with check (chantiers.est_admin());
 
 create policy admin on chantiers.clients for all to authenticated using (chantiers.est_admin()) with check (chantiers.est_admin());
