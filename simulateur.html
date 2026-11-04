@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20261102b">
+<link rel="stylesheet" href="assets/css/style.css?v=20261104a">
 <link rel="canonical" href="https://www.htportage.fr/simulateur.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Simulateur de revenus — HT Portage">
@@ -44,7 +44,7 @@
     <div class="container">
       <p class="eyebrow">/Simulateur de revenus/</p>
       <h1 class="h1">Combien gagnerez-vous en portage ?</h1>
-      <p class="lead">Indiquez votre TJM, vos jours travaillés et vos frais professionnels : votre salaire net s'affiche instantanément, avec le détail complet du calcul.</p>
+      <p class="lead">Indiquez votre TJM, vos jours travaillés et vos frais professionnels : le montant versé sur votre compte s'affiche instantanément, avec le détail complet du calcul.</p>
     </div>
   </section>
 
@@ -88,9 +88,13 @@
 
       <div class="sim__result" aria-live="polite">
         <div>
-          <p class="sim__net-label">Salaire net <span data-out="libelle-net">avant impôt</span> <span data-out="periode">par mois</span></p>
-          <p class="sim__net" data-out="net-principal">—</p>
-          <p class="sim__plus" data-out="plus-frais" hidden></p>
+          <p class="sim__net-label">Montant versé sur votre compte <span data-out="periode">par mois</span></p>
+          <p class="sim__net" data-out="total-principal">—</p>
+          <ul class="sim__compo">
+            <li><span class="swatch" style="background: var(--rose)"></span><span>Salaire net <span data-out="libelle-net">avant impôt</span></span><b data-out="net-principal">—</b></li>
+            <li data-ligne="compo-frais" hidden><span class="swatch" style="background: #7FB3A0"></span><span>Remboursement de vos frais</span><b data-out="frais-principal">—</b></li>
+          </ul>
+          <p class="sim__plus" data-ligne="compo-frais" hidden>Remboursement de dépenses réellement engagées pour la mission, sur justificatifs, selon les règles de l'Urssaf.</p>
         </div>
         <div class="stack-bar" aria-hidden="true"><span data-seg="net"></span><span data-seg="frais"></span><span data-seg="cotisations"></span><span data-seg="gestion"></span></div>
         <dl class="breakdown">
@@ -258,10 +262,10 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="assets/js/config.js?v=20261102b"></script>
-<script src="assets/js/captcha.js?v=20261102b"></script>
-<script src="assets/js/main.js?v=20261102b"></script>
-<script src="assets/js/calcul-portage.js?v=20261102b"></script>
-<script src="assets/js/simulateur.js?v=20261102b"></script>
+<script src="assets/js/config.js?v=20261104a"></script>
+<script src="assets/js/captcha.js?v=20261104a"></script>
+<script src="assets/js/main.js?v=20261104a"></script>
+<script src="assets/js/calcul-portage.js?v=20261104a"></script>
+<script src="assets/js/simulateur.js?v=20261104a"></script>
 </body>
 </html>

@@ -40,10 +40,10 @@
     var avecImpot = r.pas > 0;
     out('periode', periode === 'an' ? 'par an' : 'par mois');
     out('libelle-net', avecImpot ? 'après impôt' : 'avant impôt');
+    out('total-principal', eur(r.totalPercu * m));
     out('net-principal', eur((avecImpot ? r.netApresImpot : r.net) * m));
-    var plus = document.querySelector('[data-out="plus-frais"]');
-    plus.hidden = !(r.frais > 0);
-    plus.textContent = r.frais > 0 ? '+ ' + eur(r.frais * m) + ' de remboursement de frais · montant versé ' + eur(r.totalPercu * m) : '';
+    out('frais-principal', eur(r.frais * m));
+    montrer('[data-ligne="compo-frais"]', r.frais > 0);
 
     out('ca', eur(r.ca * m));
     out('gestion', '− ' + eur(r.gestion * m));

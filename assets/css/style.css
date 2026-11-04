@@ -396,3 +396,12 @@ input[type=range] { width: 100%; height: 28px; margin-top: 16px; accent-color: v
   .guide__aside { position: static; }
   .article { font-size: 16px; }
 }
+
+/* Simulateur : composition du montant versé */
+.sim__compo { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; }
+.sim__compo li { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--on-dark); }
+.sim__compo li b { margin-left: auto; font-weight: 600; font-size: 17px; color: var(--white); font-variant-numeric: tabular-nums; }
+.sim__compo .swatch { flex: none; }
+.sim__plus { font-size: 13px; color: var(--on-dark-2); }
+.sim__compo li[hidden], .sim__plus[hidden] { display: none; }
+.breakdown > div[hidden] { display: none; }
