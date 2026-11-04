@@ -144,6 +144,19 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
   const d = nettoyer(kind, brut)!;
   if (d.consentement !== true) return rep({ erreur: "Merci d'accepter l'utilisation de vos données pour être recontacté." }, 400);
   if (kind === "recommandation" && !d.contact_telephone) return rep({ erreur: "Indiquez le téléphone de la personne recommandée pour que nous puissions l'appeler." }, 400);
+  // Formats : e-mails et téléphones
+  const EMAIL_OK = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[A-Za-z]{2,}$/;
+  for (const k of ["email", "ambassadeur_email", "contact_email"]) {
+    const v = d[k];
+    if (typeof v === "string" && v && !EMAIL_OK.test(v)) return rep({ erreur: "Adresse e-mail invalide : vérifiez-la (exemple : prenom.nom@domaine.fr)." }, 400);
+  }
+  for (const k of ["telephone", "contact_telephone"]) {
+    const v = d[k];
+    if (typeof v === "string" && v) {
+      const n = v.replace(/\D/g, "").length;
+      if (!/^\+?[0-9 .()\-]+$/.test(v) || n < 8 || n > 15) return rep({ erreur: "Numéro de téléphone invalide : vérifiez-le (exemple : 06 12 34 56 78)." }, 400);
+    }
+  }
   const email = String(d[conf.email] ?? "").toLowerCase();
   if (!(await limite("ip:" + ip, 5, 600))) return rep({ erreur: "Trop d'envois depuis votre connexion. Réessayez dans quelques minutes." }, 429);
   if (email && !(await limite("email:" + email, 3, 3600))) return rep({ erreur: "Vous avez déjà envoyé plusieurs demandes avec cette adresse : notre équipe revient vers vous rapidement." }, 429);

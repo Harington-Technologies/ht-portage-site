@@ -361,3 +361,31 @@
   };
   window.ESPACE = ESPACE;
 })();
+
+// Contrôle du format des téléphones et e-mails sur tous les formulaires (avant l'envoi).
+(function () {
+  'use strict';
+  if (window.HTP_CONTROLES) return;
+  window.HTP_CONTROLES = true;
+  var EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[A-Za-z]{2,}$/;
+  function verifier(el) {
+    if (!el || !el.matches || !el.matches('input[type=tel], input[type=email]')) return;
+    var v = el.value.trim(), msg = '';
+    if (v) {
+      if (el.type === 'email') {
+        if (!EMAIL.test(v)) msg = 'Adresse e-mail invalide (exemple : prenom.nom@domaine.fr).';
+      } else {
+        var chiffres = v.replace(/\D/g, '').length;
+        if (!/^\+?[0-9 .()\-]+$/.test(v) || chiffres < 8 || chiffres > 15) msg = 'Numéro de téléphone invalide (exemple : 06 12 34 56 78 ou +33 6 12 34 56 78).';
+      }
+    }
+    el.setCustomValidity(msg);
+  }
+  ['input', 'change', 'blur'].forEach(function (t) {
+    document.addEventListener(t, function (e) { verifier(e.target); }, true);
+  });
+  document.addEventListener('submit', function (e) {
+    if (e.target && e.target.querySelectorAll) e.target.querySelectorAll('input[type=tel], input[type=email]').forEach(verifier);
+  }, true);
+  document.querySelectorAll('input[type=tel]').forEach(function (el) { if (!el.maxLength || el.maxLength < 0 || el.maxLength > 25) el.maxLength = 25; });
+})();
