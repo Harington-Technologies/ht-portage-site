@@ -106,6 +106,7 @@
     ['valider', 'a-valider', 'Dossiers à valider'],
     ['contrats', 'signatures', 'Contrats et signatures'],
     ['import', 'import', 'Synchronisation VSP'],
+    ['frais', 'frais', 'Notes de frais'],
     ['demandes', 'demandes', 'Demandes reçues'],
     ['offres', 'offres', 'Offres d’emploi'],
     ['cv', 'cv', 'Convertisseur de CV'],

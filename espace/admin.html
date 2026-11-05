@@ -91,9 +91,11 @@
         <div id="sync-rapport" hidden style="margin-top:8px"></div>
       </div>
       <h2 class="box__title" style="font-size:18px">Historique</h2>
-      <div id="sync-historique" style="margin-bottom:24px"><p class="loading">Chargement…</p></div>
-      <div class="toolbar" style="justify-content:space-between;margin-bottom:8px">
-        <h2 class="box__title" style="font-size:18px;margin:0">Notes de frais</h2>
+      <div id="sync-historique"><p class="loading">Chargement…</p></div>
+    </section>
+
+    <section class="admin-section box" id="frais" data-titre="Notes de frais" data-sous="Notes de frais des consultants, recopiées de VSP à chaque synchronisation. Classées par mois de la note (mois de remboursement) ; la date est celle de la dépense." aria-label="Notes de frais" hidden>
+      <div class="toolbar" style="justify-content:flex-end;margin-bottom:12px">
         <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Mois
           <select class="select" id="frais-mois" style="min-height:44px;width:auto"></select></label>
       </div>
@@ -219,10 +221,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../assets/js/config.js?v=20261104b"></script>
-<script src="../assets/js/espace.js?v=20261104b"></script>
+<script src="../assets/js/espace.js?v=20261106d"></script>
 <script src="../assets/js/espace-admin.js?v=20261104b"></script>
 <script src="../assets/js/cv-ht.js?v=20261104b"></script>
 <script src="../assets/js/espace-admin-plus.js?v=20261104b"></script>
-<script src="../assets/js/espace-vsp.js?v=20261106c"></script>
+<script src="../assets/js/espace-vsp.js?v=20261106d"></script>
 </body>
 </html>

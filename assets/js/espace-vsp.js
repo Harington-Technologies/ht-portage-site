@@ -213,7 +213,12 @@
 
   // Chargement quand la rubrique s'affiche (et tout de suite si elle est déjà ouverte)
   var charge = false;
-  function siOuvert() { if (!charge && E.sectionAdmin() === 'import') { charge = true; chargerHistorique(); chargerFrais(); } }
+  var fraisCharges = false;
+  function siOuvert() {
+    var sec = E.sectionAdmin();
+    if (!charge && sec === 'import') { charge = true; chargerHistorique(); }
+    if (!fraisCharges && sec === 'frais') { fraisCharges = true; chargerFrais(); }
+  }
   window.addEventListener('hashchange', siOuvert);
   var t = setInterval(function () { if (E.state) { clearInterval(t); siOuvert(); } }, 200);
 })();
