@@ -107,6 +107,7 @@
     ['contrats', 'signatures', 'Contrats et signatures'],
     ['import', 'import', 'Synchronisation VSP'],
     ['frais', 'frais', 'Notes de frais'],
+    ['reporting', 'reporting-admin', 'Reporting financier'],
     ['demandes', 'demandes', 'Demandes reçues'],
     ['offres', 'offres', 'Offres d’emploi'],
     ['cv', 'cv', 'Convertisseur de CV'],

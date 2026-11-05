@@ -94,6 +94,18 @@
       <div id="sync-historique"><p class="loading">Chargement…</p></div>
     </section>
 
+    <section class="admin-section" id="reporting-admin" data-titre="Reporting financier" data-sous="CA de production (jours des CRA × TJM) et marge HT Portage (frais de gestion), synchronisés depuis VSP. Les mois provisoires sont signalés." aria-label="Reporting financier" hidden>
+      <div class="box" style="margin-bottom:16px">
+        <div class="toolbar" style="gap:12px">
+          <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Année
+            <select class="select" id="rf-annee" style="min-height:44px;width:auto"></select></label>
+          <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Consultant
+            <select class="select" id="rf-qui" style="min-height:44px;width:auto"></select></label>
+        </div>
+      </div>
+      <div id="rf-contenu"><p class="loading">Chargement…</p></div>
+    </section>
+
     <section class="admin-section" id="frais" data-titre="Contrôle des notes de frais" data-sous="Notes de frais recopiées de VSP, classées par mois de la note (mois de remboursement). Les anomalies sont en rouge : à vérifier avant de valider le remboursement." aria-label="Contrôle des notes de frais" hidden>
       <div class="box" style="margin-bottom:16px">
         <div class="toolbar" style="gap:12px">
@@ -228,11 +240,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../assets/js/config.js?v=20261104b"></script>
-<script src="../assets/js/espace.js?v=20261106g"></script>
+<script src="../assets/js/espace.js?v=20261106h"></script>
 <script src="../assets/js/espace-admin.js?v=20261104b"></script>
 <script src="../assets/js/cv-ht.js?v=20261104b"></script>
 <script src="../assets/js/espace-admin-plus.js?v=20261104b"></script>
-<script src="../assets/js/espace-vsp.js?v=20261106e"></script>
+<script src="../assets/js/espace-vsp.js?v=20261106h"></script>
 <script src="../assets/js/espace-frais-admin.js?v=20261106f"></script>
+<script src="../assets/js/espace-reporting-admin.js?v=20261106h"></script>
 </body>
 </html>

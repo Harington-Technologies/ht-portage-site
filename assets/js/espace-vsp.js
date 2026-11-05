@@ -166,7 +166,7 @@
       afficher(r.resultat, true);
       E.setStatus(statut, r.statut === 'partiel' ? 'Synchronisation faite, avec des éléments non repris (voir la liste).' : 'Synchronisation faite. Aucun e-mail n\'a été envoyé.', r.statut === 'partiel' ? 'error' : 'ok');
       btnAppliquer.hidden = true;
-      chargerHistorique(); if (window.HTP_FRAIS) window.HTP_FRAIS.recharger();
+      chargerHistorique(); if (window.HTP_FRAIS) window.HTP_FRAIS.recharger(); if (window.HTP_REPORTING) window.HTP_REPORTING.recharger();
     } catch (e) { E.setStatus(statut, e.message, 'error'); }
     finally { btnAppliquer.disabled = false; btnApercu.disabled = false; }
   });
