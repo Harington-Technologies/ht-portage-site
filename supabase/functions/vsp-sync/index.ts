@@ -247,7 +247,8 @@ async function lireVsp(moisListe: string[]) {
     const contrat = contratPar.get(login), mesAffs = affPar.get(login) ?? [];
     if (!contrat && !mesAffs.length) continue; // pas consultant porté (équipe, compte technique…)
     const emails = [lower(info.personalEmail), lower(u.email), lower(info.email), login].filter((e, i, t) => EMAIL.test(e) && t.indexOf(e) === i);
-    const nom = s(info.lastname) || s(u.lastname), prenom = s(info.firstname) || s(u.firstname);
+    // Prénoms multiples « Anne-Caroline, Raymonde » : l'espace garde le premier (comme l'ancienne migration)
+    const nom = s(info.lastname) || s(u.lastname), prenom = (s(info.firstname) || s(u.firstname)).split(",")[0].trim();
     const fin = s(info.endingDate);
     const lieu = s(info.birthPlace), paysN = s(info.birthCountry);
     const naiss = s(info.birthDate);
@@ -285,7 +286,8 @@ async function lireVsp(moisListe: string[]) {
         if (l) { const t = num(l.currency_ht_unit ?? l.currencyHtUnit); if (t != null) tjm = t; contratNo = s(r.contractNumber) || contratNo; }
       }
       if (tjm != null && (tjm < 100 || tjm > 5000)) tjm = null;
-      const intitule = s(af.fiche.title) || s(liste[0].description) || "Assistance technique";
+      // « Assistance technique _ Développeur .NET » → « Assistance technique – Développeur .NET » (format de l'espace)
+      const intitule = (s(af.fiche.title) || s(liste[0].description) || "Assistance technique").replace(/\s*_\s*/g, " – ").replace(/[\s–-]+$/, "");
       missions.push({
         orderCode: code, tjm,
         champs: {
@@ -334,7 +336,15 @@ type Plan = {
   frais: { qui: string; mois: string; lignes: number; total_ttc: number }[];
   ignores: string[];
 };
-const pareil = (a: unknown, b: unknown) => (a == null || a === "" ? null : String(a)) === (b == null || b === "" ? null : String(b));
+// Égalité « métier » : nombres comparés en valeur (470 = 470.00), noms de personnes sans ordre ni casse ni accents
+const NOMS_PERSONNE = new Set(["htp_interlocuteur_nom", "prenom", "nom"]);
+function pareil(a: unknown, b: unknown, champ = ""): boolean {
+  const va = a == null || a === "" ? null : a, vb = b == null || b === "" ? null : b;
+  if (va === null || vb === null) return va === vb;
+  if (typeof vb === "number" || typeof va === "number") return Number(va) === Number(vb);
+  if (NOMS_PERSONNE.has(champ)) return cle(va) === cle(vb);
+  return String(va) === String(vb);
+}
 
 async function synchroniser(moisListe: string[], appliquer: boolean): Promise<Plan> {
   const vsp = await lireVsp(moisListe);
@@ -362,7 +372,7 @@ async function synchroniser(moisListe: string[], appliquer: boolean): Promise<Pl
         prof = { id: data.user.id, email: c.p.email } as typeof prof;
       }
     }
-    const diff = Object.entries(c.p.champs).filter(([k, v]) => v != null && v !== "" && !pareil(prof?.[k as keyof typeof prof], v));
+    const diff = Object.entries(c.p.champs).filter(([k, v]) => v != null && v !== "" && !pareil(prof?.[k as keyof typeof prof], v, k));
     // Le statut « sorti » vient de VSP ; un candidat devient consultant ; on ne rétrograde jamais un consultant en candidat
     if (diff.length) {
       plan.profils.push({ qui, champs: diff.map(([k]) => k) });
@@ -382,8 +392,10 @@ async function synchroniser(moisListe: string[], appliquer: boolean): Promise<Pl
       const champs: O = { ...m.champs };
       // Le circuit de contractualisation de l'espace garde la main tant que la mission n'est pas active
       if (!ex || ["active", "terminee", "validee"].includes(s(ex.statut))) champs.statut = statutVsp;
-      const d = Object.entries(champs).filter(([k, v]) => v != null && v !== "" && !pareil(ex?.[k], v));
+      const d = Object.entries(champs).filter(([k, v]) => v != null && v !== "" && !pareil(ex?.[k], v, k));
       tauxGestion[m.orderCode] = num(ex?.frais_gestion) ?? 5;
+      // TJM absent de VSP (volet régie sans ligne à son nom) : le CA se calcule avec le TJM déjà connu de l'espace
+      if (m.tjm == null && num(ex?.tjm) != null) m.tjm = num(ex?.tjm);
       if (!ex || d.length) {
         plan.missions.push({ qui, affaire: m.orderCode, nouvelle: !ex, champs: d.map(([k]) => k) });
         if (appliquer && userId) {
