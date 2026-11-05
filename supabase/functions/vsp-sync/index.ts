@@ -180,6 +180,34 @@ async function explorer() {
 // net versé, salaire chargé, frais pro, réserve, charges, frais de gestion de la mission (%).
 // =====================================================================
 type O = Record<string, unknown>;
+
+// ---------- Suivi d'avancement (lu par l'administration toutes les 1,5 s) ----------
+type Etape = { fait?: number; total?: number; texte?: string; fini?: boolean };
+class Suivi {
+  etapes: Record<string, Etape> = {};
+  dernier = 0;
+  id: string | null; par: string; action: string;
+  constructor(id: string | null, par = "", action = "") { this.id = id; this.par = par; this.action = action; }
+  async demarrer() {
+    if (!this.id) return;
+    await admin.from("vsp_sync_suivi").upsert({ id: this.id, par: this.par, action: this.action, etapes: {}, fini: false, maj: new Date().toISOString() });
+  }
+  maj(cle: string, e: Etape) {
+    this.etapes[cle] = { ...(this.etapes[cle] ?? {}), ...e };
+    const n = Date.now();
+    if (n - this.dernier > 1000 || e.fini) { this.dernier = n; this.ecrire().catch(() => {}); }
+  }
+  async ecrire(fini = false) {
+    if (!this.id) return;
+    await admin.from("vsp_sync_suivi").update({ etapes: this.etapes, fini, maj: new Date().toISOString() }).eq("id", this.id);
+  }
+}
+let SUIVI = new Suivi(null);
+// Verrou : un seul passage qui écrit à la fois (un passage muet depuis 3 min est considéré comme abandonné)
+async function passageEnCours(saufId: string | null) {
+  const { data } = await admin.from("vsp_sync_suivi").select("id, par, action").eq("fini", false).neq("action", "apercu").gt("maj", new Date(Date.now() - 3 * 60000).toISOString()).limit(5);
+  return (data ?? []).find((x) => x.id !== saufId) ?? null;
+}
 const s = (v: unknown) => (v == null ? "" : String(v).trim().replace(/\s+/g, " "));
 const lower = (v: unknown) => s(v).toLowerCase();
 const num = (v: unknown) => { const n = Number(s(v).replace(",", ".")); return s(v) !== "" && Number.isFinite(n) ? n : null; };
@@ -220,6 +248,7 @@ type ProfilVsp = { userId: string; emails: string[]; email: string; nom: string;
 type MissionVsp = { orderCode: string; champs: O; tjm: number | null };
 
 async function lireVsp(moisListe: string[]) {
+  SUIVI.maj("base", { texte: "lecture de VSP…" });
   const [users, infos, contrats, affs] = await Promise.all([
     toutes("/v1/users/list", { active: true }),
     toutes("/v1/hr/employees/information", { date: auj() }),
@@ -233,12 +262,15 @@ async function lireVsp(moisListe: string[]) {
   // Fiches d'affaires et volets de régie (TJM, n° de contrat), une fois par affaire
   const codes = [...new Set(affs.filter((a) => a.archived !== true).map((a) => s(a.orderCode)).filter(Boolean))];
   const affaires = new Map<string, { fiche: O; regies: O[] }>();
+  SUIVI.maj("base", { fini: true, texte: `${users.length} salariés, ${affs.length} affectations` });
+  let nAff = 0;
   for (const code of codes) {
     const fiche = await lireUn(`/v1/order/${encodeURIComponent(code)}`);
     const volets = items(await lireUn(`/v1/order/${encodeURIComponent(code)}/details`)) as O[];
     const regies: O[] = [];
     for (const v of volets.filter((x) => s(x.type).toUpperCase() === "REGIE")) regies.push(await lireUn(`/v1/order/${encodeURIComponent(code)}/regie/${encodeURIComponent(s(v.id))}`));
     affaires.set(code, { fiche, regies });
+    SUIVI.maj("affaires", { fait: ++nAff, total: codes.length, texte: code });
   }
 
   const consultants: { p: ProfilVsp; missions: MissionVsp[] }[] = [];
@@ -306,10 +338,13 @@ async function lireVsp(moisListe: string[]) {
   // Comptes d'activité et notes de frais des mois demandés
   const cra = new Map<string, Map<string, { jours: number; parAffaire: Record<string, number>; statut: string }>>();
   const frais = new Map<string, O[]>();
+  SUIVI.maj("affaires", { fini: true, fait: codes.length, total: codes.length, texte: `${codes.length} affaires` });
+  let nCra = 0, nFrais = 0;
   for (const mois of moisListe) {
     const [y, m] = mois.split("-").map(Number);
     const parUser = new Map<string, { jours: number; parAffaire: Record<string, number>; statut: string }>();
     for (const c of consultants) {
+      SUIVI.maj("cra", { fait: ++nCra, total: moisListe.length * consultants.length, texte: `${mois} · ${c.p.prenom} ${c.p.nom}` });
       const r = await vspGet("/v1/activity/timesheet/monthly", { year: y, month: m, userId: c.p.userId });
       if (r.status >= 300 || !r.body) continue;
       const b = (Array.isArray(r.body) ? r.body[0] : r.body) as O;
@@ -323,7 +358,10 @@ async function lireVsp(moisListe: string[]) {
     }
     cra.set(mois, parUser);
     frais.set(mois, await toutes("/v1/expenses", { start: mois, end: mois }));
+    SUIVI.maj("frais", { fait: ++nFrais, total: moisListe.length, texte: mois });
   }
+  SUIVI.maj("cra", { fini: true });
+  SUIVI.maj("frais", { fini: true });
   return { consultants, cra, frais };
 }
 
@@ -357,8 +395,10 @@ async function synchroniser(moisListe: string[], appliquer: boolean): Promise<Pl
   const parVsp = new Map((profils ?? []).filter((p) => p.vsp_id).map((p) => [String(p.vsp_id), p]));
   const parEmail = new Map((profils ?? []).map((p) => [lower(p.email), p]));
 
+  let nEcr = 0;
   for (const c of vsp.consultants) {
     const qui = `${c.p.prenom} ${c.p.nom}`.trim() || c.p.email;
+    SUIVI.maj("ecriture", { fait: ++nEcr, total: vsp.consultants.length, texte: (appliquer ? "enregistrement : " : "comparaison : ") + qui });
     if (c.p.emails.some((e) => emailsAdmins.has(e))) { plan.ignores.push(`${qui} : compte administrateur HT Portage`); continue; }
     let prof = parVsp.get(c.p.userId) ?? c.p.emails.map((e) => parEmail.get(e)).find(Boolean);
     if (!prof && !c.p.email) { plan.ignores.push(`${qui} : aucune adresse e-mail dans VSP`); continue; }
@@ -474,6 +514,9 @@ async function auto() {
   const vue = await toutes("/v1/activity/overview", { year: mp.y, month: mp.m });
   const nonValides = vue.filter((v) => s(v.workflowStatus) !== "VALIDATED").length;
   if (!vue.length || nonValides) return { mois, fait: false, raison: `${nonValides} CRA non validé(s) sur ${vue.length}`, attente: true };
+  if (await passageEnCours(null)) return { mois, fait: false, raison: "une synchronisation est déjà en cours", attente: true };
+  SUIVI = new Suivi(crypto.randomUUID(), "serveur", "auto");
+  await SUIVI.demarrer();
   return { mois, fait: true, plan: await synchroniser([mois], true) };
 }
 
@@ -505,6 +548,13 @@ Deno.serve(async (req) => {
   const action = String(corps.action ?? "");
   const moisListe = Array.isArray(corps.mois) && corps.mois.every(moisValide) ? (corps.mois as string[]).slice(0, 12) : moisValide(corps.mois) ? [String(corps.mois)] : moisParDefaut();
   if (action === "auto" && acces.par !== "serveur") return json({ erreur: "Réservé au déclenchement serveur." }, 403);
+  const idSuivi = /^[0-9a-f-]{36}$/i.test(String(corps.suivi ?? "")) ? String(corps.suivi) : null;
+  if (action === "appliquer") {
+    const autre = await passageEnCours(idSuivi);
+    if (autre) return json({ statut: "erreur", resultat: { erreur: `Une synchronisation est déjà en cours (lancée par ${autre.par ?? "un autre administrateur"}).` } });
+  }
+  SUIVI = new Suivi(action === "auto" ? null : idSuivi, acces.par, action);
+  await SUIVI.demarrer();
   const debut = Date.now();
   let resultat: unknown, statut = "ok", moisRun: string | null = null;
   try {
@@ -523,6 +573,7 @@ Deno.serve(async (req) => {
     statut = "erreur";
     resultat = { erreur: String((e as Error).message ?? e).slice(0, 300) };
   }
+  await SUIVI.ecrire(true).catch(() => {});
   await admin.from("vsp_sync_runs").insert({ action, mois: moisRun, par: acces.par, statut, duree_ms: Date.now() - debut, resultat });
   return json({ statut, resultat });
 });

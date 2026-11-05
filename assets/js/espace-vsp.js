@@ -46,18 +46,74 @@
     a.ignores = a.ignores.filter(function (t) { var k = 'i' + t; return vus[k] ? false : (vus[k] = 1); });
     return a;
   }
+  // ---------------------------------------------------------------------
+  // Pendant un passage : la page est bloquée (voile) et l'avancement de chaque tâche s'affiche,
+  // lu toutes les 1,5 s dans public.vsp_sync_suivi, que la fonction met à jour au fil de l'eau.
+  // ---------------------------------------------------------------------
+  var voile = null, enCours = false;
+  function ouvrirVoile(titre) {
+    enCours = true;
+    voile = document.createElement('div');
+    voile.setAttribute('role', 'alertdialog'); voile.setAttribute('aria-modal', 'true'); voile.setAttribute('aria-labelledby', 'voile-titre');
+    voile.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(19,32,56,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+    voile.innerHTML = '<div class="box" style="width:min(560px,100%);max-height:90vh;overflow:auto;margin:0;box-shadow:0 20px 50px rgba(0,0,0,.25)">' +
+      '<h2 class="box__title" id="voile-titre" style="font-size:18px;margin:0 0 4px">' + esc(titre) + '</h2>' +
+      '<p class="small" style="margin:0 0 14px;font-size:14px">L\'espace est bloqué pendant le passage pour éviter les modifications en parallèle. Ne fermez pas cette page.</p>' +
+      '<div id="voile-lot" class="small" style="font-weight:600;margin-bottom:10px"></div><div id="voile-etapes"><p class="loading">Démarrage…</p></div></div>';
+    document.body.appendChild(voile);
+    voile.addEventListener('keydown', function (e) { if (e.key === 'Tab') e.preventDefault(); });
+    voile.tabIndex = -1; voile.focus();
+  }
+  function fermerVoile() { enCours = false; if (voile) { voile.remove(); voile = null; } }
+  window.addEventListener('beforeunload', function (e) { if (enCours) { e.preventDefault(); e.returnValue = ''; } });
+
+  var LIB_ETAPES = { base: 'Salariés, contrats et affectations', affaires: 'Affaires et volets de régie', cra: 'CRA mensuels', frais: 'Notes de frais', ecriture: 'Comparaison et enregistrement dans l\'espace' };
+  var ORDRE = ['base', 'affaires', 'cra', 'frais', 'ecriture'];
+  function dessinerEtapes(etapes) {
+    var el = voile && voile.querySelector('#voile-etapes');
+    if (!el) return;
+    el.innerHTML = ORDRE.map(function (k) {
+      var e = (etapes || {})[k] || {};
+      var pct = e.total ? Math.round(100 * Math.min(e.fait || 0, e.total) / e.total) : (e.fini ? 100 : 0);
+      var etat = e.fini ? '✓' : e.total || e.fait ? pct + ' %' : 'en attente';
+      return '<div style="margin:0 0 12px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><span>' + esc(LIB_ETAPES[k]) + '</span><span class="small">' + esc(etat) + (e.total ? ' · ' + (e.fait || 0) + '/' + e.total : '') + '</span></div>' +
+        '<div style="height:8px;border-radius:4px;background:var(--bg);overflow:hidden;margin-top:4px"><div style="height:100%;width:' + pct + '%;background:' + (e.fini ? 'var(--navy, #1d2b4f)' : 'var(--rose, #c187a1)') + ';transition:width .4s"></div></div>' +
+        (e.texte ? '<div class="small" style="font-size:13px;margin-top:2px">' + esc(e.texte) + '</div>' : '') + '</div>';
+    }).join('');
+  }
+  function uuid() { return (crypto.randomUUID && crypto.randomUUID()) || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }); }
+
+  async function syncDejaEnCours() {
+    var r = await db.from('vsp_sync_suivi').select('par, maj').eq('fini', false).gt('maj', new Date(Date.now() - 3 * 60000).toISOString()).limit(1);
+    return r.data && r.data[0];
+  }
+
   async function appeler(action) {
+    var autre = await syncDejaEnCours();
+    if (autre) throw new Error('Une synchronisation est déjà en cours (lancée par ' + (autre.par || 'un autre administrateur') + '). Réessayez dans quelques minutes.');
     var liste = lots(), plan = null, statutG = 'ok';
-    for (var i = 0; i < liste.length; i++) {
-      if (liste.length > 1) E.setStatus(statut, (action === 'apercu' ? 'Lecture de VSP' : 'Synchronisation') + ' : mois ' + liste[i].map(libMois).join(', ') + ' (' + (i + 1) + '/' + liste.length + ')…');
-      var r = await appelerUn(action, liste[i]);
-      plan = fusionner(plan, r.resultat);
-      if (r.statut === 'partiel') statutG = 'partiel';
-    }
+    ouvrirVoile(action === 'apercu' ? 'Aperçu de la synchronisation VSP' : 'Synchronisation VSP en cours');
+    try {
+      for (var i = 0; i < liste.length; i++) {
+        var lib = liste[i] ? liste[i].map(libMois).join(', ') : 'mois écoulé et mois en cours';
+        voile.querySelector('#voile-lot').textContent = (liste.length > 1 ? 'Lot ' + (i + 1) + ' sur ' + liste.length + ' · ' : '') + lib;
+        dessinerEtapes({});
+        var id = uuid();
+        var t = setInterval(async function () {
+          var s = await db.from('vsp_sync_suivi').select('etapes').eq('id', id).maybeSingle();
+          if (s.data) dessinerEtapes(s.data.etapes);
+        }, 1500);
+        try {
+          var r = await appelerUn(action, liste[i], id);
+          plan = fusionner(plan, r.resultat);
+          if (r.statut === 'partiel') statutG = 'partiel';
+        } finally { clearInterval(t); }
+      }
+    } finally { fermerVoile(); }
     return { statut: statutG, resultat: plan };
   }
-  async function appelerUn(action, mois) {
-    var corps = { action: action };
+  async function appelerUn(action, mois, suivi) {
+    var corps = { action: action, suivi: suivi };
     if (mois) corps.mois = mois;
     var r = await db.functions.invoke('vsp-sync', { body: corps });
     if (r.error) {
@@ -91,6 +147,7 @@
     rapport.hidden = false;
   }
 
+  var dernierApercu = null;
   btnApercu.addEventListener('click', async function () {
     btnApercu.disabled = true; btnAppliquer.hidden = true; rapport.hidden = true;
     E.setStatus(statut, 'Lecture de VSP… (une à deux minutes)');
