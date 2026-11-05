@@ -253,6 +253,11 @@
     var toutes = D.lignes.filter(function (f) { return f.user_id === uid; });
     var ko = l.filter(function (f) { return f.anomalies.length; }), total = l.reduce(function (t, f) { return t + f.ttc; }, 0);
     var mc = moisConsultant(uid, an);
+    // Part globale des frais dans le CA, sur les mois de la période dont le CA est connu
+    var moisCa = mc.mois.filter(function (m) { return (!selMois.value || m === selMois.value) && mc.parMois[m].ca; });
+    var caPer = moisCa.reduce(function (s, m) { return s + mc.parMois[m].ca; }, 0), fraisPer = moisCa.reduce(function (s, m) { return s + mc.parMois[m].ttc; }, 0);
+    var ratio = caPer ? fraisPer / caPer : null;
+    var noteRatio = caPer ? E.eur(fraisPer, true) + ' de frais pour ' + E.eur(caPer) + ' HT de CA (' + moisCa.length + ' mois' + (moisCa.length < mc.mois.filter(function (m) { return !selMois.value || m === selMois.value; }).length ? ' dont le CA est connu' : '') + ')' : 'CA non disponible sur la période';
     // Montants habituels (sur tout l'historique)
     var hab = ['repas', 'km'].map(function (c) {
       var v = toutes.filter(function (f) { return f.cat === c && f.ttc > 0; }).map(function (f) { return f.ttc; });
@@ -264,6 +269,7 @@
       '<p style="margin:0 0 12px"><a href="#frais" data-qui="">← Vue globale</a></p>' +
       '<section class="kpis" aria-label="Synthèse du consultant">' +
         kpi(D.noms[uid] || '—', E.eur(total, true), l.length + ' lignes sur la période') +
+        kpi('Frais / CA', ratio != null ? (Math.round(ratio * 1000) / 10).toLocaleString('fr-FR') + ' %' : '—', noteRatio + (ratio != null && ratio > REGLES.ratioCa ? ' · au-dessus de ' + Math.round(REGLES.ratioCa * 100) + ' %' : ''), ratio != null && ratio > REGLES.ratioCa) +
         kpi('Lignes à vérifier', String(ko.length), E.eur(ko.reduce(function (t, f) { return t + f.ttc; }, 0), true) + ' concernés', ko.length) +
         kpi('Achats de matériel', String(mat.length), mat.length ? mat.map(function (f) { return E.date(f.date_frais); }).join(', ') : 'aucun dans l\'historique', mat.length > REGLES.materielParAn) +
       '</section>' +
