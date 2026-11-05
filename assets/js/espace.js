@@ -147,9 +147,7 @@
       var section = sectionAdmin();
       links = PAGES_ADMIN.map(function (p) {
         return '<a href="admin.html#' + p[1] + '" data-section="' + p[1] + '"' + (p[1] === section ? ' aria-current="page"' : '') + '>' + icon(p[0]) + '<span>' + esc(p[2]) + '</span><span class="pill" data-pill hidden></span></a>';
-      }).join('') +
-        // Page à part (dépôt htportage-vsp-kpi) : pilotage hebdo alimenté par l'API VSP
-        '<a href="pilotage.html"' + (current === 'pilotage' ? ' aria-current="page"' : '') + '>' + icon('reporting') + '<span>Pilotage VSP</span></a>';
+      }).join('');
     } else {
       links = PAGES.map(function (p) {
         return '<a href="' + p[1] + '"' + (p[0] === current ? ' aria-current="page"' : '') + '>' + icon(p[0]) + esc(p[2]) + '</a>';
