@@ -128,6 +128,13 @@
         if (!f.motif) f.anomalies.push({ niveau: 'moyenne', texte: 'Sans motif' });
       });
     });
+    // Lignes validées par un administrateur : elles ne ressortent plus, tant que le montant n'a pas changé dans VSP
+    lignes.forEach(function (f) {
+      f.validee = false;
+      if (!f.valide_le) return;
+      if (Math.abs((Number(f.valide_montant) || 0) - f.ttc) < 0.005) { f.validee = true; f.anomaliesValidees = f.anomalies; f.anomalies = []; }
+      else f.anomalies.unshift({ niveau: 'haute', texte: 'Montant modifié dans VSP depuis la validation (' + E.eur(Number(f.valide_montant), true) + ' validés)' });
+    });
     return parQui;
   }
 
@@ -141,7 +148,7 @@
 
   async function charger() {
     zone.innerHTML = '<p class="loading">Chargement…</p>';
-    var r = await db.from('notes_frais').select('id, user_id, mois, date_frais, type, montant_ht, montant_ttc, motif').order('date_frais').limit(20000);
+    var r = await db.from('notes_frais').select('id, user_id, mois, date_frais, type, montant_ht, montant_ttc, motif, valide_le, valide_par, valide_montant, valide_commentaire').order('date_frais').limit(20000);
     if (r.error) { zone.innerHTML = '<p class="small">' + esc(E.errText(r.error)) + '</p>'; return; }
     D.lignes = r.data || [];
     var ids = D.lignes.map(function (f) { return f.user_id; }).filter(function (v, i, t) { return t.indexOf(v) === i; });
@@ -171,6 +178,18 @@
   // ---------------------------------------------------------------------
   var ROUGE = 'color:#b42318', FOND_ROUGE = 'background:#fdecea';
   function pastille(n, haute) { return n ? '<span style="display:inline-block;min-width:22px;padding:2px 8px;border-radius:999px;font-weight:700;font-size:13px;' + (haute ? 'background:#b42318;color:#fff' : 'background:#fdecea;color:#b42318') + '">' + n + '</span>' : '<span class="small">—</span>'; }
+  // Cellule « Contrôle » : raisons + bouton Valider, ou mention de validation + Annuler
+  var VERT = 'color:#1f7a4d';
+  function controle(f) {
+    if (f.anomalies.length) return raisons(f) + '<button class="btn btn--light btn--sm" type="button" data-valider="' + esc(f.id) + '" style="margin-top:6px">Valider</button>';
+    if (f.validee) {
+      return '<div style="' + VERT + ';font-size:13px;font-weight:700">✓ Validée par ' + esc(f.valide_par || '—') + ' le ' + esc(E.date(f.valide_le)) + '</div>' +
+        (f.valide_commentaire ? '<div class="small" style="font-size:13px">« ' + esc(f.valide_commentaire) + ' »</div>' : '') +
+        '<div class="small" style="font-size:12px">Signalée pour : ' + esc((f.anomaliesValidees || []).map(function (a) { return a.texte; }).join(' · ')) + '</div>' +
+        '<button class="link-btn" type="button" data-annuler="' + esc(f.id) + '" style="font-size:12px">Annuler la validation</button>';
+    }
+    return '<span class="small">OK</span>';
+  }
   function raisons(f) { return f.anomalies.map(function (a) { return '<div style="' + ROUGE + ';font-size:13px;font-weight:' + (a.niveau === 'haute' ? 700 : 600) + '">⚠ ' + esc(a.texte) + '</div>'; }).join(''); }
   function kpi(label, val, note, rouge) { return '<div class="kpi' + (rouge ? '' : '') + '"' + (rouge ? ' style="' + FOND_ROUGE + '"' : '') + '><span class="kpi__label">' + esc(label) + '</span><span class="kpi__value"' + (rouge ? ' style="' + ROUGE + '"' : '') + '>' + val + '</span><span class="kpi__note">' + esc(note || '') + '</span></div>'; }
 
@@ -186,7 +205,7 @@
         var ko = f.anomalies.length;
         return '<tr' + (ko ? ' style="' + FOND_ROUGE + '"' : '') + '>' + (avecQui ? '<td><a href="#frais" data-qui="' + f.user_id + '">' + esc(D.noms[f.user_id] || '—') + '</a></td>' : '') +
           '<td class="small">' + esc(libMois(String(f.mois).slice(0, 7))) + '</td><td>' + esc(E.date(f.date_frais)) + '</td><td>' + esc(LIB_CAT[f.cat]) + '</td><td>' + esc(f.type || '—') + (f.motif ? '<div class="small">' + esc(f.motif) + '</div>' : '') + '</td>' +
-          '<td style="text-align:right' + (ko ? ';' + ROUGE + ';font-weight:700' : '') + '">' + E.eur(f.ttc, true) + '</td><td>' + (ko ? raisons(f) : '<span class="small">OK</span>') + '</td></tr>';
+          '<td style="text-align:right' + (ko ? ';' + ROUGE + ';font-weight:700' : '') + '">' + E.eur(f.ttc, true) + '</td><td>' + controle(f) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   function parCategorie(lignes) {
@@ -238,7 +257,7 @@
     zone.innerHTML =
       '<section class="kpis" aria-label="Synthèse">' +
         kpi('Frais déclarés', E.eur(total, true), l.length + ' lignes · ' + ids.length + ' consultant' + (ids.length > 1 ? 's' : '')) +
-        kpi('Lignes à vérifier', String(ko.length), E.eur(totalKo, true) + ' concernés', ko.length) +
+        kpi('Lignes à vérifier', String(ko.length), E.eur(totalKo, true) + ' concernés' + (l.filter(function (f) { return f.validee; }).length ? ' · ' + l.filter(function (f) { return f.validee; }).length + ' déjà validée(s)' : ''), ko.length) +
         kpi('Anomalies graves', String(haute.length), 'doublons, matériel, très gros montants', haute.length) +
       '</section>' +
       '<section class="box"><div class="box__head"><h2 class="box__title">Par consultant</h2><span class="small">Cliquez sur un nom pour sa vue détaillée</span></div>' +
@@ -299,7 +318,22 @@
   selMois.addEventListener('change', afficher);
   selQui.addEventListener('change', afficher);
   chkAno.addEventListener('change', afficher);
-  zone.addEventListener('click', function (e) {
+  zone.addEventListener('click', async function (e) {
+    var v = e.target.closest('[data-valider],[data-annuler]');
+    if (v) {
+      e.preventDefault();
+      var valider = v.hasAttribute('data-valider');
+      var commentaire = null;
+      if (valider) {
+        commentaire = window.prompt('Valider cette note de frais. Commentaire (facultatif), par exemple « justificatif reçu » :', '');
+        if (commentaire === null) return; // Annuler dans la fenêtre
+      } else if (!window.confirm('Annuler la validation ? La ligne ressortira de nouveau en anomalie.')) return;
+      v.disabled = true;
+      var r = await db.rpc('valider_note_frais', { p_id: v.dataset.valider || v.dataset.annuler, p_valider: valider, p_commentaire: commentaire });
+      if (r.error) { v.disabled = false; window.alert('Enregistrement impossible : ' + E.errText(r.error)); return; }
+      var y = window.scrollY; await charger(); window.scrollTo(0, y);
+      return;
+    }
     var a = e.target.closest('[data-qui]');
     if (!a) return;
     e.preventDefault(); selQui.value = a.dataset.qui; afficher(); window.scrollTo(0, 0);
