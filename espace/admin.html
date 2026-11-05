@@ -73,35 +73,31 @@
       <div id="liste-signatures"><p class="loading">Chargement…</p></div>
     </section>
 
-    <section class="admin-section box" id="import" data-titre="Import VSP" data-sous="Migration des salariés depuis VSP, puis import des comptes d'activité." aria-label="Import VSP" hidden>
-      <div class="box" id="migration" style="background:var(--bg);border:0;margin-bottom:24px">
-        <h2 class="box__title" style="font-size:18px">Migration depuis VSP</h2>
+    <section class="admin-section box" id="import" data-titre="Synchronisation VSP" data-sous="Les consultants, missions, comptes d'activité et notes de frais viennent directement de VSP. VSP fait foi." aria-label="Synchronisation VSP" hidden>
+      <div class="box" id="sync-vsp" style="background:var(--bg);border:0;margin-bottom:24px">
+        <h2 class="box__title" style="font-size:18px">Synchroniser avec VSP</h2>
         <ol class="small" style="font-size:15px;margin:0;padding-left:20px;display:grid;gap:6px">
-          <li>Déposez les exports VSP tels quels : <strong>ListeSalaries</strong>, <strong>ListeAffaires</strong> et <strong>ProductionMensuelle</strong> (.xlsx), et les <strong>bulletins et contrats PDF</strong> (seuls ou en .zip, noms « NOM_Prénom_… »). Vous pouvez en ajouter en plusieurs fois.</li>
-          <li>Vérifiez l'aperçu : profils, missions, mois d'activité et documents de chacun. Rien n'est enregistré à ce stade.</li>
-          <li>« Importer » : comptes, profils, missions, comptes d'activité et documents sont créés. <strong>Aucun e-mail n'est envoyé.</strong> Relancer l'import ne crée pas de doublon.</li>
-          <li>Quand tout est prêt : « Inviter » envoie à chacun l'e-mail « Votre espace consultant HT Portage est prêt ».</li>
+          <li>« Aperçu » lit VSP et montre ce qui changerait : nouveaux consultants, profils, missions, jours et CA, notes de frais. <strong>Rien n'est enregistré à ce stade.</strong></li>
+          <li>« Synchroniser » enregistre ces changements. Les nouveaux consultants ont leur compte, <strong>sans e-mail</strong> : invitez-les depuis « Consultants » quand vous le décidez.</li>
+          <li>Ne sont jamais repris de VSP : n° de sécurité sociale, IBAN, salaires. Ne sont jamais modifiés : statut du dossier, net versé, frais de gestion de la mission.</li>
         </ol>
         <div class="toolbar" style="margin-top:14px">
-          <label class="visually-hidden" for="migration-fichiers">Fichiers VSP (xlsx, pdf, zip)</label>
-          <input class="input" id="migration-fichiers" type="file" multiple accept=".xlsx,.xls,.pdf,.zip" style="max-width:420px;padding:9px 12px">
-          <button class="btn btn--light btn--sm" type="button" id="migration-vider" hidden>Tout effacer</button>
+          <label class="small" for="sync-mois" style="font-weight:600;color:var(--ink)">Période</label>
+          <select class="select" id="sync-mois" style="min-height:44px;width:auto"></select>
+          <button class="btn btn--light btn--sm" type="button" id="sync-apercu">Aperçu</button>
+          <button class="btn btn--rose btn--sm" type="button" id="sync-appliquer" hidden>Synchroniser</button>
         </div>
-        <div class="actions-row" style="margin-top:12px"><p class="form-status" id="migration-statut" role="status" aria-live="polite"></p>
-          <div class="row-actions"><button class="btn btn--dark btn--sm" type="button" id="migration-importer" hidden>Importer</button><button class="btn btn--rose btn--sm" type="button" id="migration-inviter" hidden>Inviter</button></div></div>
-        <div class="small" id="migration-journal" hidden style="font-size:14px;margin-top:8px"></div>
-        <div id="migration-apercu"></div>
+        <p class="form-status" id="sync-statut" role="status" aria-live="polite" style="margin-top:10px"></p>
+        <div id="sync-rapport" hidden style="margin-top:8px"></div>
       </div>
-      <h2 class="box__title" style="font-size:18px">Comptes d'activité du mois</h2>
-      <p style="font-size:15px;color:var(--muted)">Chaque mois, déposez l'export VSP <strong>ProductionMensuelle</strong> (.xlsx) tel quel : jours, CA et frais de gestion de chaque consultant sont mis à jour (un net versé déjà saisi est conservé). Ou un fichier CSV (séparateur « ; » ou « , »), une ligne par consultant et par mois. Colonnes reconnues :
-        <code>email</code> ou <code>vsp_id</code>, <code>mois</code> (2026-09 ou 09/2026), <code>jours</code>, <code>ca_ht</code>, <code>frais_gestion</code>, <code>charges</code>, <code>reserve</code>, <code>net_verse</code>, <code>statut</code> (provisoire/definitif). Un mois déjà importé est mis à jour.</p>
-      <form class="toolbar" id="form-import" novalidate>
-        <label class="visually-hidden" for="fichier-csv">Export ProductionMensuelle (.xlsx) ou fichier CSV</label>
-        <input class="input" id="fichier-csv" type="file" accept=".xlsx,.xls,.csv,text/csv" required style="max-width:360px;padding:9px 12px">
-        <button class="btn btn--dark btn--sm" type="submit">Vérifier le fichier</button>
-        <button class="btn btn--rose btn--sm" type="button" id="btn-importer" hidden>Importer</button>
-      </form>
-      <pre class="report" id="rapport-import" hidden></pre>
+      <h2 class="box__title" style="font-size:18px">Historique</h2>
+      <div id="sync-historique" style="margin-bottom:24px"><p class="loading">Chargement…</p></div>
+      <div class="toolbar" style="justify-content:space-between;margin-bottom:8px">
+        <h2 class="box__title" style="font-size:18px;margin:0">Notes de frais</h2>
+        <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Mois
+          <select class="select" id="frais-mois" style="min-height:44px;width:auto"></select></label>
+      </div>
+      <div id="frais-admin"><p class="loading">Chargement…</p></div>
     </section>
 
     <section class="admin-section box" id="offres" data-titre="Offres d'emploi" data-sous="Les missions affichées sur la page « Missions » du site : création, publication, archivage." aria-label="Offres d'emploi" hidden>
@@ -227,6 +223,6 @@
 <script src="../assets/js/espace-admin.js?v=20261104b"></script>
 <script src="../assets/js/cv-ht.js?v=20261104b"></script>
 <script src="../assets/js/espace-admin-plus.js?v=20261104b"></script>
-<script src="../assets/js/espace-migration.js?v=20261104b"></script>
+<script src="../assets/js/espace-vsp.js?v=20261106a"></script>
 </body>
 </html>

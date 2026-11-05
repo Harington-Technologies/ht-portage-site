@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Mes notes de frais — Espace consultant HT Portage</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css?v=20261104b">
+<link rel="stylesheet" href="../assets/css/espace.css?v=20261104b">
+</head>
+<body data-page="frais">
+<div class="app">
+  <nav class="sidebar" id="sidebar" aria-label="Espace consultant"></nav>
+  <main class="content">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">/Notes de frais/</p>
+        <h1 class="page-title">Mes notes de frais</h1>
+        <p class="small" style="font-size:14px">Vos frais déclarés dans VSP, mis à jour à chaque synchronisation. Pour en ajouter ou en corriger, passez par VSP.</p>
+      </div>
+      <label class="small" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink)">Année
+        <select class="select" id="annee" style="min-height:44px;width:auto"></select>
+      </label>
+    </header>
+
+    <section class="kpis" id="cumul" aria-label="Total de l'année"></section>
+
+    <section class="box" aria-labelledby="t-frais">
+      <div class="box__head"><h2 class="box__title" id="t-frais">Détail par mois</h2><span class="small">Montants en euros</span></div>
+      <div id="liste"><p class="loading">Chargement…</p></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js?v=20261104b"></script>
+<script src="../assets/js/espace.js?v=20261106a"></script>
+<script src="../assets/js/espace-frais.js?v=20261106a"></script>
+</body>
+</html>
