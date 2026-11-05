@@ -429,14 +429,22 @@ async function synchroniser(moisListe: string[], appliquer: boolean): Promise<Pl
       }
     }
 
-    // Notes de frais
+    // Notes de frais. L'id d'une ligne VSP n'est unique que pour un même salarié : la clé combine
+    // salarié, en-tête de note et ligne. Les lignes disparues de VSP pour ce mois sont retirées (VSP fait foi).
     for (const mois of plan.mois) {
       const lignes = (vsp.frais.get(mois) ?? []).filter((f) => s(f.userId) === c.p.userId);
+      const cleFrais = (f: O) => `${c.p.userId}-${s(f.headerId)}-${s(f.id)}`.slice(0, 100);
+      if (appliquer && userId) {
+        const garder = lignes.map(cleFrais);
+        const { data: avant } = await admin.from("notes_frais").select("id,vsp_id").eq("user_id", userId).eq("mois", `${mois}-01`);
+        const aRetirer = (avant ?? []).filter((r) => !garder.includes(r.vsp_id)).map((r) => r.id);
+        if (aRetirer.length) await admin.from("notes_frais").delete().in("id", aRetirer);
+      }
       if (!lignes.length) continue;
       plan.frais.push({ qui, mois, lignes: lignes.length, total_ttc: arrondi(lignes.reduce((t, f) => t + (num(f.amountTi) ?? 0), 0)) });
       if (appliquer && userId) {
         const rows = lignes.map((f) => ({
-          vsp_id: s(f.id), user_id: userId, mois: `${mois}-01`,
+          vsp_id: cleFrais(f), user_id: userId, mois: `${mois}-01`,
           date_frais: /^\d{4}-\d{2}-\d{2}/.test(s(f.date)) ? s(f.date).slice(0, 10) : null,
           type: (s(f.type) || s(f.typeCode)).slice(0, 150) || null,
           montant_ht: num(f.amountTf), montant_ttc: num(f.amountTi), devise: s(f.currencyCode).slice(0, 3) || "EUR",

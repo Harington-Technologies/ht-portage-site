@@ -20,16 +20,45 @@
   function libMois(m) { return NOMS[Number(m.slice(5, 7)) - 1] + ' ' + m.slice(0, 4); }
   function moisDecale(n) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
   // Choix : mois écoulé + mois en cours (défaut), ou un mois des 12 derniers
-  var choix = [['defaut', 'Mois écoulé et mois en cours']];
+  var choix = [['defaut', 'Mois écoulé et mois en cours'], ['annee', 'Depuis le 1er janvier']];
   for (var i = 0; i < 12; i++) { var m = moisDecale(-i); choix.push([m, libMois(m)]); }
   selMois.innerHTML = choix.map(function (c) { return '<option value="' + c[0] + '">' + esc(c[1]) + '</option>'; }).join('');
-  fraisMois.innerHTML = choix.slice(1).map(function (c) { return '<option value="' + c[0] + '">' + esc(c[1]) + '</option>'; }).join('');
+  fraisMois.innerHTML = choix.slice(2).map(function (c) { return '<option value="' + c[0] + '">' + esc(c[1]) + '</option>'; }).join('');
   fraisMois.value = moisDecale(-1);
 
-  var dernierApercu = null;
+  // Lots de mois envoyés à la fonction : 3 mois au plus par appel, pour rester sous sa durée maximale
+  function lots() {
+    if (selMois.value === 'defaut') return [null];
+    if (selMois.value !== 'annee') return [[selMois.value]];
+    var tous = [], an = String(new Date().getFullYear());
+    for (var i = 0; i < 12; i++) { var m = moisDecale(-i); if (m.slice(0, 4) === an) tous.unshift(m); }
+    var out = []; for (var j = 0; j < tous.length; j += 3) out.push(tous.slice(j, j + 3));
+    return out;
+  }
+  function fusionner(a, b) {
+    if (!a) return b;
+    ['mois', 'comptes_crees', 'profils', 'missions', 'activite', 'frais', 'ignores'].forEach(function (k) { a[k] = (a[k] || []).concat(b[k] || []); });
+    // Profils et missions sont relus à chaque lot : on ne garde qu'une ligne par personne / affaire
+    var vus = {};
+    a.profils = a.profils.filter(function (p) { var k = 'p' + p.qui; return vus[k] ? false : (vus[k] = 1); });
+    a.missions = a.missions.filter(function (m) { var k = 'm' + m.qui + m.affaire; return vus[k] ? false : (vus[k] = 1); });
+    a.comptes_crees = a.comptes_crees.filter(function (c) { var k = 'c' + c.email; return vus[k] ? false : (vus[k] = 1); });
+    a.ignores = a.ignores.filter(function (t) { var k = 'i' + t; return vus[k] ? false : (vus[k] = 1); });
+    return a;
+  }
   async function appeler(action) {
+    var liste = lots(), plan = null, statutG = 'ok';
+    for (var i = 0; i < liste.length; i++) {
+      if (liste.length > 1) E.setStatus(statut, (action === 'apercu' ? 'Lecture de VSP' : 'Synchronisation') + ' : mois ' + liste[i].map(libMois).join(', ') + ' (' + (i + 1) + '/' + liste.length + ')…');
+      var r = await appelerUn(action, liste[i]);
+      plan = fusionner(plan, r.resultat);
+      if (r.statut === 'partiel') statutG = 'partiel';
+    }
+    return { statut: statutG, resultat: plan };
+  }
+  async function appelerUn(action, mois) {
     var corps = { action: action };
-    if (selMois.value !== 'defaut') corps.mois = selMois.value;
+    if (mois) corps.mois = mois;
     var r = await db.functions.invoke('vsp-sync', { body: corps });
     if (r.error) {
       var detail = null;
