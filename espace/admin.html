@@ -94,12 +94,19 @@
       <div id="sync-historique"><p class="loading">Chargement…</p></div>
     </section>
 
-    <section class="admin-section box" id="frais" data-titre="Notes de frais" data-sous="Notes de frais des consultants, recopiées de VSP à chaque synchronisation. Classées par mois de la note (mois de remboursement) ; la date est celle de la dépense." aria-label="Notes de frais" hidden>
-      <div class="toolbar" style="justify-content:flex-end;margin-bottom:12px">
-        <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Mois
-          <select class="select" id="frais-mois" style="min-height:44px;width:auto"></select></label>
+    <section class="admin-section" id="frais" data-titre="Contrôle des notes de frais" data-sous="Notes de frais recopiées de VSP, classées par mois de la note (mois de remboursement). Les anomalies sont en rouge : à vérifier avant de valider le remboursement." aria-label="Contrôle des notes de frais" hidden>
+      <div class="box" style="margin-bottom:16px">
+        <div class="toolbar" style="gap:12px">
+          <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Année
+            <select class="select" id="nf-annee" style="min-height:44px;width:auto"></select></label>
+          <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Mois de la note
+            <select class="select" id="nf-mois" style="min-height:44px;width:auto"></select></label>
+          <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)">Consultant
+            <select class="select" id="nf-qui" style="min-height:44px;width:auto"></select></label>
+          <label class="small" style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)"><input type="checkbox" id="nf-anomalies"> Anomalies seulement</label>
+        </div>
       </div>
-      <div id="frais-admin"><p class="loading">Chargement…</p></div>
+      <div id="nf-contenu"><p class="loading">Chargement…</p></div>
     </section>
 
     <section class="admin-section box" id="offres" data-titre="Offres d'emploi" data-sous="Les missions affichées sur la page « Missions » du site : création, publication, archivage." aria-label="Offres d'emploi" hidden>
@@ -225,6 +232,7 @@
 <script src="../assets/js/espace-admin.js?v=20261104b"></script>
 <script src="../assets/js/cv-ht.js?v=20261104b"></script>
 <script src="../assets/js/espace-admin-plus.js?v=20261104b"></script>
-<script src="../assets/js/espace-vsp.js?v=20261106d"></script>
+<script src="../assets/js/espace-vsp.js?v=20261106e"></script>
+<script src="../assets/js/espace-frais-admin.js?v=20261106e"></script>
 </body>
 </html>
