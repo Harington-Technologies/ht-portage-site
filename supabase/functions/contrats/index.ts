@@ -249,7 +249,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
           const statut = typeof st === "object" ? JSON.stringify(st) : String(st);
           const dests = (sr.recipients ?? j.recipients ?? sr.signers ?? j.signers ?? []) as Record<string, unknown>[];
           const signataires = dests.map((r) => ({ email: String(r.email ?? ""), signe: Boolean(r.signed_at || r.completed_at || /sign|complet/i.test(String(r.status ?? ""))), statut: String(r.status ?? "") }));
-          const termine = /"?(completed|finished)"?/i.test(statut) || (signataires.length > 0 && signataires.every((x) => x.signe));
+          const termine = /^(completed|finished)$|"(completed|finished)"/i.test(statut) || (signataires.length > 0 && signataires.every((x) => x.signe));
           let rejoue = "";
           if (termine && secret) {
             const corps = JSON.stringify({ id: "sync-" + d.yousign_sr_id, type: "signing_request.completed", data: { signing_request: { id: d.yousign_sr_id } } });
