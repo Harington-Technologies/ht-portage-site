@@ -631,7 +631,7 @@
       var ds = r.demandes || [];
       html += ds.length ? '<br>' + ds.map(function (d) {
         if (d.erreur) return '• ' + E.esc(d.titre) + ' : ' + E.esc(d.erreur);
-        return '• ' + E.esc(d.titre) + ' : ' + E.esc(d.statut || '?') + ' — ' + (d.signataires || []).map(function (x) { return E.esc(x.email) + (x.signe ? ' ✓' : ' (en attente)'); }).join(', ') + (d.rejoue ? ' — <strong>' + E.esc(d.rejoue) + '</strong>' : '');
+        return '• ' + E.esc(d.titre) + ' : ' + E.esc(d.statut || '?') + ' — ' + (d.signataires || []).map(function (x) { return E.esc(x.email) + (x.signe ? ' ✓' : ' (en attente)'); }).join(', ') + (d.rejoue ? ' — <strong>' + E.esc(d.rejoue) + '</strong>' : '') + (d.brut ? '<details><summary>Réponse détaillée de Firma</summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:300px;overflow:auto">' + E.esc(d.brut) + '</pre></details>' : '');
       }).join('<br>') : '<br>Aucune demande en attente de signature.';
       st.innerHTML = html;
       if (ds.some(function (d) { return d.rejoue; })) setTimeout(function () { location.reload(); }, 8000);
