@@ -247,9 +247,13 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
           const sr = j.signing_request ?? j;
           const st = sr.status ?? sr.state ?? "";
           const statut = typeof st === "object" ? JSON.stringify(st) : String(st);
-          const dests = (sr.recipients ?? j.recipients ?? sr.signers ?? j.signers ?? []) as Record<string, unknown>[];
-          const signataires = dests.map((r) => ({ email: String(r.email ?? ""), signe: Boolean(r.signed_at || r.completed_at || /sign|complet/i.test(String(r.status ?? ""))), statut: String(r.status ?? "") }));
-          const termine = /^(completed|finished)$|"(completed|finished)"/i.test(statut) || (signataires.length > 0 && signataires.every((x) => x.signe));
+          let dests = (sr.recipients ?? j.recipients ?? sr.signers ?? j.signers ?? []) as Record<string, unknown>[];
+          if (!dests.length) {
+            try { const rj = await firma("/signing-requests/" + d.yousign_sr_id + "/recipients"); dests = (Array.isArray(rj) ? rj : rj.recipients ?? rj.data ?? []) as Record<string, unknown>[]; } catch (_) { /* point d'accès absent */ }
+          }
+          const signataires = dests.map((r) => ({ email: String(r.email ?? ""), signe: Boolean(r.signed_at || r.signed_on || r.completed_at || r.finished_on || r.status === "signed" || r.status === "completed"), statut: typeof r.status === "object" ? JSON.stringify(r.status) : String(r.status ?? "") }));
+          // Firma : status = { sent, finished, cancelled, declined, expired } (booléens)
+          const termine = (typeof st === "object" && st !== null) ? (st as Record<string, unknown>).finished === true : /^(completed|finished)$/i.test(statut);
           let rejoue = "";
           if (termine && secret) {
             const corps = JSON.stringify({ id: "sync-" + d.yousign_sr_id, type: "signing_request.completed", data: { signing_request: { id: d.yousign_sr_id } } });
@@ -260,7 +264,7 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
             rejoue = r.ok ? "traitement relancé" : "relance refusée (" + r.status + ")";
           }
           // réponse brute de Firma (sans données de document) pour diagnostic
-          const brut = JSON.stringify(sr, (k, v) => (typeof v === "string" && v.length > 120 ? v.slice(0, 40) + "…" : v)).slice(0, 2500);
+          const brut = JSON.stringify({ ...sr, documents: undefined, settings: undefined, destinataires: dests }, (k, v) => (typeof v === "string" && v.length > 120 ? v.slice(0, 40) + "…" : v)).slice(0, 2500);
           demandes.push({ titre: d.titre, id: d.yousign_sr_id, statut, signataires, termine, rejoue, brut });
         } catch (e) {
           demandes.push({ titre: d.titre, id: d.yousign_sr_id, erreur: (e as Error).message.slice(0, 200) });
