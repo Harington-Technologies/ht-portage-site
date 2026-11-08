@@ -232,6 +232,39 @@ if (Deno.env.get("HTP_TEST") !== "1") Deno.serve(async (req) => {
       await essai("Annexe", async () => envoyerFirma("TEST · Annexe 1 · Client Test SAS", remplir(await charger("annexe.docx"), dt.annexe), [sig("Test", "Consultant", "HTPSIGA"), sig("Test", "Client", "HTPSIGB"), sig("Test", "HT Portage", "HTPSIGC")], "test-annexe"));
       return json({ ok: true, envoyes_a: email, resultats: res });
     }
+    // État Firma : compte utilisé (propriétaire, crédits) et état réel des demandes en attente ;
+    // une demande terminée chez Firma mais jamais notifiée est rejouée vers firma-webhook (signature HMAC).
+    if (action === "etat_firma") {
+      if (!FIRMA_KEY) return json({ erreur: "Clé Firma absente (secret FIRMA_API_KEY)." }, 500);
+      const c = await firma("/company");
+      const compte = { nom: c.name ?? "", proprietaire: c.account_owner ?? "", email: c.account_owner_email ?? "", credits: c.credits ?? null };
+      const { data: attente } = await admin.from("documents").select("id, titre, yousign_sr_id, envoye_le").eq("statut", "a_signer").not("yousign_sr_id", "is", null).order("created_at", { ascending: false }).limit(20);
+      const secret = Deno.env.get("FIRMA_WEBHOOK_SECRET") ?? "";
+      const demandes = [];
+      for (const d of attente ?? []) {
+        try {
+          const j = await firma("/signing-requests/" + d.yousign_sr_id);
+          const sr = j.signing_request ?? j;
+          const statut = String(sr.status ?? sr.state ?? "");
+          const dests = (sr.recipients ?? j.recipients ?? []) as Record<string, unknown>[];
+          const signataires = dests.map((r) => ({ email: String(r.email ?? ""), signe: Boolean(r.signed_at || r.completed_at || /sign|complet/i.test(String(r.status ?? ""))), statut: String(r.status ?? "") }));
+          const termine = /complet|signed|finished/i.test(statut) || (signataires.length > 0 && signataires.every((x) => x.signe));
+          let rejoue = "";
+          if (termine && secret) {
+            const corps = JSON.stringify({ id: "sync-" + d.yousign_sr_id, type: "signing_request.completed", data: { signing_request: { id: d.yousign_sr_id } } });
+            const t = Math.floor(Date.now() / 1000);
+            const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+            const sig = Array.from(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(t + "." + corps)))).map((x) => x.toString(16).padStart(2, "0")).join("");
+            const r = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/firma-webhook", { method: "POST", headers: { "Content-Type": "application/json", "X-Firma-Signature": "t=" + t + ",v1=" + sig, "X-Firma-Delivery": "sync-" + d.yousign_sr_id }, body: corps });
+            rejoue = r.ok ? "traitement relancé" : "relance refusée (" + r.status + ")";
+          }
+          demandes.push({ titre: d.titre, id: d.yousign_sr_id, statut, signataires, termine, rejoue, champs: Object.keys(sr).slice(0, 30) });
+        } catch (e) {
+          demandes.push({ titre: d.titre, id: d.yousign_sr_id, erreur: (e as Error).message.slice(0, 200) });
+        }
+      }
+      return json({ ok: true, compte, demandes });
+    }
     if (!mission_id || !["apercu", "envoyer"].includes(action)) return json({ erreur: "Requête incomplète." }, 400);
 
     // 2. Dossier

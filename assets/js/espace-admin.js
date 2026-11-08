@@ -621,6 +621,23 @@
     if (r.data && r.data.erreur) throw new Error(r.data.erreur);
     return r.data;
   }
+  var btnEtat = document.getElementById('btn-etat-firma');
+  if (btnEtat) btnEtat.addEventListener('click', async function () {
+    var st = document.getElementById('test-signature-statut');
+    btnEtat.disabled = true; st.textContent = 'Interrogation de Firma…';
+    try {
+      var r = await appelContrats(null, 'etat_firma'), c = r.compte || {};
+      var html = '<strong>Compte Firma utilisé :</strong> ' + E.esc(c.nom || '—') + ' · ' + E.esc(c.email || '') + (c.credits != null ? ' · <strong>' + c.credits + ' crédit' + (c.credits > 1 ? 's' : '') + '</strong>' : '');
+      var ds = r.demandes || [];
+      html += ds.length ? '<br>' + ds.map(function (d) {
+        if (d.erreur) return '• ' + E.esc(d.titre) + ' : ' + E.esc(d.erreur);
+        return '• ' + E.esc(d.titre) + ' : ' + E.esc(d.statut || '?') + ' — ' + (d.signataires || []).map(function (x) { return E.esc(x.email) + (x.signe ? ' ✓' : ' (en attente)'); }).join(', ') + (d.rejoue ? ' — <strong>' + E.esc(d.rejoue) + '</strong>' : '');
+      }).join('<br>') : '<br>Aucune demande en attente de signature.';
+      st.innerHTML = html;
+      if (ds.some(function (d) { return d.rejoue; })) setTimeout(function () { location.reload(); }, 8000);
+    } catch (e) { st.textContent = 'Échec : ' + e.message; }
+    finally { btnEtat.disabled = false; }
+  });
   var btnTestSig = document.getElementById('btn-test-signature');
   if (btnTestSig) btnTestSig.addEventListener('click', async function () {
     var st = document.getElementById('test-signature-statut');
