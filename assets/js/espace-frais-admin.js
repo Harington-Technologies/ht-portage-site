@@ -126,6 +126,8 @@
         // Dépense très ancienne par rapport au mois de la note
         if (f.date_frais && f.mois && (Date.parse(f.mois) - Date.parse(f.date_frais)) > 92 * 864e5) f.anomalies.push({ niveau: 'moyenne', texte: 'Dépense de plus de 3 mois avant la note' });
         if (!f.motif) f.anomalies.push({ niveau: 'moyenne', texte: 'Sans motif' });
+        // Justificatif : obligatoire sauf pour les repas (forfait)
+        if (f.justificatif === false && f.cat !== 'repas') f.anomalies.push({ niveau: 'haute', texte: 'Aucun justificatif joint dans VSP' });
       });
     });
     // Lignes validées par un administrateur : elles ne ressortent plus, tant que le montant n'a pas changé dans VSP
@@ -148,7 +150,10 @@
 
   async function charger() {
     zone.innerHTML = '<p class="loading">Chargement…</p>';
-    var r = await db.from('notes_frais').select('id, user_id, mois, date_frais, type, montant_ht, montant_ttc, motif, valide_le, valide_par, valide_montant, valide_commentaire').order('date_frais').limit(20000);
+    var cols = 'id, user_id, mois, date_frais, type, montant_ht, montant_ttc, motif, valide_le, valide_par, valide_montant, valide_commentaire';
+    var r = await db.from('notes_frais').select(cols + ', justificatif').order('date_frais').limit(20000);
+    // colonne « justificatif » pas encore créée (espace-v24.sql) : on charge sans
+    if (r.error && /justificatif/.test(r.error.message || '')) r = await db.from('notes_frais').select(cols).order('date_frais').limit(20000);
     if (r.error) { zone.innerHTML = '<p class="small">' + esc(E.errText(r.error)) + '</p>'; return; }
     D.lignes = r.data || [];
     var ids = D.lignes.map(function (f) { return f.user_id; }).filter(function (v, i, t) { return t.indexOf(v) === i; });
@@ -308,6 +313,7 @@
       '<li>Repas et frais kilométriques : montant différent de plus de ' + Math.round(REGLES.ecartHabituel * 100) + ' % du montant habituel du consultant ; déclarés un week-end ou un jour férié ; plusieurs repas le même jour (grave).</li>' +
       '<li>Matériel informatique ou téléphone (PC, écran, tablette, smartphone…) : plus de ' + REGLES.materielParAn + ' achat sur 12 mois glissants (grave) ; un achat ≥ ' + E.eur(REGLES.materielCher) + ' (grave). Les abonnements box / forfait ne sont pas du matériel.</li>' +
       '<li>Doublons : même jour, même catégorie, même montant (grave).</li>' +
+      '<li>Aucun justificatif joint dans VSP, sauf pour les repas (grave).</li>' +
       '<li>Dépense de plus de 3 mois avant le mois de la note ; ligne sans motif.</li>' +
       '<li>Par consultant et par mois : total supérieur à ' + REGLES.hausseMensuelle + ' × la moyenne de ses autres mois ; frais supérieurs à ' + Math.round(REGLES.ratioCa * 100) + ' % de son CA du mois.</li>' +
       '</ul><p class="small" style="margin:8px 0 0">La catégorie est déduite du type et du motif saisis dans VSP. Une anomalie n\'est pas une fraude : c\'est une ligne à regarder.</p></details>';

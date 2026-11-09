@@ -469,6 +469,17 @@ async function synchroniser(moisListe: string[], appliquer: boolean): Promise<Pl
       }
     }
 
+    // Justificatif : VSP signale les pièces jointes d'une ligne par un champ dont le nom évoque un fichier
+    // (attachments, medias, receipt, files…). true/false s'il existe, null si VSP ne fournit pas l'information.
+    const justificatif = (f: O): boolean | null => {
+      let vu = false;
+      for (const [k, v] of Object.entries(f)) {
+        if (!/attach|media|receipt|justif|file|proof|piece|pj|document/i.test(k) || /type|state|code/i.test(k)) continue;
+        vu = true;
+        if (Array.isArray(v) ? v.length > 0 : typeof v === "number" ? v > 0 : Boolean(v)) return true;
+      }
+      return vu ? false : null;
+    };
     // Notes de frais. L'id d'une ligne VSP n'est unique que pour un même salarié : la clé combine
     // salarié, en-tête de note et ligne. Les lignes disparues de VSP pour ce mois sont retirées (VSP fait foi).
     for (const mois of plan.mois) {
@@ -489,6 +500,7 @@ async function synchroniser(moisListe: string[], appliquer: boolean): Promise<Pl
           type: (s(f.type) || s(f.typeCode)).slice(0, 150) || null,
           montant_ht: num(f.amountTf), montant_ttc: num(f.amountTi), devise: s(f.currencyCode).slice(0, 3) || "EUR",
           motif: s(f.reason).slice(0, 500) || null,
+          justificatif: justificatif(f),
         }));
         const { error } = await admin.from("notes_frais").upsert(rows, { onConflict: "vsp_id" });
         if (error) plan.ignores.push(`${qui} / ${mois} : notes de frais non enregistrées (${error.message})`);
