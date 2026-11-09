@@ -189,6 +189,25 @@
 
   selMois.addEventListener('change', function () { btnAppliquer.hidden = true; });
 
+  // Diagnostic : structure des réponses VSP (noms et types des champs, jamais de données personnelles)
+  var btnExplorer = document.getElementById('sync-explorer');
+  if (btnExplorer) btnExplorer.addEventListener('click', async function () {
+    btnExplorer.disabled = true; E.setStatus(statut, 'Lecture de la structure VSP…');
+    try {
+      var r = await appelerUn('explorer', null, null);
+      var res = (r && (r.resultat || r)) || {}, rap = res.rapport || {};
+      var cles = ['notes_frais', 'notes_frais_entetes', 'documents'].filter(function (k) { return rap[k]; });
+      var texte = JSON.stringify(cles.reduce(function (o, k) { o[k] = rap[k]; return o; }, {}), null, 1);
+      rapport.hidden = false;
+      rapport.innerHTML = '<p class="small" style="margin:0 0 6px"><strong>Structure VSP</strong> (notes de frais et documents) : copiez ce texte et envoyez-le.</p>' +
+        '<button class="btn btn--light btn--sm" type="button" id="sync-copier">Copier</button>' +
+        '<pre id="sync-structure" style="white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:420px;overflow:auto;background:#fff;padding:10px;border-radius:8px;margin-top:8px">' + esc(texte) + '</pre>';
+      document.getElementById('sync-copier').onclick = function () { navigator.clipboard.writeText(texte).then(function () { E.setStatus(statut, 'Copié.', 'ok'); }); };
+      E.setStatus(statut, '');
+    } catch (e) { E.setStatus(statut, e.message, 'error'); }
+    finally { btnExplorer.disabled = false; }
+  });
+
   // Chargement quand la rubrique s'affiche (et tout de suite si elle est déjà ouverte)
   var charge = false;
   function siOuvert() {

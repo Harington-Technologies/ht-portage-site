@@ -165,7 +165,8 @@ async function explorer() {
   await sonder("cra_vue_ensemble", "/v1/activity/overview", { year: mp.y, month: mp.m });
   const uid = users.find((u) => u.userId)?.userId;
   if (uid != null) await sonder("cra_mensuel", "/v1/activity/timesheet/monthly", { year: mp.y, month: mp.m, userId: uid });
-  await sonder("notes_frais", "/v1/expenses", { start: mp.debut, end: mp.fin });
+  const moisVsp = `${mp.y}-${String(mp.m).padStart(2, "0")}`; // /v1/expenses attend AAAA-MM (comme la synchronisation)
+  await sonder("notes_frais", "/v1/expenses", { start: moisVsp, end: moisVsp });
   await sonder("notes_frais_entetes", "/v1/expense/headers", { year: mp.y, month: mp.m });
   await sonder("documents", "/v1/media");
   await sonder("paie_exports", "/v1/interface/payevent/export");
