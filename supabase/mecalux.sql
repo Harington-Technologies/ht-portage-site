@@ -199,3 +199,16 @@ alter table public.mecalux_calendrier enable row level security;
 drop policy if exists "equipe_tout" on public.mecalux_calendrier;
 create policy "equipe_tout" on public.mecalux_calendrier for all to authenticated using (public.mecalux_est_membre()) with check (public.mecalux_est_membre());
 do $$ begin alter publication supabase_realtime add table public.mecalux_calendrier; exception when duplicate_object then null; end $$;
+
+-- Import Pleo : traçabilité des frais validés ou écartés
+alter table public.mecalux_frais
+  add column if not exists source text,
+  add column if not exists statut text,
+  add column if not exists motif text,
+  add column if not exists pleo_ref text,
+  add column if not exists marchand text,
+  add column if not exists categorie_pleo text;
+do $$ begin
+  alter table public.mecalux_frais add constraint mecalux_frais_statut check (statut is null or statut in ('valide','ecarte'));
+exception when duplicate_object then null; end $$;
+create index if not exists mecalux_frais_pleo_ref on public.mecalux_frais(pleo_ref);
