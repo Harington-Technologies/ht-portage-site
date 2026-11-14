@@ -845,7 +845,7 @@ function vPrefacture(key){
 
 function vRegles(){
   const R=S.regles,P=R.profils||DEFAULT_REGLES.profils,E=Object.assign({},DEFAULT_REGLES.estimations,R.estimations||{});
-  let h=head('Règles applicables aux déplacements Mecalux','Règles de frais','<button class="btn o" data-act="resetRegles">Revenir au barème Harington</button><button class="btn p" data-act="saveRegles"'+(readOnly?' disabled':'')+'>Enregistrer les règles</button>');
+  let h=head('Règles applicables aux déplacements Mecalux','Règles de frais','<button class="btn p" data-act="saveRegles"'+(readOnly?' disabled':'')+'>Enregistrer les règles</button>');
   h+='<div class="note">Rappel : seule la facture ou le ticket détaillé du commerçant vaut justificatif, pas le ticket de carte bancaire. Carte Pleo réservée aux dépenses liées à l\'activité ; photographier le reçu dans Pleo après chaque paiement.</div>';
   const num2=(z,k,l,u)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.01" data-z="'+k+'" value="'+esc(z[k])+'" style="flex:1">'+(u?'<span class="small muted">'+u+'</span>':'')+'</span></label>';
   const mode=(z,k,l)=>'<label class="f">'+l+'<select data-z="'+k+'"><option value="forfait"'+(z[k]==='forfait'?' selected':'')+'>Forfait</option><option value="reel"'+(z[k]==='reel'?' selected':'')+'>Au réel</option></select></label>';
@@ -855,11 +855,14 @@ function vRegles(){
     '<h3>Location de voiture</h3><div class="formgrid">'+mode(z,'location','Mode')+num2(z,'locationJour','Forfait par jour travaillé','€/jour')+num2(z,'locationEstimee','Estimation si au réel','€/jour')+'</div>'+
     '<label class="f">Règle telle que rédigée<textarea data-z="regle" rows="3">'+esc(z.regle||'')+'</textarea></label></section>').join('')+'</div>';
   h+='<button class="btn o sm" data-act="addProfil" style="align-self:flex-start">+ Ajouter un barème</button>';
-  const e=(k,l,u)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.01" data-e="'+k+'" value="'+esc(E[k])+'" style="flex:1"><span class="small muted">'+u+'</span></span></label>';
-  const f=(k,l,u,st)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="'+(st||'0.01')+'" data-r="'+k+'" value="'+esc(R[k])+'" style="flex:1">'+(u?'<span class="small muted">'+u+'</span>':'')+'</span></label>';
-  const cb=(k,l)=>'<label class="row small" style="font-weight:600"><input type="checkbox" data-r="'+k+'"'+(R[k]?' checked':'')+'> '+l+'</label>';
-  h+='<div class="grid2"><section class="card"><h2>Hypothèses pour les frais au réel</h2><p class="small muted" style="margin:0">Servent uniquement à estimer avant le départ : carburant, péages et billets sont remboursés au réel sur justificatif.</p><div class="formgrid">'+e('carburantKm','Carburant trajets','€/km')+e('peageKm','Péages','€/km')+e('carburantJourSite','Carburant sur place','€/jour')+e('trainAR','Train aller-retour','€')+e('avionAR','Avion aller-retour','€')+'</div></section>';
-  h+='<section class="card"><h2>Séjour et refacturation</h2><div class="formgrid">'+f('nuitsParSemaine','Nuits max. par semaine (retour le WE)','nuits','1')+f('seuilJourneeKm','Alerte déplacement à la journée au-delà de','km','1')+f('trajetCoef','Temps de trajet par aller-retour','jour','0.25')+f('margeFrais','Frais de gestion sur frais refacturés','%','0.5')+'</div>'+cb('arriveeVeille','Arrivée la veille du premier jour par défaut')+cb('trajetFacture','Facturer le temps de trajet à Mecalux')+cb('fraisRefacturablesParDefaut','Nouvelle dépense refacturable par défaut')+'</section></div>';
+  const U='<span class="small muted" style="flex:none;white-space:nowrap">';
+  const e=(k,l,u,aide)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.01" data-e="'+k+'" value="'+esc(E[k])+'" style="flex:1;min-width:0">'+U+u+'</span></span>'+(aide?'<span class="small muted" style="font-weight:400">'+aide+'</span>':'')+'</label>';
+  const f=(k,l,u,st,aide)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="'+(st||'0.01')+'" data-r="'+k+'" value="'+esc(R[k])+'" style="flex:1;min-width:0">'+(u?U+u+'</span>':'')+'</span>'+(aide?'<span class="small muted" style="font-weight:400">'+aide+'</span>':'')+'</label>';
+  const cb=(k,l)=>'<label class="row small" style="font-weight:600;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" data-r="'+k+'"'+(R[k]?' checked':'')+' style="margin-top:2px"> <span>'+l+'</span></label>';
+  h+='<div class="grid2"><section class="card"><h2>Calculateur de frais : estimation avant départ</h2><p class="small muted" style="margin:0">Ces valeurs servent <b>uniquement</b> à la page « Calculateur de frais », pour chiffrer un déplacement à l\'avance. Elles n\'ont aucun effet sur la saisie mensuelle ni sur les préfactures, où carburant, péages et billets sont pris au réel.</p><div class="formgrid">'+
+    e('carburantKm','Carburant sur le trajet','€/km','coût moyen par km parcouru')+e('peageKm','Péages','€/km','coût moyen par km d\'autoroute')+e('carburantJourSite','Carburant sur place','€/jour','avec une voiture de location')+e('trainAR','Train aller-retour','€')+e('avionAR','Avion aller-retour','€')+
+    f('nuitsParSemaine','Nuits par semaine','nuits','1','si retour au domicile le week-end')+f('seuilJourneeKm','Alerte « aller-retour dans la journée »','km','1','au-delà de cette distance')+'</div>'+cb('arriveeVeille','Compter une nuit d\'hôtel la veille du premier jour')+cb('trajetFacture','Ajouter le temps de trajet au chiffrage')+f('trajetCoef','Temps de trajet par aller-retour','jour','0.25')+'</section>';
+  h+='<section class="card"><h2>Préfacture et saisie</h2><p class="small muted" style="margin:0">Ces réglages s\'appliquent aux préfactures et à la saisie des dépenses.</p><div class="formgrid">'+f('margeFrais','Frais de gestion ajoutés aux frais refacturés','%','0.5','0 % = refacturation à l\'euro près (barème et frais réels)')+'</div>'+cb('fraisRefacturablesParDefaut','Une dépense ajoutée à la main est « refacturable » par défaut')+'</section></div>';
   return h;
 }
 
@@ -1142,7 +1145,6 @@ document.addEventListener('click',async e=>{
     case'addProfil':{const r=readRegles();r.profils.push({id:uid('b'),nom:'Nouveau barème',hebergement:'reel',hotel:0,hotelEstime:90,dejeuner:0,diner:0,perDiem:0,location:'reel',locationJour:0,locationEstimee:50,regle:''});S.regles=r;render();break}
     case'delProfil':{const r=readRegles();if(r.profils.length<2){toast('Gardez au moins un barème.');return}r.profils.splice(+b.dataset.i,1);S.regles=r;render();break}
     case'saveRegles':await saveRegles(readRegles());toast('Règles enregistrées');break;
-    case'resetRegles':confirmBox('Remplacer vos règles par les valeurs par défaut ?',async()=>{await saveRegles(clone(DEFAULT_REGLES));toast('Valeurs par défaut rétablies')});break;
   }
 });
 function readRegles(){
