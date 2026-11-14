@@ -101,6 +101,9 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .steps span{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--line);color:var(--muted)}
 .steps span.done{background:var(--okbg);color:var(--ok)}.steps span.cur{background:var(--navy);color:#fff}
 .inp-n{width:84px;text-align:right}
+.tbl tr.frow th{padding:6px 6px 10px;border-bottom:1px solid var(--line2);text-transform:none;letter-spacing:0}
+.tbl tr.frow input,.tbl tr.frow select{width:100%;min-width:70px;min-height:34px;padding:6px 8px;font-size:13px;font-weight:400;border-radius:8px}
+.tbl tr.frow input.on,.tbl tr.frow select.on{border-color:var(--plum);background:var(--blush)}
 @media(max-width:600px){.grid2{grid-template-columns:1fr}h1{font-size:26px}}
 </style>
 <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
@@ -154,7 +157,7 @@ const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','ao�
 /* ---------- état ---------- */
 const S={regles:clone(DEFAULT_REGLES)};COLLS.forEach(c=>S[c]={});
 let dbState='init', readOnly=false;
-const ui={dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
+const ui={filtres:{},dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
   calc:{projetId:'',ressourceId:'',cas:'semaine',profil:'fr',jours:10,km:500,mode:'voiture',location:true,nuitPrix:'',arPrix:'',arriveeVeille:null,tjm:''}};
 
 /* ---------- utilitaires ---------- */
@@ -435,6 +438,7 @@ function render(){
   if(dbState==='init'){m.innerHTML='';return}
   m.innerHTML=(MODE_DEV?'<div class="banner">Mode développement : accès sans connexion. N\'enregistrez pas encore de données sensibles.</div>':'')+(dbState==='loading'?'<div class="banner" style="background:#E8EEF6;color:var(--navy)">Chargement des données…</div>':'')+html;
   if(r==='calculateur')renderCalcResult();
+  m.querySelectorAll('table.filtrable').forEach(appliquerFiltres);
 }
 function head(eyebrow,title,actions){return '<header class="top"><div><p class="eyebrow">'+esc(eyebrow)+'</p><h1>'+esc(title)+'</h1></div><div class="row">'+(actions||'')+'</div></header>'}
 function selRes(name,val,empty){return '<select name="'+name+'" data-k="'+name+'">'+(empty?'<option value="">'+empty+'</option>':'')+list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.id+'"'+(r.id===val?' selected':'')+'>'+esc(r.nom)+'</option>').join('')+'</select>'}
@@ -526,10 +530,42 @@ function vProjet(id){
 }
 function pfStatusPill(pf){const s=pf&&pf.statut||'À préparer';const c={'Brouillon':'','Envoyée à Zakia':'warn','Validée Mecalux':'dev','BDC reçu':'mes','Facturée':'ok'}[s];return '<span class="pill '+(c||'')+'">'+esc(s)+'</span>'}
 
+/* filtres par colonne (tableaux .filtrable) */
+function filtreLigne(tid,cols){
+  const f=ui.filtres[tid]||{};
+  return '<tr class="frow">'+cols.map((c,k)=>{
+    if(!c)return '<th></th>';
+    const v=f[k]||'';const on=v?' on':'';
+    if(c.t==='liste')return '<th><select data-f="'+k+'" data-t="'+tid+'" class="'+on+'" aria-label="Filtrer par '+esc(c.l)+'"><option value="">Tous</option>'+c.o.map(o=>'<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select></th>';
+    return '<th><input type="search" data-f="'+k+'" data-t="'+tid+'" class="'+on+'" value="'+esc(v)+'" placeholder="'+esc(c.ph||'Filtrer')+'" aria-label="Filtrer par '+esc(c.l)+'"></th>';
+  }).join('')+'</tr>';
+}
+function appliquerFiltres(tbl){
+  const f=ui.filtres[tbl.id]||{};const keys=Object.keys(f).filter(k=>f[k]);
+  const lignes=[...tbl.tBodies[0].rows];let vis=0;
+  lignes.forEach(tr=>{
+    const ok=keys.every(k=>{
+      const v=String(f[k]).trim().toLowerCase();const cell=tr.cells[k];if(!cell)return true;
+      const txt=cell.textContent.trim().toLowerCase();
+      const el=tbl.querySelector('[data-f="'+k+'"]');
+      if(el&&el.tagName==='SELECT')return txt===v;
+      const m=v.match(/^(>=|<=|>|<|=)\s*(-?[\d\s.,]+)$/);
+      if(m){const n=parseFloat(txt.replace(/[^\d,.-]/g,'').replace(',','.'));const x=parseFloat(m[2].replace(/\s/g,'').replace(',','.'));if(isNaN(n))return false;
+        return m[1]==='>'?n>x:m[1]==='<'?n<x:m[1]==='>='?n>=x:m[1]==='<='?n<=x:n===x}
+      return txt.includes(v);
+    });
+    tr.hidden=!ok;if(ok)vis++;
+  });
+  const c=document.getElementById(tbl.id+'-compte');if(c)c.textContent=(keys.length?vis+' sur '+lignes.length:lignes.length)+' ressource'+(lignes.length>1?'s':'');
+}
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.f==null||!t.dataset.t)return;const tid=t.dataset.t;ui.filtres[tid]=ui.filtres[tid]||{};ui.filtres[tid][t.dataset.f]=t.value;t.classList.toggle('on',!!t.value);const tbl=document.getElementById(tid);if(tbl)appliquerFiltres(tbl)});
+
 function vRessources(){
   const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
   let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
-  h+='<section class="card">'+(rs.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Pays</th><th class="n">TJM vente</th><th></th></tr></thead><tbody>'+rs.map(r=>{
+  const roles=[...new Set(rs.map(r=>r.role).filter(Boolean))].sort(),pays=[...new Set(rs.map(r=>paysOf(r.profil)))].sort();
+  h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Pays</th><th class="n">TJM vente</th><th></th></tr>'+
+    filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Rôle',o:roles},{t:'liste',l:'Pays',o:pays},{t:'texte',l:'TJM',ph:'ex. >400'},null])+'</thead><tbody>'+rs.map(r=>{
     return '<tr><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td><span class="pill '+(r.profil==='tn'?'mes':'dev')+'" title="'+esc(profilById(r.profil).nom)+'">'+esc(paysOf(r.profil))+'</span></td><td class="n">'+eur(r.tjmVente)+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
   return h;
 }
@@ -772,6 +808,7 @@ document.addEventListener('click',async e=>{
     case'newProjet':formProjet();break;
     case'editProjet':formProjet(byId('projets',id));break;
     case'delProjet':confirmBox('Supprimer ce projet ? Ses affectations, jours saisis, frais, estimations et préfactures seront supprimés aussi.',async()=>{await del('projets',id);location.hash='projets'});break;
+    case'razFiltres':ui.filtres[b.dataset.t]={};render();break;
     case'newRes':formRes();break;
     case'editRes':formRes(byId('ressources',id));break;
     case'newAff':formAff(id);break;
