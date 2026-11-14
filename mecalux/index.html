@@ -113,8 +113,7 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .cb.t-depl,.sw.t-depl{background:#1F6F78;color:#fff;border-color:#1F6F78}.cb.t-rd,.sw.t-rd{background:#8A5A00;color:#fff;border-color:#8A5A00}.cb.t-conge,.sw.t-conge{background:#2E6B4F;color:#fff;border-color:#2E6B4F}
 .cb{font-size:11px}.sw{min-width:20px;width:auto;padding:0 3px}
 .cb.bc{height:22px;font-size:10.5px;border-style:dashed;margin-bottom:6px}
-.cb.b-H,.sw.b-H{background:#F3E6EC;color:#5f3d4d;border:1px solid #C187A1}.cb.b-J,.sw.b-J{background:#DCE5F2;color:#21324E;border:1px solid #8FA3C0}
-.cb.b-P,.sw.b-P{background:#FBF0D9;color:#6B4700;border:1px solid #D9B25E}
+.cb.bset{border-style:solid}
 .cal tr.rt th.cn{vertical-align:top;padding-top:6px}
 .cb:disabled{cursor:default}.cb:disabled:not([class*=' t-']){opacity:.6}
 .cb:focus-visible{outline:2px solid var(--plum);outline-offset:1px}
@@ -204,6 +203,7 @@ function toast(m){const t=document.createElement('div');t.className='toast';t.se
 function profilById(id){const P=S.regles.profils||DEFAULT_REGLES.profils;return P.find(z=>z.id===id)||P[0]}
 function estActif(r){return !!r&&r.actif!==false&&!(r.dateFin&&r.dateFin<today())}
 function paysOf(id){return ({fr:'FR',tn:'TN'})[id]||profilById(id).nom}
+function paysR(r){return (r&&r.pays)||(r&&r.profil==='tn'?'TN':'FR')}
 function profilOfRes(rid){const r=byId('ressources',rid);return r&&r.profil||'fr'}
 const ICON={
  dash:'<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
@@ -250,8 +250,8 @@ function pfLines(pid,mois){
   rids.sort((x,y)=>nomDe(x).localeCompare(nomDe(y))).forEach(rid=>{const r=byId('ressources',rid)||{};const collab={id:rid,nom:nomDe(rid),code:r.code||''};
     ['dev','mes'].forEach(ph=>{const t=tmp.find(x=>x.ressourceId===rid&&x.phase===ph);if(!t)return;const tj=tjmFor(pid,rid,ph);
       lines.push({type:'prestation',collab,libelle:ph==='mes'?'Mise en service sur site':'Développement',qte:num(t.jours),unite:'j',pu:tj,montant:num(t.jours)*tj})});
-    const c=cals.find(x=>x.ressourceId===rid);if(c){const n={};Object.values(c.baremes).forEach(b=>{if(BAREMES_J[b])n[b]=(n[b]||0)+1});
-      ORDRE_B.filter(b=>n[b]).forEach(b=>{const mb=montantBareme(b);lines.push({type:'bareme',collab,libelle:'Barème '+b+' · '+BAREMES_J[b].nom+marge,qte:n[b],unite:'j',pu:mb.v*m,montant:n[b]*mb.v*m})})}
+    majBaremes();const c=cals.find(x=>x.ressourceId===rid);if(c){const n={};Object.values(c.baremes).forEach(b=>{if(BAREMES_J[b])n[b]=(n[b]||0)+1});
+      ORDRE_B.filter(b=>n[b]).forEach(b=>{const mb=montantBareme(b);lines.push({type:'bareme',collab,libelle:'Barème '+codeB(b)+' · '+BAREMES_J[b].nom+marge,qte:n[b],unite:'j',pu:mb.v*m,montant:n[b]*mb.v*m})})}
     const g={};fr.filter(f=>(f.ressourceId||'')===rid).forEach(f=>{const k=f.categorie||'Divers';g[k]=(g[k]||0)+num(f.montant)});
     Object.keys(g).sort().forEach(k=>lines.push({type:'frais',collab,libelle:k+marge,qte:1,unite:'forfait',pu:g[k]*m,montant:g[k]*m}));
   });
@@ -322,7 +322,7 @@ function calcFrais(c){
 
 /* ---------- persistance : Supabase ---------- */
 const TABLES={
-  ressources:['id','code','nom','actif','date_fin','role','ville','profil','tjm_vente','tjm_cout','email','maj_le'],
+  ressources:['id','code','nom','pays','actif','date_fin','role','ville','profil','tjm_vente','tjm_cout','email','maj_le'],
   projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','notes','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
@@ -607,10 +607,10 @@ document.addEventListener('input',e=>{const t=e.target;if(t.dataset.f==null||!t.
 function vRessources(){
   const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
   let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
-  const roles=[...new Set(rs.map(r=>r.role).filter(Boolean))].sort(),pays=[...new Set(rs.map(r=>paysOf(r.profil)))].sort();
+  const roles=[...new Set(rs.map(r=>r.role).filter(Boolean))].sort(),pays=[...new Set(rs.map(r=>paysR(r)))].sort();
   h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Pays</th><th class="n">TJM vente</th><th>Fin de mission</th><th>Statut</th><th></th></tr>'+
     filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Rôle',o:roles},{t:'liste',l:'Pays',o:pays},{t:'texte',l:'TJM',ph:'ex. >400'},{t:'texte',l:'Fin de mission'},{t:'liste',l:'Statut',o:['Actif','Inactif']},null])+'</thead><tbody>'+rs.map(r=>{
-    return '<tr'+(estActif(r)?'':' style="opacity:.6"')+'><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td><span class="pill '+(r.profil==='tn'?'mes':'dev')+'" title="'+esc(profilById(r.profil).nom)+'">'+esc(paysOf(r.profil))+'</span></td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(r.dateFin?dateFr(r.dateFin):'—')+'</td><td>'+(estActif(r)?'<span class="pill ok">Actif</span>':'<span class="pill">Inactif</span>')+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
+    return '<tr'+(estActif(r)?'':' style="opacity:.6"')+'><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td><span class="pill '+(paysR(r)==='TN'?'mes':'dev')+'">'+esc(paysR(r))+'</span></td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(r.dateFin?dateFr(r.dateFin):'—')+'</td><td>'+(estActif(r)?'<span class="pill ok">Actif</span>':'<span class="pill">Inactif</span>')+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
   return h;
 }
 
@@ -702,17 +702,21 @@ const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mi
 const totalTravaille=rs=>Object.keys(TYPES_J).filter(k=>!TYPES_J[k].nonTravaille).reduce((x,k)=>x+rs[k].total,0);
 /* barème de frais du jour (montants selon le pays du collaborateur, cf. Règles de frais) */
 /* les 3 barèmes Mecalux (montants repris de la page Règles de frais) */
-const BAREMES_J={H:{nom:'Avec hébergement',pays:'fr'},J:{nom:'Sans hébergement',pays:'fr'},P:{nom:'Per diem',pays:'tn'}};
-const ORDRE_B=['H','J','P'];
-function montantBareme(code){const F=profilById('fr'),T=profilById('tn');let v=0,reel=false;
-  if(code==='H'){v=num(F.dejeuner)+num(F.diner);if(F.hebergement==='forfait')v+=num(F.hotel);else reel=true}
-  else if(code==='J'){v=num(F.dejeuner)}
-  else if(code==='P'){v=num(T.perDiem)}
-  return {v,reel}}
-function detailBareme(code){const F=profilById('fr'),T=profilById('tn');
-  if(code==='H')return (F.hebergement==='forfait'?'hôtel '+eur(F.hotel):'hôtel au réel')+' + déjeuner '+eur(F.dejeuner)+' + dîner '+eur(F.diner)+' = '+eur(montantBareme('H').v)+' par jour';
-  if(code==='J')return 'déjeuner '+eur(F.dejeuner)+' par jour';
-  if(code==='P')return 'per diem '+eur(T.perDiem)+' par jour, hors hébergement';return ''}
+/* barèmes du jour = liste configurée dans « Règles de frais » (S.regles.profils) */
+const COUL_B=[['#F3E6EC','#5f3d4d','#C187A1'],['#FBF0D9','#6B4700','#D9B25E'],['#DCE5F2','#21324E','#8FA3C0'],['#E3F1EA','#2E6B4F','#8CC3A6'],['#EEE7F7','#4B2E7A','#B9A2DD'],['#E6F3F4','#1F5F66','#8DC4C9'],['#F7E9E1','#7A3E1D','#D9A88A']];
+let BAREMES_J={},ORDRE_B=[];
+function majBaremes(){const L=(S.regles.profils||DEFAULT_REGLES.profils);BAREMES_J={};ORDRE_B=[];L.forEach((z,i)=>{BAREMES_J[z.id]={nom:z.nom||'Barème '+(i+1),code:(z.code||'B'+(i+1)).slice(0,4),i};ORDRE_B.push(z.id)})}
+const codeB=id=>BAREMES_J[id]?BAREMES_J[id].code:'?';
+function styleB(id){const b=BAREMES_J[id];if(!b)return '';const c=COUL_B[b.i%COUL_B.length];return 'background:'+c[0]+';color:'+c[1]+';border:1px solid '+c[2]}
+function montantBareme(id){const P=(S.regles.profils||[]).find(z=>z.id===id);if(!P)return {v:0,reel:false,loc:0};const pd=num(P.perDiem);let v=0,reel=false;
+  if(P.hebergement==='forfait')v+=num(P.hotel);else reel=true;
+  v+=pd||num(P.dejeuner)+num(P.diner);const loc=P.location==='forfait'?num(P.locationJour):0;v+=loc;
+  return {v,reel,loc}}
+function detailBareme(id){const P=(S.regles.profils||[]).find(z=>z.id===id);if(!P)return 'barème supprimé';const pd=num(P.perDiem);const parts=[];
+  if(P.hebergement==='forfait'){if(num(P.hotel))parts.push('hôtel '+eur(P.hotel))}else parts.push('hôtel au réel');
+  if(pd)parts.push('per diem '+eur(pd));else{if(num(P.dejeuner))parts.push('déjeuner '+eur(P.dejeuner));if(num(P.diner))parts.push('dîner '+eur(P.diner))}
+  if(P.location==='forfait'&&num(P.locationJour))parts.push('location '+eur(P.locationJour));else if(P.location==='reel')parts.push('location au réel');
+  return parts.join(' + ')+' = '+eur(montantBareme(id).v)+' par jour'}
 const JS_COURT=['D','L','M','M','J','V','S'];
 function calId(pid,rid,m){return [pid,rid,m].join('_')}
 function calOf(pid,rid,m){return byId('calendrier',calId(pid,rid,m))}
@@ -731,10 +735,10 @@ async function saveCal(pid,rid,m,jours,extra){
   return ok;
 }
 function cellClass(t,j){return 'cb'+(j.we?' we':'')+(j.ferie?' fe':'')+(t?' t-'+t:'')}
-function bcellClass(b,j){return 'cb bc'+(j.we?' we':'')+(j.ferie?' fe':'')+(b?' b-'+b:'')}
+function bcellClass(b,j){return 'cb bc'+(j.we?' we':'')+(j.ferie?' fe':'')+(b?' bset':'')}
 function infoJour(iso){return joursMois(iso.slice(0,7)).find(x=>x.iso===iso)}
 function majCellule(btn,v){const kind=btn.dataset.bcell?'b':'j';const iso=(btn.dataset.cell||btn.dataset.bcell).split('|')[1];const j=infoJour(iso);
-  if(kind==='b'){btn.className=bcellClass(v,j);btn.textContent=v||''}else{btn.className=cellClass(v,j);btn.textContent=v?TYPES_J[v].c:''}}
+  if(kind==='b'){btn.className=bcellClass(v,j);btn.textContent=v?codeB(v):'';btn.setAttribute('style',v?styleB(v):'')}else{btn.className=cellClass(v,j);btn.textContent=v?TYPES_J[v].c:''}}
 const celluleDe=el=>el&&el.closest&&el.closest('[data-cell],[data-bcell]');
 function peindre(btn){if(!paint||btn.disabled)return;const kind=btn.dataset.bcell?'b':'j';if(kind!==paint.kind)return;const [rid,iso]=(btn.dataset.cell||btn.dataset.bcell).split('|');const d=draftOf(paint.pid,rid,paint.m,kind);
   if(paint.val)d[iso]=paint.val;else delete d[iso];paint.rows.add(rid);majCellule(btn,paint.val)}
@@ -749,7 +753,7 @@ document.addEventListener('click',async e=>{const b=celluleDe(e.target);if(!b||b
   const sel=b.dataset.cell?'[data-cell="'+b.dataset.cell+'"]':'[data-bcell="'+b.dataset.bcell+'"]';debutPeinture(b);await finPeinture();const nb=document.querySelector(sel);if(nb)nb.focus()});
 
 function vCalendrier(pid,m,resIds){
-  const J=joursMois(m);const jo=joursOuvres(m);const pz=ui.pinceau==null?(ui.pinceau='dev'):ui.pinceau;const pb=ui.pinceauB==null?(ui.pinceauB='H'):ui.pinceauB;
+  const J=joursMois(m);const jo=joursOuvres(m);const pz=ui.pinceau==null?(ui.pinceau='dev'):ui.pinceau;majBaremes();if(ui.pinceauB==null||(ui.pinceauB&&!BAREMES_J[ui.pinceauB]))ui.pinceauB=ORDRE_B[0]||'';const pb=ui.pinceauB;
   const rows=resIds.map(rid=>({rid,r:byId('ressources',rid)||{nom:'?'},c:calOf(pid,rid,m)}));
   const avecJours=rows.filter(x=>x.c&&Object.keys(x.c.jours||{}).length);const toutValide=avecJours.length>0&&avecJours.every(x=>x.c.valide);
   let h='<section class="card"><div class="card-h"><h2>Jours d\'intervention · <span style="text-transform:capitalize">'+moisLabel(m)+'</span></h2>'+(toutValide?'<span class="pill ok">Mois validé</span>':avecJours.length?'<span class="pill warn">Saisie en cours</span>':'')+'</div>';
@@ -759,7 +763,7 @@ function vCalendrier(pid,m,resIds){
     '<button type="button" role="radio" aria-checked="'+(pz==='')+'" class="'+(pz===''?'on':'')+'" data-act="pinceau" data-t="">Gomme</button></div><span class="sp"></span>'+
     (rows.length&&!toutValide?'<button class="btn o sm" data-act="calFillAll">Mois complet pour tous</button>':'')+'</div>';
   h+='<div class="row"><span class="small" style="font-weight:700;color:var(--muted);min-width:64px">Barème :</span><div class="tabs" role="radiogroup" aria-label="Barème de frais du jour">'+
-    ORDRE_B.map(k=>[k,BAREMES_J[k]]).map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(pb===k)+'" class="'+(pb===k?'on':'')+'" data-act="pinceauB" data-t="'+k+'" title="'+esc(detailBareme(k))+'"><span class="sw b-'+k+'">'+k+'</span>'+t.nom+' · '+eur(montantBareme(k).v)+(montantBareme(k).reel?' + hôtel':'')+'</button>').join('')+
+    ORDRE_B.map(k=>[k,BAREMES_J[k]]).map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(pb===k)+'" class="'+(pb===k?'on':'')+'" data-act="pinceauB" data-t="'+k+'" title="'+esc(detailBareme(k))+'"><span class="sw" style="'+styleB(k)+'">'+esc(t.code)+'</span>'+esc(t.nom)+' · '+eur(montantBareme(k).v)+(montantBareme(k).reel?' + réel':'')+'</button>').join('')+
     '<button type="button" role="radio" aria-checked="'+(pb==='')+'" class="'+(pb===''?'on':'')+'" data-act="pinceauB" data-t="">Gomme</button></div><span class="sp"></span>'+
     (rows.length&&!toutValide?'<button class="btn o sm" data-act="calBaremeAll" title="Applique le barème choisi à tous les jours travaillés (hors congés) de tous les collaborateurs">Barème sur les jours travaillés</button>':'')+'</div>';
   if(!rows.length)return h+'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div></section>';
@@ -767,18 +771,18 @@ function vCalendrier(pid,m,resIds){
     Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés">Travaillé</th><th class="n">Frais barème</th><th></th></tr></thead><tbody>';
   const nCols=Object.keys(TYPES_J).length+1;
   rows.forEach(({rid,r,c})=>{const k=calId(pid,rid,m);const jours=(ui.draft&&ui.draft[k])||(c&&c.jours)||{};const bar=(ui.draftB&&ui.draftB[k])||(c&&c.baremes)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);const rb=resumeBaremes(bar,r.profil);
-    h+='<tr class="rt"><th class="cn" rowspan="2">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'<div class="small muted" style="font-weight:400">'+esc(paysOf(r.profil))+'</div></th>'+
+    h+='<tr class="rt"><th class="cn" rowspan="2">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'<div class="small muted" style="font-weight:400">'+esc(paysR(r))+'</div></th>'+
       J.map(j=>{const t=jours[j.iso]||'';return '<td class="cc"><button type="button" class="'+cellClass(t,j)+'" data-cell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+(j.ferie?' ('+esc(j.ferie)+')':j.we?' (week-end)':'')+' : '+(t?TYPES_J[t].nom:'non travaillé')+'">'+(t?TYPES_J[t].c:'')+'</button></td>'}).join('')+
       Object.keys(TYPES_J).map(kk=>'<td class="n">'+(rs[kk].total||'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td>'+
       '<td class="n" rowspan="2" style="font-weight:700">'+(Object.keys(bar).length?eur(rb.montant)+(rb.nuitsReel?'<div class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit'+(rb.nuitsReel>1?'s':'')+' au réel</div>':''):'<span class="muted">—</span>')+'</td>'+
       '<td class="n" rowspan="2" style="white-space:nowrap">'+(v?'':'<button class="btn g sm" data-act="calFill" data-rid="'+rid+'" title="Tous les jours ouvrés avec le type choisi">Mois</button><button class="btn g sm" data-act="calBareme" data-rid="'+rid+'" title="Le barème choisi sur tous ses jours travaillés">Barème</button><button class="btn g sm" data-act="calClear" data-rid="'+rid+'">Vider</button>')+'</td></tr>';
-    h+='<tr class="rb">'+J.map(j=>{const b=bar[j.iso]||'';return '<td class="cc"><button type="button" class="'+bcellClass(b,j)+'" data-bcell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' title="'+(b?esc(BAREMES_J[b].nom+' : '+detailBareme(b,r.profil)):'Barème du jour')+'" aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+', barème : '+(b?esc(BAREMES_J[b].nom):'aucun')+'">'+esc(b)+'</button></td>'}).join('')+'<td colspan="'+nCols+'" class="small muted" style="padding-left:6px;white-space:nowrap">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>b+' '+rb.n[b]).join(' · '):'barème')+'</td></tr>'});
+    h+='<tr class="rb">'+J.map(j=>{const b=bar[j.iso]||'';return '<td class="cc"><button type="button" class="'+bcellClass(b,j)+'" data-bcell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+(b?' style="'+styleB(b)+'"':'')+' title="'+(b?esc((BAREMES_J[b]?BAREMES_J[b].nom:'Barème supprimé')+' : '+detailBareme(b)):'Barème du jour')+'" aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+', barème : '+(b?esc(BAREMES_J[b]?BAREMES_J[b].nom:'supprimé'):'aucun')+'">'+esc(b?codeB(b):'')+'</button></td>'}).join('')+'<td colspan="'+nCols+'" class="small muted" style="padding-left:6px;white-space:nowrap">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>codeB(b)+' '+rb.n[b]).join(' · '):'barème')+'</td></tr>'});
   h+='</tbody></table></div>';
   // récapitulatif
   h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n" title="Hors congés">Total travaillé</th><th class="n">Barèmes</th><th class="n">Frais barème</th><th>Statut</th></tr></thead><tbody>'+
     rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=totalTravaille(rs);const rb=resumeBaremes((c&&c.baremes)||{},r.profil);
       return '<tr><td style="font-weight:600">'+esc(r.nom)+'</td>'+Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total?'<b>'+rs[k].total+'</b> <span class="muted small">('+rs[k].ouvre+' · '+rs[k].we+' · '+rs[k].ferie+')</span>':'<span class="muted">—</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td>'+
-        '<td class="n small">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>[b,rb.n[b]]).map(([b,n])=>'<span title="'+esc(BAREMES_J[b].nom+' : '+detailBareme(b,r.profil))+'">'+b+' '+n+'</span>').join(' · '):'<span class="muted">—</span>')+'</td>'+
+        '<td class="n small">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>[b,rb.n[b]]).map(([b,n])=>'<span title="'+esc(BAREMES_J[b].nom+' : '+detailBareme(b))+'">'+esc(codeB(b))+' '+n+'</span>').join(' · '):'<span class="muted">—</span>')+'</td>'+
         '<td class="n" style="font-weight:700">'+(Object.keys(rb.n).length?eur(rb.montant)+(rb.nuitsReel?' <span class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit(s) au réel</span>':''):'<span class="muted">—</span>')+'</td>'+
         '<td>'+(c&&c.valide?'<span class="pill ok">Validé '+dateFr(String(c.valideLe).slice(0,10)).replace(/ \d{4}$/,'')+'</span>':tot?'<span class="pill warn">À valider</span>':'<span class="muted small">—</span>')+'</td></tr>'}).join('')+'</tbody></table></div>';
   h+='<div class="row"><span class="sp"></span>'+(toutValide?'<button class="btn o" data-act="calRouvrir">Rouvrir la saisie</button>':'<button class="btn p" data-act="calValider"'+(avecJours.length?'':' disabled')+'>Valider le mois</button>')+'</div></section>';
@@ -849,7 +853,7 @@ function vRegles(){
   h+='<div class="note">Rappel : seule la facture ou le ticket détaillé du commerçant vaut justificatif, pas le ticket de carte bancaire. Carte Pleo réservée aux dépenses liées à l\'activité ; photographier le reçu dans Pleo après chaque paiement.</div>';
   const num2=(z,k,l,u)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.01" data-z="'+k+'" value="'+esc(z[k])+'" style="flex:1">'+(u?'<span class="small muted">'+u+'</span>':'')+'</span></label>';
   const mode=(z,k,l)=>'<label class="f">'+l+'<select data-z="'+k+'"><option value="forfait"'+(z[k]==='forfait'?' selected':'')+'>Forfait</option><option value="reel"'+(z[k]==='reel'?' selected':'')+'>Au réel</option></select></label>';
-  h+='<div class="grid2">'+P.map((z,i)=>'<section class="card" data-pi="'+i+'"><div class="card-h"><label class="f" style="flex:1">Barème<input data-z="nom" value="'+esc(z.nom)+'"></label>'+(P.length>1?'<button class="btn g sm" data-act="delProfil" data-i="'+i+'">Retirer</button>':'')+'</div>'+
+  h+='<div class="grid2">'+P.map((z,i)=>'<section class="card" data-pi="'+i+'"><div class="card-h"><label class="f" style="width:90px">Code<input data-z="code" maxlength="4" value="'+esc(z.code||'')+'" placeholder="H" style="text-transform:uppercase"></label><label class="f" style="flex:1">Barème<input data-z="nom" value="'+esc(z.nom)+'"></label>'+(P.length>1?'<button class="btn g sm" data-act="delProfil" data-i="'+i+'">Retirer</button>':'')+'</div>'+
     '<h3>Hébergement</h3><div class="formgrid">'+mode(z,'hebergement','Mode')+num2(z,'hotel','Forfait hôtel','€/nuit')+num2(z,'hotelEstime','Estimation si au réel','€/nuit')+'</div>'+
     '<h3>Repas</h3><div class="formgrid">'+num2(z,'dejeuner','Déjeuner (forfait)','€/jour')+num2(z,'diner','Dîner (forfait)','€/nuit')+num2(z,'perDiem','Per diem hors hébergement','€/jour')+'</div><p class="small muted" style="margin:0">Si un per diem est renseigné, il remplace les forfaits déjeuner et dîner.</p>'+
     '<h3>Location de voiture</h3><div class="formgrid">'+mode(z,'location','Mode')+num2(z,'locationJour','Forfait par jour travaillé','€/jour')+num2(z,'locationEstimee','Estimation si au réel','€/jour')+'</div>'+
@@ -1028,7 +1032,7 @@ function formProjet(p){
 function formRes(r){
   openForm(r?'Modifier la ressource':'Nouvelle ressource',[
     {k:'nom',l:'Nom',req:true},{k:'code',l:'Trigramme',ph:'SBO'},{k:'role',l:'Rôle',ph:'Automaticien, développeur WMS…'},
-    {k:'profil',l:'Pays du collaborateur (fixe le barème de frais)',type:'select',opts:(S.regles.profils||DEFAULT_REGLES.profils).map(z=>[z.id,paysOf(z.id)+' · '+z.nom]),def:'fr'},{k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
+    {k:'pays',l:'Pays du collaborateur',type:'select',opts:[['FR','FR · France'],['TN','TN · Tunisie']],def:'FR'},{k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
     {k:'tjmCout',l:'Coût journalier (€, facultatif)',type:'number'},{k:'email',l:'E-mail',type:'email'},
     {k:'dateFin',l:'Fin de mission ou date de départ',type:'date'},
     {k:'actif',l:'Actif (décocher si le collaborateur est parti ; il devient aussi inactif après la date de fin)',type:'check',def:true}
@@ -1098,7 +1102,7 @@ document.addEventListener('click',async e=>{
       const rids=act==='calBaremeAll'?[...new Set([...document.querySelectorAll('[data-bcell]')].filter(x=>!x.disabled).map(x=>x.dataset.bcell.split('|')[0]))]:[b.dataset.rid];let n=0;
       for(const rid of rids){const c=calOf(pid,rid,m);if(c&&c.valide)continue;const jours=(c&&c.jours)||{};const bar=Object.assign({},(c&&c.baremes)||{});
         Object.entries(jours).forEach(([iso,t])=>{if(TYPES_J[t]&&TYPES_J[t].nonTravaille)return;if(bz)bar[iso]=bz;else delete bar[iso];n++});await saveCal(pid,rid,m,null,{baremes:bar})}
-      toast(n?n+' jour'+(n>1?'s':'')+' : '+(bz?BAREMES_J[bz].nom:'barème retiré'):'Aucun jour travaillé saisi : choisissez d\'abord les jours.');render();break}
+      toast(n?n+' jour'+(n>1?'s':'')+' : '+(bz&&BAREMES_J[bz]?BAREMES_J[bz].nom:'barème retiré'):'Aucun jour travaillé saisi : choisissez d\'abord les jours.');render();break}
     case'calFill':case'calFillAll':case'calClear':{const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const t=ui.pinceau||'dev';
       const rids=act==='calFillAll'?[...new Set([...document.querySelectorAll('[data-cell]')].filter(x=>!x.disabled).map(x=>x.dataset.cell.split('|')[0]))]:[b.dataset.rid];
       for(const rid of rids){const c=calOf(pid,rid,m);if(c&&c.valide)continue;const d=Object.assign({},(c&&c.jours)||{});
@@ -1152,7 +1156,7 @@ function readRegles(){
   m.querySelectorAll('[data-r]').forEach(el=>{r[el.dataset.r]=el.type==='checkbox'?el.checked:num(el.value)});
   r.estimations=Object.assign({},DEFAULT_REGLES.estimations,r.estimations||{});
   m.querySelectorAll('[data-e]').forEach(el=>{r.estimations[el.dataset.e]=num(el.value)});
-  m.querySelectorAll('[data-pi]').forEach(box=>{const z=r.profils[+box.dataset.pi];box.querySelectorAll('[data-z]').forEach(el=>{const k=el.dataset.z;z[k]=['nom','regle','hebergement','location'].includes(k)?el.value:num(el.value)})});
+  m.querySelectorAll('[data-pi]').forEach(box=>{const z=r.profils[+box.dataset.pi];box.querySelectorAll('[data-z]').forEach(el=>{const k=el.dataset.z;z[k]=['nom','regle','hebergement','location','code'].includes(k)?(k==='code'?el.value.trim().toUpperCase():el.value):num(el.value)})});
   return r;
 }
 document.addEventListener('change',async e=>{
@@ -1160,7 +1164,7 @@ document.addEventListener('change',async e=>{
   if(t.dataset.ui){ui[t.dataset.ui]=t.value;pending=false;render();return}
   if(t.dataset.c){const k=t.dataset.c;ui.calc[k]=t.type==='checkbox'?t.checked:t.value;
     if(k==='projetId'&&t.value){const p=byId('projets',t.value);if(p){if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd}}
-    if(k==='ressourceId'){ui.calc.tjm='';if(t.value)ui.calc.profil=profilOfRes(t.value)}
+    if(k==='ressourceId'){ui.calc.tjm=''}
     if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
   if(t.dataset.pleo){const f=t.files&&t.files[0];t.value='';if(f)chargerFichierPleo(f);return}
   if(t.dataset.pf&&ui.pleo){ui.pleo.f[t.dataset.pf]=t.value;pending=false;render();return}

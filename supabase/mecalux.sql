@@ -215,3 +215,6 @@ create index if not exists mecalux_frais_pleo_ref on public.mecalux_frais(pleo_r
 
 -- Barème de frais par jour (H avec hébergement, J sans hébergement, P per diem, 0 aucun)
 alter table public.mecalux_calendrier add column if not exists baremes jsonb not null default '{}'::jsonb;
+
+-- Pays du collaborateur (indépendant du barème) ; le calendrier référence l'identifiant du barème configuré
+alter table public.mecalux_ressources add column if not exists pays text;
