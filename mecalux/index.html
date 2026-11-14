@@ -112,6 +112,10 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .cb.t-dev,.sw.t-dev{background:#435B7B;color:#fff;border-color:#435B7B}.cb.t-mes,.sw.t-mes{background:#C187A1;color:#21324E;border-color:#C187A1}
 .cb.t-depl,.sw.t-depl{background:#1F6F78;color:#fff;border-color:#1F6F78}.cb.t-rd,.sw.t-rd{background:#8A5A00;color:#fff;border-color:#8A5A00}.cb.t-conge,.sw.t-conge{background:#2E6B4F;color:#fff;border-color:#2E6B4F}
 .cb{font-size:11px}.sw{min-width:20px;width:auto;padding:0 3px}
+.cb.bc{height:22px;font-size:10.5px;border-style:dashed;margin-bottom:6px}
+.cb.b-H,.sw.b-H{background:#F3E6EC;color:#5f3d4d;border:1px solid #C187A1}.cb.b-J,.sw.b-J{background:#DCE5F2;color:#21324E;border:1px solid #8FA3C0}
+.cb.b-P,.sw.b-P{background:#FBF0D9;color:#6B4700;border:1px solid #D9B25E}.cb.b-0,.sw.b-0{background:#EEF0F3;color:#4A5468;border:1px solid #C9CED6}
+.cal tr.rt th.cn{vertical-align:top;padding-top:6px}
 .cb:disabled{cursor:default}.cb:disabled:not([class*=' t-']){opacity:.6}
 .cb:focus-visible{outline:2px solid var(--plum);outline-offset:1px}
 .sw{display:inline-flex;width:20px;height:20px;border-radius:5px;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:6px;border:1px solid}
@@ -317,7 +321,7 @@ const TABLES={
   frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','source','statut','motif','pleo_ref','marchand','categorie_pleo','maj_le'],
   estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
   prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le'],
-  calendrier:['id','projet_id','ressource_id','mois','jours','resume','valide','valide_le','maj_le']
+  calendrier:['id','projet_id','ressource_id','mois','jours','baremes','resume','valide','valide_le','maj_le']
 };
 // MODE DÉVELOPPEMENT : pas de connexion (Cloudflare Turnstile bloque la connexion pour l'instant).
 // Remettre à false et appliquer le bloc « Retour au mode sécurisé » de supabase/mecalux-mode-dev.sql avant la mise en service.
@@ -684,6 +688,18 @@ async function moisComplet(pid,rid,m,coche){const je=joursEffectifs(m);
 /* ---------- calendrier jour par jour ---------- */
 const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mise en service',court:'MES'},depl:{c:'DP',nom:'Déplacement',court:'Dépl.'},rd:{c:'R',nom:'R&D',court:'R&D'},conge:{c:'C',nom:'Congés',court:'Congés',nonTravaille:true}};
 const totalTravaille=rs=>Object.keys(TYPES_J).filter(k=>!TYPES_J[k].nonTravaille).reduce((x,k)=>x+rs[k].total,0);
+/* barème de frais du jour (montants selon le pays du collaborateur, cf. Règles de frais) */
+const BAREMES_J={H:{nom:'Avec hébergement'},J:{nom:'Journée sans hébergement'},P:{nom:'Per diem'},'0':{nom:'Aucun frais'}};
+const ORDRE_B=['H','J','P','0'];
+function montantBareme(code,profil){const P=profilById(profil);const pd=num(P.perDiem);let v=0,reel=false;
+  if(code==='H'){v=(pd||num(P.dejeuner)+num(P.diner));if(P.hebergement==='forfait')v+=num(P.hotel);else reel=true}
+  else if(code==='J'){v=pd||num(P.dejeuner)}
+  else if(code==='P'){v=pd}
+  return {v,reel}}
+function detailBareme(code,profil){const P=profilById(profil);const pd=num(P.perDiem);
+  if(code==='H')return (P.hebergement==='forfait'?'hôtel '+eur(P.hotel)+' + ':'hébergement au réel + ')+(pd?'per diem '+eur(pd):'déjeuner '+eur(P.dejeuner)+' + dîner '+eur(P.diner));
+  if(code==='J')return pd?'per diem '+eur(pd):'déjeuner '+eur(P.dejeuner);
+  if(code==='P')return pd?'per diem '+eur(pd):'pas de per diem dans ce barème';return 'aucun frais'}
 const JS_COURT=['D','L','M','M','J','V','S'];
 function calId(pid,rid,m){return [pid,rid,m].join('_')}
 function calOf(pid,rid,m){return byId('calendrier',calId(pid,rid,m))}
@@ -691,50 +707,67 @@ function joursMois(m){const [y,mo]=m.split('-').map(Number);const fer={};feriesF
   for(let d=1;d<=dim;d++){const iso=m+'-'+String(d).padStart(2,'0');const w=new Date(Date.UTC(y,mo-1,d)).getUTCDay();out.push({iso,d,w,we:w===0||w===6,ferie:fer[iso]||''})}return out}
 function resumeJours(jours,m){const info={};joursMois(m).forEach(j=>info[j.iso]=j);const r={};Object.keys(TYPES_J).forEach(t=>r[t]={ouvre:0,we:0,ferie:0,total:0});
   Object.entries(jours||{}).forEach(([iso,t])=>{const j=info[iso];if(!j||!r[t])return;r[t][j.ferie?'ferie':j.we?'we':'ouvre']++;r[t].total++});return r}
+function resumeBaremes(baremes,profil){const n={};let tot=0,reel=0;Object.values(baremes||{}).forEach(b=>{n[b]=(n[b]||0)+1;const x=montantBareme(b,profil);tot+=x.v;if(x.reel)reel++});return {n,montant:tot,nuitsReel:reel}}
 let paint=null;
-function draftOf(pid,rid,m){ui.draft=ui.draft||{};const k=calId(pid,rid,m);if(!ui.draft[k])ui.draft[k]=Object.assign({},(calOf(pid,rid,m)||{}).jours||{});return ui.draft[k]}
+function draftOf(pid,rid,m,kind){const D=kind==='b'?(ui.draftB=ui.draftB||{}):(ui.draft=ui.draft||{});const k=calId(pid,rid,m);if(!D[k])D[k]=Object.assign({},((calOf(pid,rid,m)||{})[kind==='b'?'baremes':'jours'])||{});return D[k]}
 async function saveCal(pid,rid,m,jours,extra){
-  const cur=calOf(pid,rid,m)||{};const r=resumeJours(jours,m);
-  const ok=await save('calendrier',calId(pid,rid,m),Object.assign({projetId:pid,ressourceId:rid,mois:m,jours,resume:r,valide:!!cur.valide,valideLe:cur.valideLe||''},extra||{}));
+  const cur=calOf(pid,rid,m)||{};jours=jours||cur.jours||{};const baremes=(extra&&extra.baremes)||cur.baremes||{};
+  const r=resumeJours(jours,m);r.baremes=resumeBaremes(baremes,(byId('ressources',rid)||{}).profil);
+  const ok=await save('calendrier',calId(pid,rid,m),Object.assign({projetId:pid,ressourceId:rid,mois:m,jours,baremes,resume:r,valide:!!cur.valide,valideLe:cur.valideLe||''},extra||{},{baremes}));
   if(ok){await setJours(pid,rid,m,'dev',r.dev.total);await setJours(pid,rid,m,'mes',r.mes.total)}
   return ok;
 }
 function cellClass(t,j){return 'cb'+(j.we?' we':'')+(j.ferie?' fe':'')+(t?' t-'+t:'')}
-function majCellule(btn,t){const [rid,iso]=btn.dataset.cell.split('|');const j=joursMois(iso.slice(0,7)).find(x=>x.iso===iso);btn.className=cellClass(t,j);btn.textContent=t?TYPES_J[t].c:'';}
-function peindre(btn){if(!paint||btn.disabled)return;const [rid,iso]=btn.dataset.cell.split('|');const d=draftOf(paint.pid,rid,paint.m);
+function bcellClass(b,j){return 'cb bc'+(j.we?' we':'')+(j.ferie?' fe':'')+(b?' b-'+b:'')}
+function infoJour(iso){return joursMois(iso.slice(0,7)).find(x=>x.iso===iso)}
+function majCellule(btn,v){const kind=btn.dataset.bcell?'b':'j';const iso=(btn.dataset.cell||btn.dataset.bcell).split('|')[1];const j=infoJour(iso);
+  if(kind==='b'){btn.className=bcellClass(v,j);btn.textContent=v||''}else{btn.className=cellClass(v,j);btn.textContent=v?TYPES_J[v].c:''}}
+const celluleDe=el=>el&&el.closest&&el.closest('[data-cell],[data-bcell]');
+function peindre(btn){if(!paint||btn.disabled)return;const kind=btn.dataset.bcell?'b':'j';if(kind!==paint.kind)return;const [rid,iso]=(btn.dataset.cell||btn.dataset.bcell).split('|');const d=draftOf(paint.pid,rid,paint.m,kind);
   if(paint.val)d[iso]=paint.val;else delete d[iso];paint.rows.add(rid);majCellule(btn,paint.val)}
-document.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-cell]');if(!b||b.disabled||e.button>0)return;e.preventDefault();
-  const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const [rid,iso]=b.dataset.cell.split('|');const cur=draftOf(pid,rid,m)[iso];
-  paint={pid,m,val:ui.pinceau&&cur!==ui.pinceau?ui.pinceau:'',rows:new Set()};peindre(b)});
-document.addEventListener('pointermove',e=>{if(!paint)return;const el=document.elementFromPoint(e.clientX,e.clientY);const b=el&&el.closest&&el.closest('[data-cell]');if(b)peindre(b)});
-async function finPeinture(){if(!paint)return;const p=paint;paint=null;for(const rid of p.rows){const k=calId(p.pid,rid,p.m);await saveCal(p.pid,rid,p.m,ui.draft[k]);delete ui.draft[k]}pending=false;render()}
+function debutPeinture(b){const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const kind=b.dataset.bcell?'b':'j';const [rid,iso]=(b.dataset.cell||b.dataset.bcell).split('|');const cur=draftOf(pid,rid,m,kind)[iso];
+  const pz=kind==='b'?ui.pinceauB:ui.pinceau;paint={pid,m,kind,val:pz&&cur!==pz?pz:'',rows:new Set()};peindre(b)}
+document.addEventListener('pointerdown',e=>{const b=celluleDe(e.target);if(!b||b.disabled||e.button>0)return;e.preventDefault();debutPeinture(b)});
+document.addEventListener('pointermove',e=>{if(!paint)return;const b=celluleDe(document.elementFromPoint(e.clientX,e.clientY));if(b)peindre(b)});
+async function finPeinture(){if(!paint)return;const p=paint;paint=null;const D=p.kind==='b'?ui.draftB:ui.draft;
+  for(const rid of p.rows){const k=calId(p.pid,rid,p.m);if(p.kind==='b')await saveCal(p.pid,rid,p.m,null,{baremes:D[k]});else await saveCal(p.pid,rid,p.m,D[k]);delete D[k]}pending=false;render()}
 document.addEventListener('pointerup',finPeinture);document.addEventListener('pointercancel',finPeinture);
-document.addEventListener('click',async e=>{const b=e.target.closest('[data-cell]');if(!b||b.disabled||e.detail!==0)return; // clavier (Entrée / Espace)
-  const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const [rid,iso]=b.dataset.cell.split('|');const cur=draftOf(pid,rid,m)[iso];
-  paint={pid,m,val:ui.pinceau&&cur!==ui.pinceau?ui.pinceau:'',rows:new Set()};peindre(b);await finPeinture();const nb=document.querySelector('[data-cell="'+b.dataset.cell+'"]');if(nb)nb.focus()});
+document.addEventListener('click',async e=>{const b=celluleDe(e.target);if(!b||b.disabled||e.detail!==0)return; // clavier (Entrée / Espace)
+  const sel=b.dataset.cell?'[data-cell="'+b.dataset.cell+'"]':'[data-bcell="'+b.dataset.bcell+'"]';debutPeinture(b);await finPeinture();const nb=document.querySelector(sel);if(nb)nb.focus()});
 
 function vCalendrier(pid,m,resIds){
-  const J=joursMois(m);const jo=joursOuvres(m);const pz=ui.pinceau==null?(ui.pinceau='dev'):ui.pinceau;
+  const J=joursMois(m);const jo=joursOuvres(m);const pz=ui.pinceau==null?(ui.pinceau='dev'):ui.pinceau;const pb=ui.pinceauB==null?(ui.pinceauB='H'):ui.pinceauB;
   const rows=resIds.map(rid=>({rid,r:byId('ressources',rid)||{nom:'?'},c:calOf(pid,rid,m)}));
   const avecJours=rows.filter(x=>x.c&&Object.keys(x.c.jours||{}).length);const toutValide=avecJours.length>0&&avecJours.every(x=>x.c.valide);
   let h='<section class="card"><div class="card-h"><h2>Jours d\'intervention · <span style="text-transform:capitalize">'+moisLabel(m)+'</span></h2>'+(toutValide?'<span class="pill ok">Mois validé</span>':avecJours.length?'<span class="pill warn">Saisie en cours</span>':'')+'</div>';
-  h+='<div class="note i small"><b>'+jo.n+' jours ouvrés</b> du lundi au vendredi'+(jo.feries.length?', hors '+jo.feries.map(f=>esc(f[1])+' ('+dateFr(f[0]).replace(/ \d{4}$/,'')+')').join(', '):'')+'. Choisissez un type puis cliquez ou glissez sur les jours. Cliquer à nouveau sur un jour du même type le retire. Week-ends et jours fériés sont saisissables.</div>';
-  h+='<div class="row"><span class="small" style="font-weight:700;color:var(--muted)">Type :</span><div class="tabs" role="radiogroup" aria-label="Type d\'intervention">'+
+  h+='<div class="note i small"><b>'+jo.n+' jours ouvrés</b> du lundi au vendredi'+(jo.feries.length?', hors '+jo.feries.map(f=>esc(f[1])+' ('+dateFr(f[0]).replace(/ \d{4}$/,'')+')').join(', '):'')+'. Pour chaque collaborateur, la 1re ligne porte le type d\'intervention, la 2e le barème de frais du jour. Choisissez un type ou un barème, puis cliquez ou glissez sur les jours ; recliquer retire. Week-ends et fériés sont saisissables.</div>';
+  h+='<div class="row"><span class="small" style="font-weight:700;color:var(--muted);min-width:64px">Type :</span><div class="tabs" role="radiogroup" aria-label="Type d\'intervention">'+
     Object.entries(TYPES_J).map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(pz===k)+'" class="'+(pz===k?'on':'')+'" data-act="pinceau" data-t="'+k+'"><span class="sw t-'+k+'">'+t.c+'</span>'+t.nom+'</button>').join('')+
     '<button type="button" role="radio" aria-checked="'+(pz==='')+'" class="'+(pz===''?'on':'')+'" data-act="pinceau" data-t="">Gomme</button></div><span class="sp"></span>'+
     (rows.length&&!toutValide?'<button class="btn o sm" data-act="calFillAll">Mois complet pour tous</button>':'')+'</div>';
+  h+='<div class="row"><span class="small" style="font-weight:700;color:var(--muted);min-width:64px">Barème :</span><div class="tabs" role="radiogroup" aria-label="Barème de frais du jour">'+
+    ORDRE_B.map(k=>[k,BAREMES_J[k]]).map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(pb===k)+'" class="'+(pb===k?'on':'')+'" data-act="pinceauB" data-t="'+k+'"><span class="sw b-'+k+'">'+k+'</span>'+t.nom+'</button>').join('')+
+    '<button type="button" role="radio" aria-checked="'+(pb==='')+'" class="'+(pb===''?'on':'')+'" data-act="pinceauB" data-t="">Gomme</button></div><span class="sp"></span>'+
+    (rows.length&&!toutValide?'<button class="btn o sm" data-act="calBaremeAll" title="Applique le barème choisi à tous les jours travaillés (hors congés) de tous les collaborateurs">Barème sur les jours travaillés</button>':'')+'</div>';
   if(!rows.length)return h+'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div></section>';
   h+='<div class="scroll"><table class="cal"><thead><tr><th class="cn">Ressource</th>'+J.map(j=>'<th class="cd'+(j.we?' we':'')+(j.ferie?' fe':'')+'"'+(j.ferie?' title="'+esc(j.ferie)+'"':'')+'><span>'+JS_COURT[j.w]+'</span><b>'+j.d+'</b></th>').join('')+
-    Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés">Travaillé</th><th></th></tr></thead><tbody>';
-  rows.forEach(({rid,r,c})=>{const jours=(ui.draft&&ui.draft[calId(pid,rid,m)])||(c&&c.jours)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);
-    h+='<tr><th class="cn">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'</th>'+
+    Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés">Travaillé</th><th class="n">Frais barème</th><th></th></tr></thead><tbody>';
+  const nCols=Object.keys(TYPES_J).length+1;
+  rows.forEach(({rid,r,c})=>{const k=calId(pid,rid,m);const jours=(ui.draft&&ui.draft[k])||(c&&c.jours)||{};const bar=(ui.draftB&&ui.draftB[k])||(c&&c.baremes)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);const rb=resumeBaremes(bar,r.profil);
+    h+='<tr class="rt"><th class="cn" rowspan="2">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'<div class="small muted" style="font-weight:400">'+esc(paysOf(r.profil))+' · barème '+esc(profilById(r.profil).nom.replace('Collaborateur ',''))+'</div></th>'+
       J.map(j=>{const t=jours[j.iso]||'';return '<td class="cc"><button type="button" class="'+cellClass(t,j)+'" data-cell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+(j.ferie?' ('+esc(j.ferie)+')':j.we?' (week-end)':'')+' : '+(t?TYPES_J[t].nom:'non travaillé')+'">'+(t?TYPES_J[t].c:'')+'</button></td>'}).join('')+
-      Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total||'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td><td class="n" style="white-space:nowrap">'+(v?'':'<button class="btn g sm" data-act="calFill" data-rid="'+rid+'" title="Tous les jours ouvrés avec le type choisi">Mois</button><button class="btn g sm" data-act="calClear" data-rid="'+rid+'">Vider</button>')+'</td></tr>'});
+      Object.keys(TYPES_J).map(kk=>'<td class="n">'+(rs[kk].total||'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td>'+
+      '<td class="n" rowspan="2" style="font-weight:700">'+(Object.keys(bar).length?eur(rb.montant)+(rb.nuitsReel?'<div class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit'+(rb.nuitsReel>1?'s':'')+' au réel</div>':''):'<span class="muted">—</span>')+'</td>'+
+      '<td class="n" rowspan="2" style="white-space:nowrap">'+(v?'':'<button class="btn g sm" data-act="calFill" data-rid="'+rid+'" title="Tous les jours ouvrés avec le type choisi">Mois</button><button class="btn g sm" data-act="calBareme" data-rid="'+rid+'" title="Le barème choisi sur tous ses jours travaillés">Barème</button><button class="btn g sm" data-act="calClear" data-rid="'+rid+'">Vider</button>')+'</td></tr>';
+    h+='<tr class="rb">'+J.map(j=>{const b=bar[j.iso]||'';return '<td class="cc"><button type="button" class="'+bcellClass(b,j)+'" data-bcell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' title="'+(b?esc(BAREMES_J[b].nom+' : '+detailBareme(b,r.profil)):'Barème du jour')+'" aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+', barème : '+(b?esc(BAREMES_J[b].nom):'aucun')+'">'+esc(b)+'</button></td>'}).join('')+'<td colspan="'+nCols+'" class="small muted" style="padding-left:6px;white-space:nowrap">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>b+' '+rb.n[b]).join(' · '):'barème')+'</td></tr>'});
   h+='</tbody></table></div>';
   // récapitulatif
-  h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n" title="Hors congés">Total travaillé</th><th>Statut</th></tr></thead><tbody>'+
-    rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=totalTravaille(rs);
-      return '<tr><td style="font-weight:600">'+esc(r.nom)+'</td>'+Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total?'<b>'+rs[k].total+'</b> <span class="muted small">('+rs[k].ouvre+' · '+rs[k].we+' · '+rs[k].ferie+')</span>':'<span class="muted">—</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td><td>'+(c&&c.valide?'<span class="pill ok">Validé '+dateFr(String(c.valideLe).slice(0,10)).replace(/ \d{4}$/,'')+'</span>':tot?'<span class="pill warn">À valider</span>':'<span class="muted small">—</span>')+'</td></tr>'}).join('')+'</tbody></table></div>';
+  h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n" title="Hors congés">Total travaillé</th><th class="n">Barèmes</th><th class="n">Frais barème</th><th>Statut</th></tr></thead><tbody>'+
+    rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=totalTravaille(rs);const rb=resumeBaremes((c&&c.baremes)||{},r.profil);
+      return '<tr><td style="font-weight:600">'+esc(r.nom)+'</td>'+Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total?'<b>'+rs[k].total+'</b> <span class="muted small">('+rs[k].ouvre+' · '+rs[k].we+' · '+rs[k].ferie+')</span>':'<span class="muted">—</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td>'+
+        '<td class="n small">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>[b,rb.n[b]]).map(([b,n])=>'<span title="'+esc(BAREMES_J[b].nom+' : '+detailBareme(b,r.profil))+'">'+b+' '+n+'</span>').join(' · '):'<span class="muted">—</span>')+'</td>'+
+        '<td class="n" style="font-weight:700">'+(Object.keys(rb.n).length?eur(rb.montant)+(rb.nuitsReel?' <span class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit(s) au réel</span>':''):'<span class="muted">—</span>')+'</td>'+
+        '<td>'+(c&&c.valide?'<span class="pill ok">Validé '+dateFr(String(c.valideLe).slice(0,10)).replace(/ \d{4}$/,'')+'</span>':tot?'<span class="pill warn">À valider</span>':'<span class="muted small">—</span>')+'</td></tr>'}).join('')+'</tbody></table></div>';
   h+='<div class="row"><span class="sp"></span>'+(toutValide?'<button class="btn o" data-act="calRouvrir">Rouvrir la saisie</button>':'<button class="btn p" data-act="calValider"'+(avecJours.length?'':' disabled')+'>Valider le mois</button>')+'</div></section>';
   return h;
 }
@@ -1034,11 +1067,17 @@ document.addEventListener('click',async e=>{
     case'delProjet':confirmBox('Supprimer ce projet ? Ses affectations, jours saisis, frais, estimations et préfactures seront supprimés aussi.',async()=>{await del('projets',id);location.hash='projets'});break;
     case'jeffReset':{const mm=b.dataset.m;S.moisCfg[mm]=Object.assign({},S.moisCfg[mm],{joursEffectifs:null});const {error}=await sb.from(TBL('config')).upsert({id:'mois_'+mm,data:S.moisCfg[mm],maj_le:new Date().toISOString()});if(error)handleErr(error);render();break}
     case'pinceau':ui.pinceau=b.dataset.t;render();break;
+    case'pinceauB':ui.pinceauB=b.dataset.t;render();break;
+    case'calBareme':case'calBaremeAll':{const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const bz=ui.pinceauB;
+      const rids=act==='calBaremeAll'?[...new Set([...document.querySelectorAll('[data-bcell]')].filter(x=>!x.disabled).map(x=>x.dataset.bcell.split('|')[0]))]:[b.dataset.rid];let n=0;
+      for(const rid of rids){const c=calOf(pid,rid,m);if(c&&c.valide)continue;const jours=(c&&c.jours)||{};const bar=Object.assign({},(c&&c.baremes)||{});
+        Object.entries(jours).forEach(([iso,t])=>{if(TYPES_J[t]&&TYPES_J[t].nonTravaille)return;if(bz)bar[iso]=bz;else delete bar[iso];n++});await saveCal(pid,rid,m,null,{baremes:bar})}
+      toast(n?n+' jour'+(n>1?'s':'')+' : '+(bz?BAREMES_J[bz].nom:'barème retiré'):'Aucun jour travaillé saisi : choisissez d\'abord les jours.');render();break}
     case'calFill':case'calFillAll':case'calClear':{const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const t=ui.pinceau||'dev';
       const rids=act==='calFillAll'?[...new Set([...document.querySelectorAll('[data-cell]')].filter(x=>!x.disabled).map(x=>x.dataset.cell.split('|')[0]))]:[b.dataset.rid];
       for(const rid of rids){const c=calOf(pid,rid,m);if(c&&c.valide)continue;const d=Object.assign({},(c&&c.jours)||{});
         if(act==='calClear'){Object.keys(d).forEach(k=>delete d[k])}else{joursMois(m).filter(j=>!j.we&&!j.ferie).forEach(j=>d[j.iso]=t)}
-        await saveCal(pid,rid,m,d)}
+        await saveCal(pid,rid,m,d,act==='calClear'?{baremes:{}}:undefined)}
       toast(act==='calClear'?'Jours effacés':'Jours ouvrés remplis ('+TYPES_J[t].nom+')');render();break}
     case'calValider':case'calRouvrir':{const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const val=act==='calValider';
       const cs=list('calendrier').filter(c=>c.projetId===pid&&c.mois===m&&Object.keys(c.jours||{}).length);
