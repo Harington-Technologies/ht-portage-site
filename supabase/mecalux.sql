@@ -212,3 +212,6 @@ do $$ begin
   alter table public.mecalux_frais add constraint mecalux_frais_statut check (statut is null or statut in ('valide','ecarte'));
 exception when duplicate_object then null; end $$;
 create index if not exists mecalux_frais_pleo_ref on public.mecalux_frais(pleo_ref);
+
+-- Barème de frais par jour (H avec hébergement, J sans hébergement, P per diem, 0 aucun)
+alter table public.mecalux_calendrier add column if not exists baremes jsonb not null default '{}'::jsonb;
