@@ -157,7 +157,7 @@ const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','ao�
 /* ---------- état ---------- */
 const S={regles:clone(DEFAULT_REGLES)};COLLS.forEach(c=>S[c]={});
 let dbState='init', readOnly=false;
-const ui={filtres:{},dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
+const ui={filtres:{tblRes:{6:'Actif'}},dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
   calc:{projetId:'',ressourceId:'',cas:'semaine',profil:'fr',jours:10,km:500,mode:'voiture',location:true,nuitPrix:'',arPrix:'',arriveeVeille:null,tjm:''}};
 
 /* ---------- utilitaires ---------- */
@@ -181,6 +181,7 @@ function monthsBetween(a,b){if(!a||!b)return[];let out=[],m=a.slice(0,7),e=b.sli
 function workdays(a,b){if(!a||!b||b<a)return 0;let n=0,d=new Date(a+'T12:00:00'),e=new Date(b+'T12:00:00');while(d<=e){const w=d.getDay();if(w&&w<6)n++;d.setDate(d.getDate()+1)}return n}
 function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 function profilById(id){const P=S.regles.profils||DEFAULT_REGLES.profils;return P.find(z=>z.id===id)||P[0]}
+function estActif(r){return !!r&&r.actif!==false&&!(r.dateFin&&r.dateFin<today())}
 function paysOf(id){return ({fr:'FR',tn:'TN'})[id]||profilById(id).nom}
 function profilOfRes(rid){const r=byId('ressources',rid);return r&&r.profil||'fr'}
 const ICON={
@@ -289,7 +290,7 @@ function calcFrais(c){
 
 /* ---------- persistance : Supabase ---------- */
 const TABLES={
-  ressources:['id','code','nom','role','ville','profil','tjm_vente','tjm_cout','email','maj_le'],
+  ressources:['id','code','nom','actif','date_fin','role','ville','profil','tjm_vente','tjm_cout','email','maj_le'],
   projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','notes','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
@@ -441,7 +442,7 @@ function render(){
   m.querySelectorAll('table.filtrable').forEach(appliquerFiltres);
 }
 function head(eyebrow,title,actions){return '<header class="top"><div><p class="eyebrow">'+esc(eyebrow)+'</p><h1>'+esc(title)+'</h1></div><div class="row">'+(actions||'')+'</div></header>'}
-function selRes(name,val,empty){return '<select name="'+name+'" data-k="'+name+'">'+(empty?'<option value="">'+empty+'</option>':'')+list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.id+'"'+(r.id===val?' selected':'')+'>'+esc(r.nom)+'</option>').join('')+'</select>'}
+function selRes(name,val,empty){return '<select name="'+name+'" data-k="'+name+'">'+(empty?'<option value="">'+empty+'</option>':'')+list('ressources').filter(r=>estActif(r)||r.id===val).sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.id+'"'+(r.id===val?' selected':'')+'>'+esc(r.nom)+'</option>').join('')+'</select>'}
 function selProj(name,val,empty){return '<select name="'+name+'" data-k="'+name+'">'+(empty?'<option value="">'+empty+'</option>':'')+list('projets').sort((a,b)=>(a.client+a.nom).localeCompare(b.client+b.nom)).map(p=>'<option value="'+p.id+'"'+(p.id===val?' selected':'')+'>'+esc(p.client+' · '+p.nom)+'</option>').join('')+'</select>'}
 function clients(){return [...new Set(list('projets').map(p=>p.client).filter(Boolean))].sort()}
 function bar(pct){const c=pct>100?'x':pct>85?'w':'';return '<div class="bar '+c+'" role="img" aria-label="'+Math.round(pct)+' %"><i style="width:'+Math.min(100,pct)+'%"></i></div>'}
@@ -564,9 +565,9 @@ function vRessources(){
   const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
   let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
   const roles=[...new Set(rs.map(r=>r.role).filter(Boolean))].sort(),pays=[...new Set(rs.map(r=>paysOf(r.profil)))].sort();
-  h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Pays</th><th class="n">TJM vente</th><th></th></tr>'+
-    filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Rôle',o:roles},{t:'liste',l:'Pays',o:pays},{t:'texte',l:'TJM',ph:'ex. >400'},null])+'</thead><tbody>'+rs.map(r=>{
-    return '<tr><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td><span class="pill '+(r.profil==='tn'?'mes':'dev')+'" title="'+esc(profilById(r.profil).nom)+'">'+esc(paysOf(r.profil))+'</span></td><td class="n">'+eur(r.tjmVente)+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
+  h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Pays</th><th class="n">TJM vente</th><th>Fin de mission</th><th>Statut</th><th></th></tr>'+
+    filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Rôle',o:roles},{t:'liste',l:'Pays',o:pays},{t:'texte',l:'TJM',ph:'ex. >400'},{t:'texte',l:'Fin de mission'},{t:'liste',l:'Statut',o:['Actif','Inactif']},null])+'</thead><tbody>'+rs.map(r=>{
+    return '<tr'+(estActif(r)?'':' style="opacity:.6"')+'><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td><span class="pill '+(r.profil==='tn'?'mes':'dev')+'" title="'+esc(profilById(r.profil).nom)+'">'+esc(paysOf(r.profil))+'</span></td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(r.dateFin?dateFr(r.dateFin):'—')+'</td><td>'+(estActif(r)?'<span class="pill ok">Actif</span>':'<span class="pill">Inactif</span>')+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
   return h;
 }
 
@@ -751,7 +752,9 @@ function formRes(r){
   openForm(r?'Modifier la ressource':'Nouvelle ressource',[
     {k:'nom',l:'Nom',req:true},{k:'code',l:'Trigramme',ph:'SBO'},{k:'role',l:'Rôle',ph:'Automaticien, développeur WMS…'},
     {k:'profil',l:'Pays du collaborateur (fixe le barème de frais)',type:'select',opts:(S.regles.profils||DEFAULT_REGLES.profils).map(z=>[z.id,paysOf(z.id)+' · '+z.nom]),def:'fr'},{k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
-    {k:'tjmCout',l:'Coût journalier (€, facultatif)',type:'number'},{k:'email',l:'E-mail',type:'email'}
+    {k:'tjmCout',l:'Coût journalier (€, facultatif)',type:'number'},{k:'email',l:'E-mail',type:'email'},
+    {k:'dateFin',l:'Fin de mission ou date de départ',type:'date'},
+    {k:'actif',l:'Actif (décocher si le collaborateur est parti ; il devient aussi inactif après la date de fin)',type:'check',def:true}
   ],r,async o=>{const ok=await save('ressources',r?r.id:uid('r'),Object.assign({},r||{},o));if(ok)toast('Ressource enregistrée');return ok},
   r?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'');
   dlg._del=r?()=>{if(list('affectations').some(a=>a.ressourceId===r.id)){document.getElementById('frmErr').textContent='Cette ressource est affectée à des projets : retirez d\'abord ses affectations.';return}dlg.close();del('ressources',r.id)}:null;
@@ -760,7 +763,7 @@ function formAff(pid,a){
   if(!list('ressources').length){toast('Ajoutez d\'abord une ressource.');location.hash='ressources';return}
   const p=byId('projets',pid);
   openForm(a?'Modifier l\'affectation':'Affecter une ressource',[
-    {k:'ressourceId',l:'Ressource',type:'select',opts:list('ressources').map(r=>[r.id,r.nom]),req:true},
+    {k:'ressourceId',l:'Ressource',type:'select',opts:list('ressources').filter(r=>estActif(r)||(a&&a.ressourceId===r.id)).sort((x,y)=>x.nom.localeCompare(y.nom)).map(r=>[r.id,(r.code?r.code+' · ':'')+r.nom]),req:true},
     {k:'phase',l:'Phase',type:'select',opts:[['dev','Développement'],['mes','Mise en service sur site']],def:'dev'},
     {k:'joursPrevus',l:'Jours prévus',type:'number',req:true,def:a?'':workdays(p.devDebut,p.devFin)||''},
     {k:'tjm',l:'TJM spécifique (vide = TJM de la ressource)',type:'number'}
@@ -771,7 +774,7 @@ function formAff(pid,a){
 function formFrais(f){
   const pid=f?f.projetId:(ui.saisieProjet||(list('projets')[0]||{}).id);const m=f?f.mois:ui.saisieMois;
   const resIds=[...new Set(list('affectations').filter(a=>a.projetId===pid).map(a=>a.ressourceId))];
-  const opts=(resIds.length?resIds:list('ressources').map(r=>r.id)).map(id=>[id,(byId('ressources',id)||{}).nom||'?']);
+  const opts=(resIds.length?resIds:list('ressources').filter(r=>estActif(r)||(f&&f.ressourceId===r.id)).map(r=>r.id)).map(id=>[id,(byId('ressources',id)||{}).nom||'?']);
   openForm(f?'Modifier la dépense':'Nouvelle dépense · '+moisLabel(m),[
     {k:'date',l:'Date',type:'date',def:m===curMonth()?today():m+'-01'},{k:'ressourceId',l:'Ressource',type:'select',opts},
     {k:'categorie',l:'Catégorie',type:'select',opts:CAT_FRAIS.map(c=>[c,c])},{k:'montant',l:'Montant TTC (€)',type:'number',req:true},
