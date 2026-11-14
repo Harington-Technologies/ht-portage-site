@@ -6,6 +6,7 @@ User-agent: *
 Allow: /
 Disallow: /espace/
 Disallow: /chantier/
+Disallow: /mecalux/
 
 User-agent: Googlebot
 User-agent: Bingbot
@@ -26,5 +27,6 @@ User-agent: CCBot
 Allow: /
 Disallow: /espace/
 Disallow: /chantier/
+Disallow: /mecalux/
 
 Sitemap: https://www.htportage.fr/sitemap.xml

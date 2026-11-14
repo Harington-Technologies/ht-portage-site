@@ -89,3 +89,20 @@ Pages statiques + Supabase Auth (e-mail et mot de passe). Schéma : `supabase/es
 - `admin.html` : réservé aux comptes de la table `admins` (consultants, validation des missions, import CSV des comptes d'activité VSP, dépôt de documents, demandes reçues)
 
 Sécurité : Row Level Security, chaque consultant ne voit que ses données ; fichiers dans le bucket privé `documents/<id du consultant>/`.
+
+## Pilotage équipe Mecalux (`/mecalux/`)
+
+Outil interne pour suivre l'équipe qui intervient chez Mecalux sur les projets de sites industriels (IKEA, Limagrain, PepsiCo…). Une seule page : `mecalux/index.html`.
+
+- **Tableau de bord** par client, projet et ressource : phase en cours, échéance de la mise en service, jours réalisés et prévus, budget prévu et réalisé.
+- **Projets** en deux phases (développement, puis mise en service sur site), avec les ressources affectées et leur TJM.
+- **Planning** sur 12 mois et charge de chaque ressource.
+- **Calculateur de frais** selon les barèmes Harington Mecalux (France : forfaits hôtel, repas et location ; Tunisie : per diem 70 €, le reste au réel).
+- **Saisie mensuelle** des jours et des frais réels (justificatif Pleo signalé s'il manque).
+- **Préfactures** par projet et par mois : Brouillon → Envoyée à Zakia → Validée Mecalux → BDC reçu → Facturée. Export CSV ou HTML.
+
+**Base** : tables `mecalux_*` du même projet Supabase (`supabase/mecalux.sql`, déjà appliqué). Le site réutilise `assets/js/config.js` et `captcha.js`, ainsi que la session de l'espace (même `storageKey`).
+
+**Accès** : il faut un compte Supabase Auth **et** une ligne dans la table `mecalux_equipe` (Table Editor). Les règles RLS bloquent toute autre adresse, y compris les consultants de l'espace. Pour retirer quelqu'un, supprimez sa ligne.
+
+La page n'est pas indexée (`noindex` et `robots.txt`).
