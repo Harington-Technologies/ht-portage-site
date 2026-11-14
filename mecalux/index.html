@@ -178,6 +178,7 @@ function monthsBetween(a,b){if(!a||!b)return[];let out=[],m=a.slice(0,7),e=b.sli
 function workdays(a,b){if(!a||!b||b<a)return 0;let n=0,d=new Date(a+'T12:00:00'),e=new Date(b+'T12:00:00');while(d<=e){const w=d.getDay();if(w&&w<6)n++;d.setDate(d.getDate()+1)}return n}
 function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 function profilById(id){const P=S.regles.profils||DEFAULT_REGLES.profils;return P.find(z=>z.id===id)||P[0]}
+function paysOf(id){return ({fr:'FR',tn:'TN'})[id]||profilById(id).nom}
 function profilOfRes(rid){const r=byId('ressources',rid);return r&&r.profil||'fr'}
 const ICON={
  dash:'<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
@@ -528,8 +529,8 @@ function pfStatusPill(pf){const s=pf&&pf.statut||'À préparer';const c={'Brouil
 function vRessources(){
   const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
   let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
-  h+='<section class="card">'+(rs.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Ville de départ</th><th>Barème</th><th class="n">TJM vente</th><th></th></tr></thead><tbody>'+rs.map(r=>{
-    return '<tr><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td>'+esc(r.ville||'')+'</td><td class="small">'+esc(profilById(r.profil).nom)+'</td><td class="n">'+eur(r.tjmVente)+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
+  h+='<section class="card">'+(rs.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Pays</th><th class="n">TJM vente</th><th></th></tr></thead><tbody>'+rs.map(r=>{
+    return '<tr><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td><span class="pill '+(r.profil==='tn'?'mes':'dev')+'" title="'+esc(profilById(r.profil).nom)+'">'+esc(paysOf(r.profil))+'</span></td><td class="n">'+eur(r.tjmVente)+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
   return h;
 }
 
@@ -713,7 +714,7 @@ function formProjet(p){
 function formRes(r){
   openForm(r?'Modifier la ressource':'Nouvelle ressource',[
     {k:'nom',l:'Nom',req:true},{k:'code',l:'Trigramme',ph:'SBO'},{k:'role',l:'Rôle',ph:'Automaticien, développeur WMS…'},
-    {k:'ville',l:'Ville de départ'},{k:'profil',l:'Barème de frais',type:'select',opts:(S.regles.profils||DEFAULT_REGLES.profils).map(z=>[z.id,z.nom]),def:'fr'},{k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
+    {k:'profil',l:'Pays du collaborateur (fixe le barème de frais)',type:'select',opts:(S.regles.profils||DEFAULT_REGLES.profils).map(z=>[z.id,paysOf(z.id)+' · '+z.nom]),def:'fr'},{k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
     {k:'tjmCout',l:'Coût journalier (€, facultatif)',type:'number'},{k:'email',l:'E-mail',type:'email'}
   ],r,async o=>{const ok=await save('ressources',r?r.id:uid('r'),Object.assign({},r||{},o));if(ok)toast('Ressource enregistrée');return ok},
   r?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'');
