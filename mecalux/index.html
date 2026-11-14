@@ -110,7 +110,9 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .cb{width:30px;height:32px;border:1px solid var(--line2);border-radius:6px;background:#fff;font:inherit;font-weight:700;font-size:12px;cursor:pointer;touch-action:none;padding:0;color:var(--navy);display:block}
 .cb.we{background:#E9EDF2}.cb.fe{background:#F6E1EA;border-color:#E2B9CB}
 .cb.t-dev,.sw.t-dev{background:#435B7B;color:#fff;border-color:#435B7B}.cb.t-mes,.sw.t-mes{background:#C187A1;color:#21324E;border-color:#C187A1}
-.cb:disabled{cursor:default}.cb:disabled:not(.t-dev):not(.t-mes){opacity:.6}
+.cb.t-depl,.sw.t-depl{background:#1F6F78;color:#fff;border-color:#1F6F78}.cb.t-rd,.sw.t-rd{background:#8A5A00;color:#fff;border-color:#8A5A00}.cb.t-conge,.sw.t-conge{background:#2E6B4F;color:#fff;border-color:#2E6B4F}
+.cb{font-size:11px}.sw{min-width:20px;width:auto;padding:0 3px}
+.cb:disabled{cursor:default}.cb:disabled:not([class*=' t-']){opacity:.6}
 .cb:focus-visible{outline:2px solid var(--plum);outline-offset:1px}
 .sw{display:inline-flex;width:20px;height:20px;border-radius:5px;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:6px;border:1px solid}
 .tabs button.on .sw{border-color:#fff}
@@ -673,7 +675,8 @@ async function moisComplet(pid,rid,m,coche){const je=joursEffectifs(m);
   else{await setJours(pid,rid,m,'dev',0);await setJours(pid,rid,m,'mes',0)}}
 
 /* ---------- calendrier jour par jour ---------- */
-const TYPES_J={dev:{c:'D',nom:'Développement'},mes:{c:'M',nom:'Mise en service'}};
+const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mise en service',court:'MES'},depl:{c:'DP',nom:'Déplacement',court:'Dépl.'},rd:{c:'R',nom:'R&D',court:'R&D'},conge:{c:'C',nom:'Congés',court:'Congés',nonTravaille:true}};
+const totalTravaille=rs=>Object.keys(TYPES_J).filter(k=>!TYPES_J[k].nonTravaille).reduce((x,k)=>x+rs[k].total,0);
 const JS_COURT=['D','L','M','M','J','V','S'];
 function calId(pid,rid,m){return [pid,rid,m].join('_')}
 function calOf(pid,rid,m){return byId('calendrier',calId(pid,rid,m))}
@@ -715,15 +718,15 @@ function vCalendrier(pid,m,resIds){
     (rows.length&&!toutValide?'<button class="btn o sm" data-act="calFillAll">Mois complet pour tous</button>':'')+'</div>';
   if(!rows.length)return h+'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div></section>';
   h+='<div class="scroll"><table class="cal"><thead><tr><th class="cn">Ressource</th>'+J.map(j=>'<th class="cd'+(j.we?' we':'')+(j.ferie?' fe':'')+'"'+(j.ferie?' title="'+esc(j.ferie)+'"':'')+'><span>'+JS_COURT[j.w]+'</span><b>'+j.d+'</b></th>').join('')+
-    '<th class="n">Dév.</th><th class="n">MES</th><th class="n">Total</th><th></th></tr></thead><tbody>';
-  rows.forEach(({rid,r,c})=>{const jours=(ui.draft&&ui.draft[calId(pid,rid,m)])||(c&&c.jours)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=rs.dev.total+rs.mes.total;
+    Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés">Travaillé</th><th></th></tr></thead><tbody>';
+  rows.forEach(({rid,r,c})=>{const jours=(ui.draft&&ui.draft[calId(pid,rid,m)])||(c&&c.jours)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);
     h+='<tr><th class="cn">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'</th>'+
       J.map(j=>{const t=jours[j.iso]||'';return '<td class="cc"><button type="button" class="'+cellClass(t,j)+'" data-cell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+(j.ferie?' ('+esc(j.ferie)+')':j.we?' (week-end)':'')+' : '+(t?TYPES_J[t].nom:'non travaillé')+'">'+(t?TYPES_J[t].c:'')+'</button></td>'}).join('')+
-      '<td class="n">'+rs.dev.total+'</td><td class="n">'+rs.mes.total+'</td><td class="n" style="font-weight:700">'+tot+'</td><td class="n" style="white-space:nowrap">'+(v?'':'<button class="btn g sm" data-act="calFill" data-rid="'+rid+'" title="Tous les jours ouvrés avec le type choisi">Mois</button><button class="btn g sm" data-act="calClear" data-rid="'+rid+'">Vider</button>')+'</td></tr>'});
+      Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total||'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td><td class="n" style="white-space:nowrap">'+(v?'':'<button class="btn g sm" data-act="calFill" data-rid="'+rid+'" title="Tous les jours ouvrés avec le type choisi">Mois</button><button class="btn g sm" data-act="calClear" data-rid="'+rid+'">Vider</button>')+'</td></tr>'});
   h+='</tbody></table></div>';
   // récapitulatif
-  h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n">Total</th><th>Statut</th></tr></thead><tbody>'+
-    rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=Object.keys(TYPES_J).reduce((x,k)=>x+rs[k].total,0);
+  h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n" title="Hors congés">Total travaillé</th><th>Statut</th></tr></thead><tbody>'+
+    rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=totalTravaille(rs);
       return '<tr><td style="font-weight:600">'+esc(r.nom)+'</td>'+Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total?'<b>'+rs[k].total+'</b> <span class="muted small">('+rs[k].ouvre+' · '+rs[k].we+' · '+rs[k].ferie+')</span>':'<span class="muted">—</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td><td>'+(c&&c.valide?'<span class="pill ok">Validé '+dateFr(String(c.valideLe).slice(0,10)).replace(/ \d{4}$/,'')+'</span>':tot?'<span class="pill warn">À valider</span>':'<span class="muted small">—</span>')+'</td></tr>'}).join('')+'</tbody></table></div>';
   h+='<div class="row"><span class="sp"></span>'+(toutValide?'<button class="btn o" data-act="calRouvrir">Rouvrir la saisie</button>':'<button class="btn p" data-act="calValider"'+(avecJours.length?'':' disabled')+'>Valider le mois</button>')+'</div></section>';
   return h;
