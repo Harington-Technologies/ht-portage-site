@@ -180,3 +180,22 @@ grant execute on function public.mecalux_est_membre() to authenticated;
 alter table public.mecalux_ressources add column if not exists code text;
 alter table public.mecalux_ressources add column if not exists actif boolean not null default true;
 alter table public.mecalux_ressources add column if not exists date_fin date;
+
+-- Saisie jour par jour (un enregistrement par projet, ressource et mois)
+create table if not exists public.mecalux_calendrier (
+  id            text primary key,                 -- projet_ressource_mois
+  projet_id     text not null references public.mecalux_projets(id) on delete cascade,
+  ressource_id  text not null references public.mecalux_ressources(id) on delete restrict,
+  mois          text not null check (mois ~ '^\d{4}-\d{2}$'),
+  jours         jsonb not null default '{}'::jsonb, -- {"2026-11-03":"mes", ...}
+  resume        jsonb,                             -- par type : ouvre, we, ferie, total
+  valide        boolean not null default false,
+  valide_le     timestamptz,
+  maj_le        timestamptz not null default now(),
+  unique (projet_id, ressource_id, mois)
+);
+create index if not exists mecalux_calendrier_projet_mois on public.mecalux_calendrier(projet_id, mois);
+alter table public.mecalux_calendrier enable row level security;
+drop policy if exists "equipe_tout" on public.mecalux_calendrier;
+create policy "equipe_tout" on public.mecalux_calendrier for all to authenticated using (public.mecalux_est_membre()) with check (public.mecalux_est_membre());
+do $$ begin alter publication supabase_realtime add table public.mecalux_calendrier; exception when duplicate_object then null; end $$;
