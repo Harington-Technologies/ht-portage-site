@@ -37,6 +37,8 @@ create table if not exists public.mecalux_ressources (
   tjm_vente  numeric(10,2),
   tjm_cout   numeric(10,2),
   email      text,
+  actif      boolean not null default true,
+  date_fin   date,                                 -- fin de mission ou départ : au-delà, inactif
   maj_le     timestamptz not null default now()
 );
 
@@ -173,3 +175,8 @@ on conflict (email) do nothing;
 -- ---------- Durcissement : la fonction de contrôle n'est pas appelable sans connexion ----------
 revoke execute on function public.mecalux_est_membre() from public, anon;
 grant execute on function public.mecalux_est_membre() to authenticated;
+
+-- ---------- Évolutions ----------
+alter table public.mecalux_ressources add column if not exists code text;
+alter table public.mecalux_ressources add column if not exists actif boolean not null default true;
+alter table public.mecalux_ressources add column if not exists date_fin date;
