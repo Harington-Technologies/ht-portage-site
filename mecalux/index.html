@@ -114,7 +114,7 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .cb{font-size:11px}.sw{min-width:20px;width:auto;padding:0 3px}
 .cb.bc{height:22px;font-size:10.5px;border-style:dashed;margin-bottom:6px}
 .cb.b-H,.sw.b-H{background:#F3E6EC;color:#5f3d4d;border:1px solid #C187A1}.cb.b-J,.sw.b-J{background:#DCE5F2;color:#21324E;border:1px solid #8FA3C0}
-.cb.b-P,.sw.b-P{background:#FBF0D9;color:#6B4700;border:1px solid #D9B25E}.cb.b-0,.sw.b-0{background:#EEF0F3;color:#4A5468;border:1px solid #C9CED6}
+.cb.b-P,.sw.b-P{background:#FBF0D9;color:#6B4700;border:1px solid #D9B25E}
 .cal tr.rt th.cn{vertical-align:top;padding-top:6px}
 .cb:disabled{cursor:default}.cb:disabled:not([class*=' t-']){opacity:.6}
 .cb:focus-visible{outline:2px solid var(--plum);outline-offset:1px}
@@ -689,17 +689,18 @@ async function moisComplet(pid,rid,m,coche){const je=joursEffectifs(m);
 const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mise en service',court:'MES'},depl:{c:'DP',nom:'Déplacement',court:'Dépl.'},rd:{c:'R',nom:'R&D',court:'R&D'},conge:{c:'C',nom:'Congés',court:'Congés',nonTravaille:true}};
 const totalTravaille=rs=>Object.keys(TYPES_J).filter(k=>!TYPES_J[k].nonTravaille).reduce((x,k)=>x+rs[k].total,0);
 /* barème de frais du jour (montants selon le pays du collaborateur, cf. Règles de frais) */
-const BAREMES_J={H:{nom:'Avec hébergement'},J:{nom:'Journée sans hébergement'},P:{nom:'Per diem'},'0':{nom:'Aucun frais'}};
-const ORDRE_B=['H','J','P','0'];
-function montantBareme(code,profil){const P=profilById(profil);const pd=num(P.perDiem);let v=0,reel=false;
-  if(code==='H'){v=(pd||num(P.dejeuner)+num(P.diner));if(P.hebergement==='forfait')v+=num(P.hotel);else reel=true}
-  else if(code==='J'){v=pd||num(P.dejeuner)}
-  else if(code==='P'){v=pd}
+/* les 3 barèmes Mecalux (montants repris de la page Règles de frais) */
+const BAREMES_J={H:{nom:'Avec hébergement',pays:'fr'},J:{nom:'Sans hébergement',pays:'fr'},P:{nom:'Per diem',pays:'tn'}};
+const ORDRE_B=['H','J','P'];
+function montantBareme(code){const F=profilById('fr'),T=profilById('tn');let v=0,reel=false;
+  if(code==='H'){v=num(F.dejeuner)+num(F.diner);if(F.hebergement==='forfait')v+=num(F.hotel);else reel=true}
+  else if(code==='J'){v=num(F.dejeuner)}
+  else if(code==='P'){v=num(T.perDiem)}
   return {v,reel}}
-function detailBareme(code,profil){const P=profilById(profil);const pd=num(P.perDiem);
-  if(code==='H')return (P.hebergement==='forfait'?'hôtel '+eur(P.hotel)+' + ':'hébergement au réel + ')+(pd?'per diem '+eur(pd):'déjeuner '+eur(P.dejeuner)+' + dîner '+eur(P.diner));
-  if(code==='J')return pd?'per diem '+eur(pd):'déjeuner '+eur(P.dejeuner);
-  if(code==='P')return pd?'per diem '+eur(pd):'pas de per diem dans ce barème';return 'aucun frais'}
+function detailBareme(code){const F=profilById('fr'),T=profilById('tn');
+  if(code==='H')return (F.hebergement==='forfait'?'hôtel '+eur(F.hotel):'hôtel au réel')+' + déjeuner '+eur(F.dejeuner)+' + dîner '+eur(F.diner)+' = '+eur(montantBareme('H').v)+' par jour';
+  if(code==='J')return 'déjeuner '+eur(F.dejeuner)+' par jour';
+  if(code==='P')return 'per diem '+eur(T.perDiem)+' par jour, hors hébergement';return ''}
 const JS_COURT=['D','L','M','M','J','V','S'];
 function calId(pid,rid,m){return [pid,rid,m].join('_')}
 function calOf(pid,rid,m){return byId('calendrier',calId(pid,rid,m))}
@@ -707,7 +708,7 @@ function joursMois(m){const [y,mo]=m.split('-').map(Number);const fer={};feriesF
   for(let d=1;d<=dim;d++){const iso=m+'-'+String(d).padStart(2,'0');const w=new Date(Date.UTC(y,mo-1,d)).getUTCDay();out.push({iso,d,w,we:w===0||w===6,ferie:fer[iso]||''})}return out}
 function resumeJours(jours,m){const info={};joursMois(m).forEach(j=>info[j.iso]=j);const r={};Object.keys(TYPES_J).forEach(t=>r[t]={ouvre:0,we:0,ferie:0,total:0});
   Object.entries(jours||{}).forEach(([iso,t])=>{const j=info[iso];if(!j||!r[t])return;r[t][j.ferie?'ferie':j.we?'we':'ouvre']++;r[t].total++});return r}
-function resumeBaremes(baremes,profil){const n={};let tot=0,reel=0;Object.values(baremes||{}).forEach(b=>{n[b]=(n[b]||0)+1;const x=montantBareme(b,profil);tot+=x.v;if(x.reel)reel++});return {n,montant:tot,nuitsReel:reel}}
+function resumeBaremes(baremes,profil){const n={};let tot=0,reel=0;Object.values(baremes||{}).forEach(b=>{if(!BAREMES_J[b])return;n[b]=(n[b]||0)+1;const x=montantBareme(b,profil);tot+=x.v;if(x.reel)reel++});return {n,montant:tot,nuitsReel:reel}}
 let paint=null;
 function draftOf(pid,rid,m,kind){const D=kind==='b'?(ui.draftB=ui.draftB||{}):(ui.draft=ui.draft||{});const k=calId(pid,rid,m);if(!D[k])D[k]=Object.assign({},((calOf(pid,rid,m)||{})[kind==='b'?'baremes':'jours'])||{});return D[k]}
 async function saveCal(pid,rid,m,jours,extra){
@@ -746,7 +747,7 @@ function vCalendrier(pid,m,resIds){
     '<button type="button" role="radio" aria-checked="'+(pz==='')+'" class="'+(pz===''?'on':'')+'" data-act="pinceau" data-t="">Gomme</button></div><span class="sp"></span>'+
     (rows.length&&!toutValide?'<button class="btn o sm" data-act="calFillAll">Mois complet pour tous</button>':'')+'</div>';
   h+='<div class="row"><span class="small" style="font-weight:700;color:var(--muted);min-width:64px">Barème :</span><div class="tabs" role="radiogroup" aria-label="Barème de frais du jour">'+
-    ORDRE_B.map(k=>[k,BAREMES_J[k]]).map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(pb===k)+'" class="'+(pb===k?'on':'')+'" data-act="pinceauB" data-t="'+k+'"><span class="sw b-'+k+'">'+k+'</span>'+t.nom+'</button>').join('')+
+    ORDRE_B.map(k=>[k,BAREMES_J[k]]).map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(pb===k)+'" class="'+(pb===k?'on':'')+'" data-act="pinceauB" data-t="'+k+'" title="'+esc(detailBareme(k))+'"><span class="sw b-'+k+'">'+k+'</span>'+t.nom+' · '+eur(montantBareme(k).v)+(montantBareme(k).reel?' + hôtel':'')+'</button>').join('')+
     '<button type="button" role="radio" aria-checked="'+(pb==='')+'" class="'+(pb===''?'on':'')+'" data-act="pinceauB" data-t="">Gomme</button></div><span class="sp"></span>'+
     (rows.length&&!toutValide?'<button class="btn o sm" data-act="calBaremeAll" title="Applique le barème choisi à tous les jours travaillés (hors congés) de tous les collaborateurs">Barème sur les jours travaillés</button>':'')+'</div>';
   if(!rows.length)return h+'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div></section>';
@@ -754,7 +755,7 @@ function vCalendrier(pid,m,resIds){
     Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés">Travaillé</th><th class="n">Frais barème</th><th></th></tr></thead><tbody>';
   const nCols=Object.keys(TYPES_J).length+1;
   rows.forEach(({rid,r,c})=>{const k=calId(pid,rid,m);const jours=(ui.draft&&ui.draft[k])||(c&&c.jours)||{};const bar=(ui.draftB&&ui.draftB[k])||(c&&c.baremes)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);const rb=resumeBaremes(bar,r.profil);
-    h+='<tr class="rt"><th class="cn" rowspan="2">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'<div class="small muted" style="font-weight:400">'+esc(paysOf(r.profil))+' · barème '+esc(profilById(r.profil).nom.replace('Collaborateur ',''))+'</div></th>'+
+    h+='<tr class="rt"><th class="cn" rowspan="2">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'<div class="small muted" style="font-weight:400">'+esc(paysOf(r.profil))+'</div></th>'+
       J.map(j=>{const t=jours[j.iso]||'';return '<td class="cc"><button type="button" class="'+cellClass(t,j)+'" data-cell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+(j.ferie?' ('+esc(j.ferie)+')':j.we?' (week-end)':'')+' : '+(t?TYPES_J[t].nom:'non travaillé')+'">'+(t?TYPES_J[t].c:'')+'</button></td>'}).join('')+
       Object.keys(TYPES_J).map(kk=>'<td class="n">'+(rs[kk].total||'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td>'+
       '<td class="n" rowspan="2" style="font-weight:700">'+(Object.keys(bar).length?eur(rb.montant)+(rb.nuitsReel?'<div class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit'+(rb.nuitsReel>1?'s':'')+' au réel</div>':''):'<span class="muted">—</span>')+'</td>'+
