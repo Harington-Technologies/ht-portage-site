@@ -320,7 +320,7 @@ const toSnake=k=>k.replace(/[A-Z]/g,c=>'_'+c.toLowerCase());
 const toCamel=k=>k.replace(/_([a-z])/g,(m,c)=>c.toUpperCase());
 function toRow(c,id,obj){const row={id};const cols=TABLES[c];Object.keys(obj).forEach(k=>{const sk=toSnake(k);if(sk==='id'||!cols.includes(sk))return;let v=obj[k];if(v===''||v===undefined)v=null;row[sk]=v});return row}
 const NUMS=['tjm_vente','tjm_cout','distance_km','budget_montant','jours_prevus','tjm','jours','montant','total_frais','trajet','refac'];
-function fromRow(r){const o={};Object.keys(r).forEach(k=>{let v=r[k];if(v!=null&&NUMS.includes(k))v=Number(v);if(v===null)v='';o[toCamel(k)]=v});return o}
+function fromRow(r){const o={};Object.keys(r).forEach(k=>{let v=r[k];if(v!=null&&typeof v!=='object'&&NUMS.includes(k))v=Number(v);if(v===null)v='';o[toCamel(k)]=v});return o}
 let sb=null,session=null,membre=null,authMsg='',channel=null;
 async function save(c,id,obj){
   obj=Object.assign({},obj);delete obj.id;obj.majLe=new Date().toISOString();
