@@ -164,7 +164,7 @@ const CAS={
   ponctuel:{nom:'Intervention ponctuelle',desc:'Mission courte avec un seul aller-retour.'}
 };
 const STATUTS_PF=['Brouillon','Envoyée à Zakia','Validée Mecalux','BDC reçu','Facturée'];
-const CAT_FRAIS=['Forfait hôtel','Hôtel (au réel)','Forfait repas','Per diem','Location voiture','Carburant','Péages','Train','Avion','Bus / taxi','Parking','Divers'];
+const CAT_FRAIS=['Forfait hôtel','Hôtel (au réel)','Forfait repas','Per diem','Repas','Location voiture','Carburant','Péages','Train','Avion','Bus / taxi','Parking','Divers'];
 const CAT_FORFAIT=['Forfait hôtel','Forfait repas','Per diem'];
 const MOIS_FR=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -219,7 +219,7 @@ function phasePill(p){const k=phaseOf(p);return '<span class="pill '+PHASE_LBL[k
 function projStats(pid){
   const aff=list('affectations').filter(a=>a.projetId===pid);
   const tmp=list('temps').filter(t=>t.projetId===pid);
-  const fr=list('frais').filter(f=>f.projetId===pid);
+  const fr=list('frais').filter(f=>f.projetId===pid&&f.statut!=='ecarte');
   const est=list('estimations').filter(e=>e.projetId===pid);
   const joursPrev=aff.reduce((s,a)=>s+num(a.joursPrevus),0);
   const montPrev=aff.reduce((s,a)=>s+num(a.joursPrevus)*(num(a.tjm)||num((byId('ressources',a.ressourceId)||{}).tjmVente)),0);
@@ -238,7 +238,7 @@ function pfLines(pid,mois){
   tmp.forEach(t=>{const r=byId('ressources',t.ressourceId)||{nom:'?'};const tj=tjmFor(pid,t.ressourceId,t.phase);
     lines.push({type:'prestation',libelle:(t.phase==='mes'?'Mise en service sur site':'Développement')+' · '+r.nom,qte:num(t.jours),unite:'j',pu:tj,montant:num(t.jours)*tj})});
   const m=1+num(S.regles.margeFrais)/100;
-  const fr=list('frais').filter(f=>f.projetId===pid&&f.mois===mois&&f.refacturable!==false);
+  const fr=list('frais').filter(f=>f.projetId===pid&&f.mois===mois&&f.refacturable!==false&&f.statut!=='ecarte');
   const g={};fr.forEach(f=>{const k=f.categorie||'Divers';g[k]=(g[k]||0)+num(f.montant)});
   Object.keys(g).sort().forEach(k=>lines.push({type:'frais',libelle:'Frais de déplacement · '+k+(m!==1?' (+'+nf(S.regles.margeFrais)+' %)':''),qte:1,unite:'forfait',pu:g[k]*m,montant:g[k]*m}));
   return lines;
@@ -309,7 +309,7 @@ const TABLES={
   projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','notes','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
-  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','maj_le'],
+  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','source','statut','motif','pleo_ref','marchand','categorie_pleo','maj_le'],
   estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
   prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le'],
   calendrier:['id','projet_id','ressource_id','mois','jours','resume','valide','valide_le','maj_le']
@@ -477,7 +477,7 @@ function vDash(){
   const mois=curMonth();
   const surSite=new Set(list('affectations').filter(a=>a.phase==='mes').filter(a=>{const p=byId('projets',a.projetId);return p&&phaseOf(p)==='mes'}).map(a=>a.ressourceId));
   const totPrev=st.reduce((s,x)=>s+x.s.totalPrev,0),totReal=st.reduce((s,x)=>s+x.s.totalReal,0);
-  const fraisMois=list('frais').filter(f=>f.mois===mois&&projs.some(p=>p.id===f.projetId)).reduce((s,f)=>s+num(f.montant),0);
+  const fraisMois=list('frais').filter(f=>f.mois===mois&&f.statut!=='ecarte'&&projs.some(p=>p.id===f.projetId)).reduce((s,f)=>s+num(f.montant),0);
   const pfMois=addMonths(mois,-1);
   const pfTodo=list('projets').filter(p=>pfLines(p.id,pfMois).length&&(!pfOf(p.id,pfMois)||pfOf(p.id,pfMois).statut==='Brouillon'));
   const alerts=[];
@@ -743,9 +743,10 @@ function vSaisie(){
   const tv=(rid,ph)=>{const t=byId('temps',[pid,rid,m,ph].join('_'));return t?t.jours:''};
   resIds.push(...list('calendrier').filter(c=>c.projetId===pid&&c.mois===m&&!resIds.includes(c.ressourceId)).map(c=>c.ressourceId));
   h+=vCalendrier(pid,m,resIds);
-  const fr=list('frais').filter(f=>f.projetId===pid&&f.mois===m).sort((a,b)=>(a.date||'')>(b.date||'')?1:-1);
-  h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div>';
-  h+=fr.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Ressource</th><th>Catégorie</th><th>Détail</th><th>Refacturable</th><th class="n">Montant TTC</th><th></th></tr></thead><tbody>'+fr.map(f=>'<tr><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
+  const tous=list('frais').filter(f=>f.projetId===pid&&f.mois===m).sort((a,b)=>(a.date||'')>(b.date||'')?1:-1);const fr=tous.filter(f=>f.statut!=='ecarte'),ec=tous.filter(f=>f.statut==='ecarte');
+  h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><div class="row"><label class="btn o sm" style="cursor:pointer">Importer un export Pleo (.xlsx)<input type="file" accept=".xlsx,.xls,.csv" data-pleo="1" hidden></label><button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div></div>';
+  h+=fr.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Ressource</th><th>Catégorie</th><th>Détail</th><th>Refacturable</th><th class="n">Montant TTC</th><th></th></tr></thead><tbody>'+fr.map(f=>'<tr><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill dev" title="'+esc(f.categoriePleo||'')+'">Pleo</span> <b>'+esc(f.marchand||'')+'</b> ':'')+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
+  if(ec.length)h+='<details><summary class="small" style="cursor:pointer;font-weight:700;color:var(--muted)">Frais écartés ('+ec.length+') · '+eur2(ec.reduce((x,f)=>x+num(f.montant),0))+'</summary><div class="scroll"><table class="tbl" style="margin-top:8px"><tbody>'+ec.map(f=>'<tr style="opacity:.75"><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill">Pleo</span> ':'')+'<b>'+esc(f.marchand||f.categorie)+'</b></td><td class="small">'+esc(f.motif||'')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="reintegrer" data-id="'+f.id+'">Réintégrer</button></td></tr>').join('')+'</tbody></table></div></details>';
   h+='<p class="small muted" style="margin:0">Hôtels, locations et billets déjà facturés par ailleurs : décochez « Refacturable » pour qu\'ils ne remontent pas dans la préfacture.</p></section>';
   h+='<div class="row"><span class="sp"></span><a class="btn p" href="#prefacture-'+pfDocId(pid,m)+'">Voir la préfacture de '+MOIS_LONG[+m.slice(5)-1]+'</a></div>';
   return h;
@@ -829,6 +830,93 @@ function confirmBox(msg,onYes){
   document.getElementById('dlgBody').innerHTML='<h2>Confirmer</h2><p style="margin:0">'+esc(msg)+'</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Supprimer</button></div>';
   dlg.showModal();document.getElementById('cfYes').onclick=async()=>{dlg.close();await onYes()};
 }
+/* ---------- import Pleo ---------- */
+let imp=null;
+function chargerXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);return new Promise((ok,ko)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>ok(window.XLSX);s.onerror=()=>ko(new Error('Lecture Excel indisponible (bibliothèque non chargée).'));document.head.appendChild(s)})}
+const normNom=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z ]/g,' ').split(/\s+/).filter(Boolean);
+function ressourceDe(owner){const t=normNom(owner);if(!t.length)return '';const k=t.slice().sort().join(' ');const rs=list('ressources');
+  let r=rs.find(x=>normNom(x.nom).sort().join(' ')===k);if(r)return r.id;
+  r=rs.filter(x=>{const n=normNom(x.nom);return n.length&&n.every(w=>t.includes(w))||t.every(w=>n.includes(w))});return r.length===1?r[0].id:''}
+function hashTxt(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36)}
+function isoDe(v){if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==='number'){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
+  const m=String(v||'').trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');const m2=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m2?m2[0]:''}
+function categorieDe(cp,mar){const c=String(cp||'').toLowerCase(),m=String(mar||'').toUpperCase();
+  if(/restauration|repas/.test(c))return 'Repas';if(/parking/.test(c)||/PARKING|PARC |COMMUNE DE|INDIGO|EFFIA|SAEMES|Q-PARK/.test(m))return 'Parking';
+  if(/h[ée]bergement|h[ôo]tel/.test(c)||/HOTEL|IBIS|NOVOTEL|MERCURE|B&B|KYRIAD|CAMPANILE|BOOKING|AIRBNB|PREMIERE CLASSE/.test(m))return 'Hôtel (au réel)';
+  if(/APRR|ASF|AUTOROUTE|PEAGE|SANEF|COFIROUTE|VINCI AUTO|PERIPHERIQUE|ESCOTA|ATMB|SAPN|ALIS|TUNNEL|VIADUC/.test(m))return 'Péages';
+  if(/ALAMO|HERTZ|AVIS|EUROPCAR|SIXT|ENTERPRISE|RENT|\bADA\b|UCAR|GETAROUND|LEASYS/.test(m))return 'Location voiture';
+  if(/SNCF|TGV|OUIGO|TRAINLINE|\bTER\b|INOUI/.test(m))return 'Train';
+  if(/AIR|EASYJET|RYANAIR|TRANSAVIA|VUELING|TUNISAIR|NOUVELAIR|LUFTHANSA|VOLOTEA/.test(m))return 'Avion';
+  if(/UBER|TAXI|BOLT|\bG7\b|HEETCH|FLIXBUS|BLABLA|TRANSDEV|RATP|\bTCL\b|\bT2C\b|BUS/.test(m))return 'Bus / taxi';
+  if(/voyage|d[ée]placement|carburant/.test(c)&&/TOTAL|AVIA|ESSO|SHELL|\bBP\b|STATION|\bELF\b|AGIP|DYNEFF|CARBU|INTERMARCHE|LECLERC|CARREFOUR|AUCHAN|SUPER U|SYSTEME U/.test(m))return 'Carburant';
+  return 'Divers'}
+function suggestion(cat,cp){
+  if(['Péages','Carburant','Parking','Train','Avion','Bus / taxi'].includes(cat))return {d:'valide',aide:''};
+  if(/équipement|equipement|matériel|t[ée]l[ée]phone|internet|abonnement|logiciel/i.test(cp))return {d:'ecarte',motif:'Hors frais de déplacement',aide:''};
+  if(cat==='Repas')return {d:'',aide:'Repas : forfait ou per diem prévu au barème'};
+  if(cat==='Location voiture')return {d:'',aide:'Location souvent déjà facturée'};
+  if(cat==='Hôtel (au réel)')return {d:'',aide:'Hébergement : vérifier le barème'};
+  return {d:'',aide:'À vérifier'}}
+async function importerPleo(file){
+  try{
+    toast('Lecture du fichier…');const X=await chargerXLSX();const buf=await new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>ko(new Error('Lecture du fichier impossible.'));fr.readAsArrayBuffer(file)});const wb=X.read(new Uint8Array(buf),{type:'array',cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];const rows=X.utils.sheet_to_json(ws,{defval:'',raw:true});
+    if(!rows.length)throw new Error('Le fichier ne contient aucune ligne.');
+    const g=(r,...ks)=>{for(const k of ks){const kk=Object.keys(r).find(x=>x.trim().toLowerCase()===k.toLowerCase());if(kk&&r[kk]!=='')return r[kk]}return ''};
+    if(!('owner' in Object.fromEntries(Object.keys(rows[0]).map(k=>[k.trim().toLowerCase(),1]))))throw new Error('Colonnes Pleo introuvables (date, amount, merchant, Owner…). Vérifiez qu\'il s\'agit bien de l\'export Pleo Analytics.');
+    const pid=ui.saisieProjet||(list('projets')[0]||{}).id;const vus={};
+    const lignes=rows.map(r=>{
+      const iso=isoDe(g(r,'date')),mont=num(g(r,'billamount','amount')),mar=String(g(r,'merchant')).trim(),cp=String(g(r,'Category')).trim(),owner=String(g(r,'Owner')).trim(),acc=String(g(r,'Account Number')).replace(/"/g,'').trim();
+      const base=[iso,mont.toFixed(2),mar,owner,acc].join('|');vus[base]=(vus[base]||0)+1;const key=hashTxt(base+'#'+vus[base]);
+      const ex=list('frais').find(f=>f.pleoRef===key);const cat=categorieDe(cp,mar);const sg=suggestion(cat,cp);
+      return {key,iso,mont,mar,cp,owner,devise:String(g(r,'billcurrency','currency')||'EUR'),rid:ex?ex.ressourceId:ressourceDe(owner),pid:ex?ex.projetId:pid,cat:ex?ex.categorie:cat,
+        d:ex?(ex.statut==='ecarte'?'ecarte':'valide'):sg.d,motif:ex?(ex.motif||''):(sg.motif||''),refac:ex?ex.refacturable!==false:true,aide:sg.aide,ex:ex?ex.id:''};
+    }).filter(l=>l.iso&&l.mont);
+    imp={fichier:file.name,lignes,filtre:'tous'};ouvrirImport();
+  }catch(e){toast(e.message||'Import impossible.')}
+}
+function ouvrirImport(){
+  const L=imp.lignes;const nb=k=>L.filter(l=>k==='tous'?1:k==='trier'?!l.d:l.d===k).length;
+  const inconnus=[...new Set(L.filter(l=>!l.rid).map(l=>l.owner))];const nouveaux=L.filter(l=>!l.ex).length;
+  const vis=L.map((l,i)=>[l,i]).filter(([l])=>imp.filtre==='tous'||(imp.filtre==='trier'?!l.d:l.d===imp.filtre));
+  const tot=k=>L.filter(l=>l.d===k).reduce((x,l)=>x+l.mont,0);
+  const resOpts=list('ressources').slice().sort((a,b)=>a.nom.localeCompare(b.nom));const projOpts=list('projets').slice().sort((a,b)=>(a.client+a.nom).localeCompare(b.client+b.nom));
+  let h='<div class="card-h"><h2>Import Pleo · '+esc(imp.fichier)+'</h2><button class="btn g sm" type="button" data-dlg="close" aria-label="Fermer">Fermer</button></div>';
+  h+='<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+kpi('Lignes',L.length,nouveaux+' nouvelle'+(nouveaux>1?'s':'')+(L.length-nouveaux?' · '+(L.length-nouveaux)+' déjà importée'+(L.length-nouveaux>1?'s':''):''))+kpi('À trier',nb('trier'),'sans décision')+kpi('Validés',eur2(tot('valide')),nb('valide')+' ligne'+(nb('valide')>1?'s':''))+kpi('Écartés',eur2(tot('ecarte')),nb('ecarte')+' ligne'+(nb('ecarte')>1?'s':''))+'</div>';
+  if(inconnus.length)h+='<div class="banner">Collaborateur non reconnu : '+inconnus.map(esc).join(', ')+'. Choisissez la ressource sur ces lignes avant de les valider ou de les écarter.</div>';
+  h+='<div class="row"><div class="tabs">'+[['tous','Toutes'],['trier','À trier'],['valide','Validées'],['ecarte','Écartées']].map(([k,t])=>'<button type="button" class="'+(imp.filtre===k?'on':'')+'" data-imp="filtre" data-v="'+k+'">'+t+' ('+nb(k)+')</button>').join('')+'</div><span class="sp"></span><button type="button" class="btn o sm" data-imp="tout" data-v="valide">Valider les lignes à trier</button><button type="button" class="btn o sm" data-imp="tout" data-v="ecarte">Écarter les lignes à trier</button></div>';
+  h+='<div class="scroll" style="max-height:52vh;overflow:auto"><table class="tbl" style="font-size:13px"><thead><tr><th>Date</th><th>Collaborateur</th><th>Marchand</th><th>Catégorie</th><th class="n">Montant</th><th>Décision</th><th>Motif d\'écart / note</th><th>Projet</th></tr></thead><tbody>'+
+    vis.map(([l,i])=>'<tr data-i="'+i+'"'+(l.d==='ecarte'?' style="opacity:.65"':'')+'><td class="small" style="white-space:nowrap">'+dateFr(l.iso)+(l.ex?'<br><span class="pill" title="Déjà importée">déjà importée</span>':'')+'</td>'+
+      '<td><select data-k="rid" aria-label="Collaborateur" style="max-width:170px'+(l.rid?'':';border-color:var(--bad)')+'"><option value="">'+esc(l.owner||'—')+' ?</option>'+resOpts.map(r=>'<option value="'+r.id+'"'+(r.id===l.rid?' selected':'')+'>'+esc(r.nom)+'</option>').join('')+'</select></td>'+
+      '<td><b>'+esc(l.mar)+'</b><div class="small muted">'+esc(l.cp)+'</div></td>'+
+      '<td><select data-k="cat" aria-label="Catégorie" style="max-width:150px">'+CAT_FRAIS.map(c=>'<option'+(c===l.cat?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></td>'+
+      '<td class="n" style="font-weight:700">'+eur2(l.mont)+(l.devise&&l.devise!=='EUR'?' '+esc(l.devise):'')+'</td>'+
+      '<td><div class="tabs" role="radiogroup" aria-label="Décision" style="flex-wrap:nowrap">'+[['valide','Valider'],['ecarte','Écarter'],['','À trier']].map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(l.d===k)+'" class="'+(l.d===k?'on':'')+'" data-k="d" data-v="'+k+'" style="padding:5px 10px;font-size:12.5px">'+t+'</button>').join('')+'</div>'+(l.aide&&!l.d?'<div class="small muted" style="margin-top:4px">'+esc(l.aide)+'</div>':'')+'</td>'+
+      '<td>'+(l.d==='ecarte'?'<input data-k="motif" value="'+esc(l.motif)+'" placeholder="Motif" aria-label="Motif d\'écart" style="min-width:150px">':l.d==='valide'?'<label class="row small" style="font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-k="refac"'+(l.refac?' checked':'')+'> Refacturable</label>':'<span class="muted small">—</span>')+'</td>'+
+      '<td><select data-k="pid" aria-label="Projet" style="max-width:160px">'+projOpts.map(p=>'<option value="'+p.id+'"'+(p.id===l.pid?' selected':'')+'>'+esc(p.client+' · '+p.nom)+'</option>').join('')+'</select></td></tr>').join('')+
+    (vis.length?'':'<tr><td colspan="8" class="muted">Aucune ligne dans ce filtre.</td></tr>')+'</tbody></table></div>';
+  h+='<p id="impErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row"><span class="small muted">Les lignes « À trier » ne sont pas enregistrées : elles réapparaîtront au prochain import.</span><span class="sp"></span><button type="button" class="btn o" data-dlg="close">Annuler</button><button type="button" class="btn p" data-imp="enregistrer">Enregistrer '+(nb('valide')+nb('ecarte'))+' décision'+(nb('valide')+nb('ecarte')>1?'s':'')+'</button></div>';
+  document.getElementById('dlgBody').innerHTML=h;dlg._save=()=>{};dlg.style.maxWidth='min(1180px,96vw)';if(!dlg.open)dlg.showModal();
+}
+dlg.addEventListener('close',()=>{dlg.style.maxWidth='';imp=null});
+document.getElementById('dlgBody').addEventListener('click',async e=>{if(!imp)return;const b=e.target.closest('[data-imp],[data-k="d"]');if(!b)return;
+  if(b.dataset.k==='d'){const i=+b.closest('tr').dataset.i;const l=imp.lignes[i];l.d=b.dataset.v;if(l.d==='ecarte'&&!l.motif)l.motif=l.aide||'';ouvrirImport();return}
+  const a=b.dataset.imp;
+  if(a==='filtre'){imp.filtre=b.dataset.v;ouvrirImport()}
+  else if(a==='tout'){imp.lignes.forEach(l=>{if(!l.d){l.d=b.dataset.v;if(l.d==='ecarte'&&!l.motif)l.motif=l.aide||''}});ouvrirImport()}
+  else if(a==='enregistrer'){const dec=imp.lignes.filter(l=>l.d);const err=document.getElementById('impErr');
+    const sans=dec.filter(l=>!l.rid||!l.pid);if(sans.length){err.textContent=sans.length+' ligne(s) décidée(s) sans collaborateur ou projet : complétez-les.';imp.filtre='tous';return}
+    if(!dec.length){err.textContent='Aucune décision à enregistrer.';return}
+    b.disabled=true;b.textContent='Enregistrement…';let ok=0;
+    for(const l of dec){const id=l.ex||('pleo_'+l.key);const cur=byId('frais',id)||{};
+      const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||'',
+        refacturable:l.d==='valide'?l.refac:false,justif:true,dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));if(r)ok++}
+    dlg.close();toast(ok+' frais Pleo enregistré'+(ok>1?'s':''));render()}
+});
+document.getElementById('dlgBody').addEventListener('change',e=>{if(!imp)return;const t=e.target;const tr=t.closest('tr[data-i]');if(!tr||!t.dataset.k)return;const l=imp.lignes[+tr.dataset.i];
+  if(t.dataset.k==='refac')l.refac=t.checked;else l[t.dataset.k]=t.value;if(t.dataset.k==='rid')t.style.borderColor=t.value?'':'var(--bad)'});
+document.getElementById('dlgBody').addEventListener('input',e=>{if(!imp)return;const t=e.target;const tr=t.closest('tr[data-i]');if(tr&&t.dataset.k==='motif')imp.lignes[+tr.dataset.i].motif=t.value});
+
 function formProjet(p){
   openForm(p?'Modifier le projet':'Nouveau projet',[
     {k:'client',l:'Client',req:true,ph:'IKEA, Limagrain, PepsiCo…'},{k:'nom',l:'Projet',req:true,ph:'Entrepôt automatisé'},
@@ -875,8 +963,9 @@ function formFrais(f){
     {k:'note',l:'Détail',full:true,ph:'Péage A7, hôtel Ibis Lyon…'},
     {k:'refacturable',l:'Refacturable à Mecalux',type:'check',def:S.regles.fraisRefacturablesParDefaut},
     {k:'justif',l:'Justificatif détaillé joint dans Pleo (obligatoire pour les frais au réel)',type:'check'},
+    {k:'statut',l:'Décision',type:'select',opts:[['valide','Validé'],['ecarte','Écarté']],def:'valide'},{k:'motif',l:'Motif d\'écart',ph:'Si écarté'},
     {k:'dejaFacture',l:'Déjà facturé par ailleurs (hôtel, location, billet)',type:'check'}
-  ],f,async o=>{if(o.dejaFacture)o.refacturable=false;const ok=await save('frais',f?f.id:uid('f'),Object.assign({projetId:pid,mois:(o.date||m).slice(0,7)},f||{},o,{mois:(o.date||m).slice(0,7)}));if(ok)toast('Dépense enregistrée');return ok},
+  ],f,async o=>{if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const ok=await save('frais',f?f.id:uid('f'),Object.assign({projetId:pid,mois:(o.date||m).slice(0,7)},f||{},o,{mois:(o.date||m).slice(0,7)}));if(ok)toast('Dépense enregistrée');return ok},
   f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'');
   dlg._del=f?()=>{dlg.close();del('frais',f.id)}:null;
 }
@@ -917,6 +1006,7 @@ document.addEventListener('click',async e=>{
       const cs=list('calendrier').filter(c=>c.projetId===pid&&c.mois===m&&Object.keys(c.jours||{}).length);
       for(const c of cs)await saveCal(pid,c.ressourceId,m,c.jours,{valide:val,valideLe:val?new Date().toISOString():''});
       toast(val?'Mois validé : '+cs.length+' ressource'+(cs.length>1?'s':''):'Saisie rouverte');render();break}
+    case'reintegrer':{const f=byId('frais',id);if(f){await save('frais',id,Object.assign({},f,{statut:'valide',motif:'',refacturable:true}));toast('Frais réintégré')}break}
     case'razFiltres':ui.filtres[b.dataset.t]={};render();break;
     case'newRes':formRes();break;
     case'editRes':formRes(byId('ressources',id));break;
@@ -961,6 +1051,7 @@ document.addEventListener('change',async e=>{
     if(k==='projetId'&&t.value){const p=byId('projets',t.value);if(p){if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd}}
     if(k==='ressourceId'){ui.calc.tjm='';if(t.value)ui.calc.profil=profilOfRes(t.value)}
     if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
+  if(t.dataset.pleo){const f=t.files&&t.files[0];t.value='';if(f)importerPleo(f);return}
   if(t.dataset.jeff){const mm=t.dataset.jeff;const v=t.value===''?null:num(t.value);S.moisCfg[mm]=Object.assign({},S.moisCfg[mm],{joursEffectifs:v});
     const {error}=await sb.from(TBL('config')).upsert({id:'mois_'+mm,data:S.moisCfg[mm],maj_le:new Date().toISOString()});if(error)handleErr(error);else toast('Jours effectifs enregistrés');pending=false;render();return}
   if(t.dataset.mc||t.dataset.mcall){const pid=ui.saisieProjet||(list('projets')[0]||{}).id;const m=ui.saisieMois;
