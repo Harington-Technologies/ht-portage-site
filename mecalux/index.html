@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Pilotage équipe Mecalux</title>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#21324E;--navy2:#304870;--steel:#435B7B;--rose:#C187A1;--plum:#784E61;--blush:#F3E6EC;--bg:#F1F4F7;--line:#E4E9F0;--line2:#D7D7D7;--ink:#1B1C1C;--muted:#4A5468;--ok:#2E6B4F;--okbg:#E3F1EA;--warn:#8A5A00;--warnbg:#FBF0D9;--bad:#A3343B;--badbg:#F8E3E4}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Open Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:15px}
+a{color:var(--plum)}a:hover{color:var(--navy)}
+.app{min-height:100vh;display:flex;flex-wrap:wrap}
+nav.side{flex:1 1 240px;max-width:100%;background:var(--navy);color:#fff;padding:28px 18px;display:flex;flex-direction:column;gap:28px}
+@media(min-width:900px){nav.side{max-width:260px;position:sticky;top:0;height:100vh;overflow:auto}}
+.brand{display:flex;align-items:center;gap:12px;padding:0 6px;color:#fff;text-decoration:none}
+.brand .logo{width:48px;height:48px;border-radius:14px;background:var(--navy2);display:flex;align-items:center;justify-content:center;flex:none}
+.brand b{font-size:17px;display:block}.brand small{font-size:13px;color:#A7B3C6}
+.menu{display:flex;flex-direction:column;gap:4px}
+.menu a{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;color:#D9E0EA;text-decoration:none;font-size:15px;font-weight:600}
+.menu a:hover{background:#2A3E60;color:#fff}
+.menu a.on{background:var(--navy2);color:#fff}
+.menu .badge{margin-left:auto;background:var(--rose);color:var(--navy);font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px}
+.sidebox{margin-top:auto;background:var(--navy2);border-radius:16px;padding:16px;font-size:13px;color:#D9E0EA;display:flex;flex-direction:column;gap:6px}
+.sidebox .k{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#A7B3C6}
+main{flex:999 1 560px;min-width:0;padding:32px clamp(16px,4vw,48px) 56px;display:flex;flex-direction:column;gap:24px}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.eyebrow{margin:0;font-size:14px;font-weight:600;font-style:italic;letter-spacing:.08em;text-transform:uppercase;color:var(--plum)}
+h1{margin:4px 0 0;font-size:32px;font-weight:700;letter-spacing:-.02em;color:var(--navy)}
+h2{margin:0;font-size:18px;font-weight:700;color:var(--navy)}
+h3{margin:0;font-size:15px;font-weight:700;color:var(--navy)}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px 22px;display:flex;flex-direction:column;gap:6px}
+.kpi .l{font-size:14px;font-weight:600;color:var(--muted)}
+.kpi .v{font-size:28px;font-weight:700;color:var(--navy)}
+.kpi .s{font-size:13px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}
+.hero{background:var(--navy);color:#fff;border-radius:20px;padding:22px 26px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+.hero .t{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--rose)}
+.hero .m{font-size:19px;font-weight:700}
+.btn{font:inherit;font-size:14px;font-weight:700;border-radius:999px;padding:10px 18px;cursor:pointer;border:0;display:inline-flex;align-items:center;gap:8px;text-decoration:none;min-height:40px}
+.btn.p{background:var(--plum);color:#fff}.btn.p:hover{background:#5f3d4d;color:#fff}
+.btn.r{background:var(--rose);color:var(--navy)}
+.btn.o{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+.btn.g{background:transparent;color:var(--plum);padding:8px 10px}
+.btn.d{background:#fff;color:var(--bad);border:1.5px solid #E2B5B9}
+.btn.sm{font-size:13px;padding:6px 12px;min-height:32px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:10px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+.tbl td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl tfoot td{font-weight:700;border-top:1.5px solid var(--navy);color:var(--navy)}
+.scroll{overflow-x:auto;margin:0 -8px;padding:0 8px}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap;background:var(--line);color:var(--navy)}
+.pill.dev{background:#DCE5F2;color:#21324E}.pill.mes{background:var(--blush);color:#5f3d4d}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.warn{background:var(--warnbg);color:var(--warn)}.pill.bad{background:var(--badbg);color:var(--bad)}
+.muted{color:var(--muted)}.small{font-size:13px}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;min-width:80px}
+.bar>i{display:block;height:100%;background:var(--steel);border-radius:99px}
+.bar.w>i{background:#C08A1E}.bar.x>i{background:var(--bad)}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-size:14px;color:var(--ink);border:1px solid var(--line2);border-radius:10px;padding:9px 11px;background:#fff;min-height:40px;max-width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--rose);outline-offset:1px;border-color:var(--rose)}
+input[type=checkbox]{min-height:auto;width:18px;height:18px;accent-color:var(--plum)}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.empty{padding:28px;text-align:center;color:var(--muted);background:var(--bg);border-radius:14px}
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0}
+.dl div{display:flex;flex-direction:column;gap:2px}.dl dt{font-size:13px;color:var(--muted)}.dl dd{margin:0;font-weight:700}
+.note{background:var(--blush);border-radius:14px;padding:14px 16px;font-size:14px}
+.note.i{background:#E8EEF6}
+.banner{background:var(--warnbg);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600}
+.res-line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.res-line:last-child{border-bottom:0}
+.res-line .d{color:var(--muted);font-size:12.5px}
+.total{display:flex;justify-content:space-between;align-items:baseline;background:var(--navy);color:#fff;border-radius:14px;padding:14px 18px}
+.total b{font-size:24px}
+.gantt{display:grid;gap:0;font-size:12.5px;min-width:820px}
+.gantt .gh{font-weight:700;color:var(--muted);text-align:center;padding:6px 0;border-bottom:1px solid var(--line2);text-transform:capitalize}
+.gantt .gl{padding:8px 10px 8px 0;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt .gc{border-bottom:1px solid var(--line);border-left:1px solid var(--line);position:relative;min-height:38px}
+.gantt .gc.today{background:#FAF3F6}
+.gbar{position:absolute;top:9px;height:20px;border-radius:6px;font-size:11px;font-weight:700;padding:2px 6px;overflow:hidden;white-space:nowrap}
+.gbar.dev{background:var(--steel);color:#fff}.gbar.mes{background:var(--rose);color:var(--navy)}
+.heat{display:inline-block;min-width:44px;padding:4px 6px;border-radius:8px;text-align:center;font-weight:700;font-size:12.5px}
+dialog{border:0;border-radius:20px;padding:0;max-width:min(720px,94vw);width:100%;box-shadow:0 20px 60px rgba(33,50,78,.3)}
+dialog::backdrop{background:rgba(33,50,78,.45)}
+.dlg{padding:24px;display:flex;flex-direction:column;gap:18px;max-height:88vh;overflow:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:14px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line2);background:#fff;color:var(--navy);padding:8px 14px;border-radius:999px;cursor:pointer}
+.tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pf{background:#fff;border:1px solid var(--line2);border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:18px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps span{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--line);color:var(--muted)}
+.steps span.done{background:var(--okbg);color:var(--ok)}.steps span.cur{background:var(--navy);color:#fff}
+.inp-n{width:84px;text-align:right}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}h1{font-size:26px}}
+</style>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js?v=20261114"></script>
+<script src="../assets/js/captcha.js?v=20261114"></script>
+</head>
+<body>
+<div class="app">
+<nav class="side" aria-label="Navigation principale">
+  <a class="brand" href="#tableau-de-bord">
+    <span class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" aria-hidden="true"><path d="M3 21V9l6-4v4l6-4v4l6-4v16z"/><path d="M7 21v-4h3v4M14 21v-4h3v4"/></svg></span>
+    <span><b>Pilotage Mecalux</b><small>Espace admin · équipe</small></span>
+  </a>
+  <div class="menu" id="menu"></div>
+  <div class="sidebox" id="sidebox"></div>
+</nav>
+<main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script>
+(function(){
+"use strict";
+/* ---------- constantes ---------- */
+const COLLS=['projets','ressources','affectations','temps','frais','estimations','prefactures'];
+/* Barèmes Harington · déplacements Mecalux (livret d'accueil CDC Mecalux) */
+const DEFAULT_REGLES={
+  profils:[
+    {id:'fr',nom:'Collaborateur France',hebergement:'forfait',hotel:56,hotelEstime:90,dejeuner:20,diner:20,perDiem:0,location:'forfait',locationJour:40,locationEstimee:50,
+     regle:'Hors Île-de-France avec hébergement : hôtel 56 € + déjeuner 20 € + dîner 20 € par jour (hôtel au réel possible si justifié). Sans hébergement : déjeuner 20 €. Location voiture 40 € par jour travaillé et facturé. Carburant, péage, avion, train, bus au réel avec justificatif.'},
+    {id:'tn',nom:'Collaborateur Tunisie',hebergement:'reel',hotel:0,hotelEstime:90,dejeuner:0,diner:0,perDiem:70,location:'reel',locationJour:0,locationEstimee:50,
+     regle:'Per diem 70 € par jour hors hébergement. Hébergement, billet d\'avion, location voiture, carburant, péage, train et bus au réel, justificatif obligatoire dans Pleo.'}
+  ],
+  estimations:{carburantKm:0.12,peageKm:0.07,carburantJourSite:10,trainAR:150,avionAR:350},
+  seuilJourneeKm:80, nuitsParSemaine:4, arriveeVeille:true,
+  trajetFacture:false, trajetCoef:0.5,
+  margeFrais:0, fraisRefacturablesParDefaut:true
+};
+const CAS={
+  journee:{nom:'Déplacement à la journée',desc:'Retour au domicile chaque soir, pas d\'hôtel.'},
+  semaine:{nom:'Grand déplacement · retour chaque week-end',desc:'Sur site du lundi au vendredi, un aller-retour par semaine.'},
+  continu:{nom:'Grand déplacement · week-ends sur place',desc:'Reste sur site les week-ends, un seul aller-retour.'},
+  ponctuel:{nom:'Intervention ponctuelle',desc:'Mission courte avec un seul aller-retour.'}
+};
+const STATUTS_PF=['Brouillon','Envoyée à Zakia','Validée Mecalux','BDC reçu','Facturée'];
+const CAT_FRAIS=['Forfait hôtel','Hôtel (au réel)','Forfait repas','Per diem','Location voiture','Carburant','Péages','Train','Avion','Bus / taxi','Parking','Divers'];
+const CAT_FORFAIT=['Forfait hôtel','Forfait repas','Per diem'];
+const MOIS_FR=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+/* ---------- état ---------- */
+const S={regles:clone(DEFAULT_REGLES)};COLLS.forEach(c=>S[c]={});
+let dbState='init', readOnly=false;
+const ui={dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
+  calc:{projetId:'',ressourceId:'',cas:'semaine',profil:'fr',jours:10,km:500,mode:'voiture',location:true,nuitPrix:'',arPrix:'',arriveeVeille:null,tjm:''}};
+
+/* ---------- utilitaires ---------- */
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function num(v){const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:0}
+const fmtE=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const fmtE2=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtN=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1});
+function eur(v){return fmtE.format(v||0)}function eur2(v){return fmtE2.format(v||0)}function nf(v){return fmtN.format(v||0)}
+function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function today(){return new Date().toISOString().slice(0,10)}
+function curMonth(){return today().slice(0,7)}
+function addMonths(m,k){let [y,mo]=m.split('-').map(Number);mo+=k;while(mo>12){mo-=12;y++}while(mo<1){mo+=12;y--}return y+'-'+String(mo).padStart(2,'0')}
+function moisLabel(m){if(!m)return'';const [y,mo]=m.split('-');return MOIS_LONG[+mo-1]+' '+y}
+function moisCourt(m){const [y,mo]=m.split('-');return MOIS_FR[+mo-1]+' '+y.slice(2)}
+function dateFr(d){if(!d)return'—';const [y,m,j]=d.split('-');return +j+' '+MOIS_FR[+m-1]+' '+y}
+function list(c){return Object.values(S[c])}
+function byId(c,id){return S[c][id]}
+function monthsBetween(a,b){if(!a||!b)return[];let out=[],m=a.slice(0,7),e=b.slice(0,7),g=0;while(m<=e&&g<60){out.push(m);m=addMonths(m,1);g++}return out}
+function workdays(a,b){if(!a||!b||b<a)return 0;let n=0,d=new Date(a+'T12:00:00'),e=new Date(b+'T12:00:00');while(d<=e){const w=d.getDay();if(w&&w<6)n++;d.setDate(d.getDate()+1)}return n}
+function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function profilById(id){const P=S.regles.profils||DEFAULT_REGLES.profils;return P.find(z=>z.id===id)||P[0]}
+function profilOfRes(rid){const r=byId('ressources',rid);return r&&r.profil||'fr'}
+const ICON={
+ dash:'<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
+ proj:'<path d="M3 21V9l6-4v4l6-4v4l6-4v16z"/>',
+ res:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.8 2.6 2.5 3 5.2"/>',
+ plan:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h5M10 17h6"/>',
+ calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h2M12 18h4"/>',
+ saisie:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13 7l4 4"/>',
+ pf:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+ regles:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'
+};
+function ic(k,s){return '<svg width="'+(s||20)+'" height="'+(s||20)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICON[k]+'</svg>'}
+
+/* ---------- calculs métier ---------- */
+function tjmFor(pid,rid,phase){const a=list('affectations').find(x=>x.projetId===pid&&x.ressourceId===rid&&x.phase===phase)||list('affectations').find(x=>x.projetId===pid&&x.ressourceId===rid);if(a&&num(a.tjm))return num(a.tjm);const r=byId('ressources',rid);return r?num(r.tjmVente):0}
+function phaseOf(p,d){d=d||today();if(p.cloture)return'termine';if(p.devDebut&&d<p.devDebut)return'avenir';if(p.devFin&&d<=p.devFin)return'dev';if(p.mesDebut&&d<p.mesDebut)return'inter';if(p.mesFin&&d<=p.mesFin)return'mes';if(p.mesFin&&d>p.mesFin)return'retard';return'avenir'}
+const PHASE_LBL={avenir:['À venir',''],dev:['Développement','dev'],inter:['Avant mise en service','warn'],mes:['Mise en service','mes'],retard:['Dépassement','bad'],termine:['Terminé','ok']};
+function phasePill(p){const k=phaseOf(p);return '<span class="pill '+PHASE_LBL[k][1]+'">'+PHASE_LBL[k][0]+'</span>'}
+function projStats(pid){
+  const aff=list('affectations').filter(a=>a.projetId===pid);
+  const tmp=list('temps').filter(t=>t.projetId===pid);
+  const fr=list('frais').filter(f=>f.projetId===pid);
+  const est=list('estimations').filter(e=>e.projetId===pid);
+  const joursPrev=aff.reduce((s,a)=>s+num(a.joursPrevus),0);
+  const montPrev=aff.reduce((s,a)=>s+num(a.joursPrevus)*(num(a.tjm)||num((byId('ressources',a.ressourceId)||{}).tjmVente)),0);
+  const fraisPrev=est.reduce((s,e)=>s+num(e.totalFrais),0);
+  const joursReal=tmp.reduce((s,t)=>s+num(t.jours),0);
+  const montReal=tmp.reduce((s,t)=>s+num(t.jours)*tjmFor(pid,t.ressourceId,t.phase),0);
+  const fraisReal=fr.reduce((s,f)=>s+num(f.montant),0);
+  const fraisRefac=fr.filter(f=>f.refacturable!==false).reduce((s,f)=>s+num(f.montant),0);
+  const resIds=[...new Set(aff.map(a=>a.ressourceId))];
+  return {joursPrev,montPrev,fraisPrev,joursReal,montReal,fraisReal,fraisRefac,resIds,totalPrev:montPrev+fraisPrev,totalReal:montReal+fraisReal};
+}
+function pfLines(pid,mois){
+  const lines=[];
+  const tmp=list('temps').filter(t=>t.projetId===pid&&t.mois===mois&&num(t.jours)>0);
+  tmp.sort((a,b)=>(a.phase>b.phase?1:-1));
+  tmp.forEach(t=>{const r=byId('ressources',t.ressourceId)||{nom:'?'};const tj=tjmFor(pid,t.ressourceId,t.phase);
+    lines.push({type:'prestation',libelle:(t.phase==='mes'?'Mise en service sur site':'Développement')+' · '+r.nom,qte:num(t.jours),unite:'j',pu:tj,montant:num(t.jours)*tj})});
+  const m=1+num(S.regles.margeFrais)/100;
+  const fr=list('frais').filter(f=>f.projetId===pid&&f.mois===mois&&f.refacturable!==false);
+  const g={};fr.forEach(f=>{const k=f.categorie||'Divers';g[k]=(g[k]||0)+num(f.montant)});
+  Object.keys(g).sort().forEach(k=>lines.push({type:'frais',libelle:'Frais de déplacement · '+k+(m!==1?' (+'+nf(S.regles.margeFrais)+' %)':''),qte:1,unite:'forfait',pu:g[k]*m,montant:g[k]*m}));
+  return lines;
+}
+function pfDocId(pid,mois){return pid+'_'+mois}
+function pfOf(pid,mois){return byId('prefactures',pfDocId(pid,mois))}
+
+/* calculateur de frais */
+function calcFrais(c){
+  const R=S.regles,P=profilById(c.profil),E=Object.assign({},DEFAULT_REGLES.estimations,R.estimations||{});
+  const jours=Math.max(0,Math.round(num(c.jours)));
+  const km=num(c.km);
+  const sem=Math.max(1,Math.ceil(jours/5));
+  const veille=c.arriveeVeille==null?R.arriveeVeille:c.arriveeVeille;
+  const cas=c.cas;
+  const lines=[],warn=[];
+  if(cas==='journee'&&km>num(R.seuilJourneeKm))warn.push('La distance dépasse '+R.seuilJourneeKm+' km : un déplacement à la journée semble peu réaliste, vérifiez le cas choisi.');
+  let nuits=0,nbAR=1,joursWE=0;
+  if(cas==='journee'){nbAR=jours}
+  else if(cas==='semaine'){nbAR=sem;nuits=Math.min(Math.max(0,jours-sem),sem*num(R.nuitsParSemaine));if(veille)nuits+=sem}
+  else if(cas==='continu'){joursWE=2*(sem-1);nuits=Math.max(0,jours+joursWE-1)+(veille?1:0)}
+  else {nuits=Math.max(0,jours-1)+(veille?1:0)}
+  const presence=jours+joursWE; // jours passés sur place (travaillés + week-ends sur site)
+  const R2=v=>Math.round(v*100)/100;
+  // Hébergement
+  if(nuits){
+    const reelSaisi=num(c.nuitPrix);
+    if(P.hebergement==='forfait'&&!reelSaisi)lines.push({k:'Hôtel (forfait)',d:nuits+' nuit'+(nuits>1?'s':'')+' × '+eur2(P.hotel),v:nuits*num(P.hotel),t:'forfait'});
+    else{const pu=reelSaisi||num(P.hotelEstime);lines.push({k:'Hébergement (au réel)',d:nuits+' nuit'+(nuits>1?'s':'')+' × '+eur2(pu)+(reelSaisi?' (prix saisi)':' (estimation)'),v:nuits*pu,t:'reel'})}
+  }
+  // Repas / per diem
+  if(num(P.perDiem)){lines.push({k:'Per diem hors hébergement',d:presence+' j × '+eur2(P.perDiem),v:presence*num(P.perDiem),t:'forfait'})}
+  else{
+    if(num(P.dejeuner))lines.push({k:'Déjeuner (forfait)',d:presence+' j × '+eur2(P.dejeuner),v:presence*num(P.dejeuner),t:'forfait'});
+    const diners=cas==='journee'?0:nuits;
+    if(diners&&num(P.diner))lines.push({k:'Dîner (forfait)',d:diners+' × '+eur2(P.diner),v:diners*num(P.diner),t:'forfait'});
+  }
+  // Transport principal
+  const mode=cas==='journee'?'voiture':c.mode;
+  if(mode==='voiture'){
+    const kmTot=nbAR*2*km;
+    lines.push({k:'Carburant trajets (au réel)',d:nf(kmTot)+' km × '+eur2(E.carburantKm)+' (estimation)',v:kmTot*num(E.carburantKm),t:'reel'});
+    if(num(E.peageKm))lines.push({k:'Péages (au réel)',d:nf(kmTot)+' km × '+eur2(E.peageKm)+' (estimation)',v:kmTot*num(E.peageKm),t:'reel'});
+  }else{
+    const pu=num(c.arPrix)||num(mode==='train'?E.trainAR:E.avionAR);
+    lines.push({k:(mode==='train'?'Train':'Avion')+' (au réel)',d:nbAR+' A/R × '+eur2(pu)+(num(c.arPrix)?' (prix saisi)':' (estimation)'),v:nbAR*pu,t:'reel'});
+  }
+  // Location de voiture : jours travaillés uniquement
+  if(c.location){
+    if(P.location==='forfait')lines.push({k:'Location voiture (forfait)',d:jours+' j travaillés × '+eur2(P.locationJour),v:jours*num(P.locationJour),t:'forfait'});
+    else lines.push({k:'Location voiture (au réel)',d:presence+' j × '+eur2(P.locationEstimee)+' (estimation)',v:presence*num(P.locationEstimee),t:'reel'});
+    if(mode!=='voiture'&&num(E.carburantJourSite))lines.push({k:'Carburant sur place (au réel)',d:jours+' j × '+eur2(E.carburantJourSite)+' (estimation)',v:jours*num(E.carburantJourSite),t:'reel'});
+  }
+  lines.forEach(l=>l.v=R2(l.v));
+  const totalFrais=lines.reduce((s,l)=>s+l.v,0);
+  const forfaits=lines.filter(l=>l.t==='forfait').reduce((s,l)=>s+l.v,0);
+  const tjm=num(c.tjm)||(c.ressourceId?num((byId('ressources',c.ressourceId)||{}).tjmVente):0);
+  const presta=jours*tjm;
+  const trajetJ=R.trajetFacture&&cas!=='journee'?nbAR*num(R.trajetCoef):0;
+  const trajet=trajetJ*tjm;
+  const refac=totalFrais*(1+num(R.margeFrais)/100);
+  return {lines,totalFrais,forfaits,reel:totalFrais-forfaits,tjm,presta,trajetJ,trajet,refac,total:presta+trajet+totalFrais,nuits,nbAR,jours,sem,warn,mode,profil:P};
+}
+
+/* ---------- persistance : Supabase ---------- */
+const TABLES={
+  ressources:['id','nom','role','ville','profil','tjm_vente','tjm_cout','email','maj_le'],
+  projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','notes','maj_le'],
+  affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
+  temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
+  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','maj_le'],
+  estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
+  prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le']
+};
+const TBL=c=>'mecalux_'+c;
+const toSnake=k=>k.replace(/[A-Z]/g,c=>'_'+c.toLowerCase());
+const toCamel=k=>k.replace(/_([a-z])/g,(m,c)=>c.toUpperCase());
+function toRow(c,id,obj){const row={id};const cols=TABLES[c];Object.keys(obj).forEach(k=>{const sk=toSnake(k);if(sk==='id'||!cols.includes(sk))return;let v=obj[k];if(v===''||v===undefined)v=null;row[sk]=v});return row}
+const NUMS=['tjm_vente','tjm_cout','distance_km','budget_montant','jours_prevus','tjm','jours','montant','total_frais','trajet','refac'];
+function fromRow(r){const o={};Object.keys(r).forEach(k=>{let v=r[k];if(v!=null&&NUMS.includes(k))v=Number(v);if(v===null)v='';o[toCamel(k)]=v});return o}
+let sb=null,session=null,membre=null,authMsg='',channel=null;
+async function save(c,id,obj){
+  obj=Object.assign({},obj);delete obj.id;obj.majLe=new Date().toISOString();
+  const prev=S[c][id];S[c][id]=Object.assign({id},obj);scheduleRender();
+  const {error}=await sb.from(TBL(c)).upsert(toRow(c,id,obj));
+  if(error){if(prev)S[c][id]=prev;else delete S[c][id];handleErr(error);render();return false}
+  return true;
+}
+async function del(c,id){
+  const prev=S[c][id];delete S[c][id];render();
+  const {error}=await sb.from(TBL(c)).delete().eq('id',id);
+  if(error){if(prev)S[c][id]=prev;handleErr(error);render()}
+}
+async function saveRegles(r){S.regles=r;render();const {error}=await sb.from(TBL('config')).upsert({id:'regles',data:r,maj_le:new Date().toISOString()});if(error)handleErr(error)}
+function handleErr(e){
+  console.error(e);
+  if(e&&e.code==='23503')toast('Impossible : cet élément est encore utilisé ailleurs (affectations, jours ou frais).');
+  else if(e&&(e.code==='42501'||/row-level security/i.test(e.message||'')))toast('Accès refusé : votre adresse n\'est pas dans l\'équipe autorisée.');
+  else if(e&&e.code==='23514')toast('Valeur refusée par la base (dates ou statut incohérents).');
+  else toast('Enregistrement impossible : '+((e&&e.message)||'réessayez.'));
+}
+let pending=false;
+function scheduleRender(){
+  const a=document.activeElement;
+  if(a&&document.getElementById('main').contains(a)&&a.matches('input,select,textarea')){pending=true;return}
+  render();
+}
+document.addEventListener('focusout',()=>{if(pending)setTimeout(()=>{if(pending){pending=false;scheduleRender()}},150)});
+
+async function loadAll(){
+  dbState='loading';render();
+  try{
+    const {data:ok,error:e0}=await sb.rpc('mecalux_est_membre');
+    if(e0)throw e0;
+    membre=!!ok;
+    if(!membre){dbState='refuse';render();return}
+    const res=await Promise.all(COLLS.map(c=>sb.from(TBL(c)).select('*')));
+    res.forEach((r,i)=>{if(r.error)throw r.error;const o={};r.data.forEach(row=>{o[row.id]=fromRow(row)});S[COLLS[i]]=o});
+    const {data:cfg}=await sb.from(TBL('config')).select('data').eq('id','regles').maybeSingle();
+    S.regles=cfg&&cfg.data?Object.assign(clone(DEFAULT_REGLES),cfg.data):clone(DEFAULT_REGLES);
+    dbState='ok';
+  }catch(e){console.error(e);dbState='erreur';authMsg=(e&&e.message)||''}
+  render();
+  subscribe();
+}
+function subscribe(){
+  if(channel)return;
+  channel=sb.channel('mecalux').on('postgres_changes',{event:'*',schema:'public'},p=>{
+    const t=String(p.table||'').replace(/^mecalux_/,'');
+    if(t==='config'){if(p.new&&p.new.id==='regles'&&p.new.data){S.regles=Object.assign(clone(DEFAULT_REGLES),p.new.data);scheduleRender()}return}
+    if(!S[t])return;
+    if(p.eventType==='DELETE'){if(p.old&&p.old.id)delete S[t][p.old.id]}
+    else if(p.new&&p.new.id){S[t][p.new.id]=fromRow(p.new)}
+    scheduleRender();
+  }).subscribe();
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&session&&membre&&dbState==='ok'){loadAll()}});
+
+async function initDb(){
+  const cfg=window.HTP_CONFIG||{};
+  if(!window.supabase||!cfg.supabaseUrl||!cfg.supabaseAnonKey){dbState='config';render();return}
+  // Même session que l'espace HT Portage (storageKey partagée)
+  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'htp-espace'}});
+  const {data}=await sb.auth.getSession();session=data.session;
+  sb.auth.onAuthStateChange((ev,s)=>{const was=!!session;session=s;if(s&&!was)loadAll();if(!s){membre=null;COLLS.forEach(c=>S[c]={});if(channel){sb.removeChannel(channel);channel=null}dbState='login';render()}});
+  if(session)loadAll();else{dbState='login';render()}
+}
+function vLogin(){
+  return '<div style="max-width:420px;margin:8vh auto 0;width:100%"><section class="card"><p class="eyebrow">Espace admin</p><h1 style="font-size:26px">Connexion</h1>'+
+  '<form id="loginForm" style="display:flex;flex-direction:column;gap:14px"><label class="f">E-mail<input type="email" name="email" autocomplete="username" required></label><label class="f">Mot de passe<input type="password" name="pwd" autocomplete="current-password" required></label>'+
+  '<p class="small" style="color:var(--bad);margin:0" role="alert">'+esc(authMsg)+'</p><button class="btn p" type="submit">Se connecter</button></form>'+
+  '<p class="small muted" style="margin:0"><a href="../espace/connexion.html">Mot de passe oublié ?</a> · Pas encore d\'accès ? Demandez à l\'administrateur de l\'outil.</p></section></div>';
+}
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='loginForm')return;e.preventDefault();
+  const f=e.target;authMsg='';const btn=f.querySelector('button');btn.disabled=true;btn.textContent='Connexion…';
+  let options={};
+  try{if(window.HTP_CAPTCHA&&window.HTP_CAPTCHA.actif){const c=f._captcha||(f._captcha=window.HTP_CAPTCHA.monter(f));const j=await c.jeton();if(!j){authMsg='Vérification anti-robot non terminée. Réessayez.';render();return}options.captchaToken=j}}
+  catch(err){authMsg=err.message;render();return}
+  const {error}=await sb.auth.signInWithPassword({email:f.elements.email.value.trim(),password:f.elements.pwd.value,options});
+  if(error){authMsg=error.message==='Invalid login credentials'?'E-mail ou mot de passe incorrect.':error.message;render()}
+});
+function formPwd(){
+  openForm('Changer mon mot de passe',[{k:'pwd',l:'Nouveau mot de passe (8 caractères minimum)',type:'password',req:true,full:true}],{},async o=>{
+    if(o.pwd.length<8){document.getElementById('frmErr').textContent='8 caractères minimum.';return false}
+    const {error}=await sb.auth.updateUser({password:o.pwd});if(error){document.getElementById('frmErr').textContent=error.message;return false}toast('Mot de passe modifié');return true});
+}
+
+/* ---------- routage ---------- */
+const ROUTES=[
+  ['tableau-de-bord','Tableau de bord','dash'],
+  ['projets','Projets','proj'],
+  ['ressources','Ressources','res'],
+  ['planning','Planning','plan'],
+  ['calculateur','Calculateur de frais','calc'],
+  ['saisie','Saisie mensuelle','saisie'],
+  ['prefactures','Préfactures','pf'],
+  ['regles','Règles de frais','regles']
+];
+function route(){const h=(location.hash||'').slice(1);return h||'tableau-de-bord'}
+window.addEventListener('hashchange',()=>{render();document.getElementById('main').focus({preventScroll:true});window.scrollTo(0,0)});
+
+function renderMenu(){
+  const r=route();const base=r.startsWith('projet-')?'projets':r.startsWith('prefacture-')?'prefactures':r;
+  const pfAttente=list('prefactures').filter(p=>p.statut&&p.statut!=='Facturée'&&p.statut!=='Brouillon').length;
+  document.getElementById('menu').innerHTML=ROUTES.map(([k,l,i])=>'<a href="#'+k+'"'+(base===k?' class="on" aria-current="page"':'')+'>'+ic(i)+l+(k==='prefactures'&&pfAttente?'<span class="badge">'+pfAttente+'</span>':'')+'</a>').join('');
+  const st={init:'Connexion…',loading:'Chargement des données…',ok:'Données à jour',login:'Non connecté',refuse:'Accès non autorisé',erreur:'Erreur de connexion',config:'Configuration manquante'}[dbState]||'';
+  const who=session&&session.user?session.user.email:'';
+  document.getElementById('sidebox').innerHTML='<span class="k">'+(who?'Connecté':'État')+'</span><span style="word-break:break-all">'+esc(who||st)+'</span>'+(who?'<span class="small">'+esc(st)+'</span><div class="row" style="margin-top:4px"><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="pwd">Mot de passe</button><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="logout">Déconnexion</button></div>':'')+'<span class="k" style="margin-top:6px">Circuit de facturation</span><span>Préfacture → Zakia → validation Mecalux → BDC</span>';
+  document.getElementById('menu').style.display=(dbState==='ok'||dbState==='loading')?'':'none';
+}
+function render(){
+  renderMenu();
+  const r=route(),m=document.getElementById('main');
+  let html='';
+  try{
+    if(r.startsWith('projet-'))html=vProjet(r.slice(7));
+    else if(r.startsWith('prefacture-'))html=vPrefacture(r.slice(11));
+    else html=({'tableau-de-bord':vDash,projets:vProjets,ressources:vRessources,planning:vPlanning,calculateur:vCalc,saisie:vSaisie,prefactures:vPrefactures,regles:vRegles}[r]||vDash)();
+  }catch(e){console.error(e);html='<div class="card">Erreur d\'affichage : '+esc(e.message)+'</div>'}
+  if(dbState==='login'){m.innerHTML=vLogin();const lf=document.getElementById('loginForm');if(lf&&window.HTP_CAPTCHA&&window.HTP_CAPTCHA.actif){try{lf._captcha=window.HTP_CAPTCHA.monter(lf)}catch(e){}}return}
+  if(dbState==='config'){m.innerHTML='<section class="card"><h1>Configuration manquante</h1><p style="margin:0">La configuration Supabase du site (assets/js/config.js) est introuvable.</p></section>';return}
+  if(dbState==='refuse'){m.innerHTML='<section class="card"><h1>Accès non autorisé</h1><p style="margin:0">Votre compte ('+esc(session&&session.user.email)+') n\'est pas dans la liste de l\'équipe. Demandez à l\'administrateur de l\'ajouter dans la table « mecalux_equipe ».</p><button class="btn o" data-act="logout" style="align-self:flex-start">Se déconnecter</button></section>';return}
+  if(dbState==='erreur'){m.innerHTML='<section class="card"><h1>Connexion à la base impossible</h1><p class="muted" style="margin:0">'+esc(authMsg)+'</p><button class="btn p" data-act="reload" style="align-self:flex-start">Réessayer</button></section>';return}
+  if(dbState==='init'){m.innerHTML='';return}
+  m.innerHTML=(dbState==='loading'?'<div class="banner" style="background:#E8EEF6;color:var(--navy)">Chargement des données…</div>':'')+html;
+  if(r==='calculateur')renderCalcResult();
+}
+function head(eyebrow,title,actions){return '<header class="top"><div><p class="eyebrow">'+esc(eyebrow)+'</p><h1>'+esc(title)+'</h1></div><div class="row">'+(actions||'')+'</div></header>'}
+function selRes(name,val,empty){return '<select name="'+name+'" data-k="'+name+'">'+(empty?'<option value="">'+empty+'</option>':'')+list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.id+'"'+(r.id===val?' selected':'')+'>'+esc(r.nom)+'</option>').join('')+'</select>'}
+function selProj(name,val,empty){return '<select name="'+name+'" data-k="'+name+'">'+(empty?'<option value="">'+empty+'</option>':'')+list('projets').sort((a,b)=>(a.client+a.nom).localeCompare(b.client+b.nom)).map(p=>'<option value="'+p.id+'"'+(p.id===val?' selected':'')+'>'+esc(p.client+' · '+p.nom)+'</option>').join('')+'</select>'}
+function clients(){return [...new Set(list('projets').map(p=>p.client).filter(Boolean))].sort()}
+function bar(pct){const c=pct>100?'x':pct>85?'w':'';return '<div class="bar '+c+'" role="img" aria-label="'+Math.round(pct)+' %"><i style="width:'+Math.min(100,pct)+'%"></i></div>'}
+
+/* ---------- vues ---------- */
+function vDash(){
+  let projs=list('projets');
+  if(ui.dashClient)projs=projs.filter(p=>p.client===ui.dashClient);
+  if(ui.dashRes)projs=projs.filter(p=>list('affectations').some(a=>a.projetId===p.id&&a.ressourceId===ui.dashRes));
+  const st=projs.map(p=>({p,s:projStats(p.id),ph:phaseOf(p)}));
+  const actifs=st.filter(x=>['dev','inter','mes','retard'].includes(x.ph));
+  const mois=curMonth();
+  const surSite=new Set(list('affectations').filter(a=>a.phase==='mes').filter(a=>{const p=byId('projets',a.projetId);return p&&phaseOf(p)==='mes'}).map(a=>a.ressourceId));
+  const totPrev=st.reduce((s,x)=>s+x.s.totalPrev,0),totReal=st.reduce((s,x)=>s+x.s.totalReal,0);
+  const fraisMois=list('frais').filter(f=>f.mois===mois&&projs.some(p=>p.id===f.projetId)).reduce((s,f)=>s+num(f.montant),0);
+  const pfMois=addMonths(mois,-1);
+  const pfTodo=list('projets').filter(p=>pfLines(p.id,pfMois).length&&(!pfOf(p.id,pfMois)||pfOf(p.id,pfMois).statut==='Brouillon'));
+  const alerts=[];
+  st.forEach(({p,s,ph})=>{
+    if(ph==='retard')alerts.push(['bad',esc(p.client+' · '+p.nom)+' : la mise en service devait finir le '+dateFr(p.mesFin)+'.',p.id]);
+    else if(s.joursPrev&&s.joursReal/s.joursPrev>0.9)alerts.push(['warn',esc(p.client+' · '+p.nom)+' : '+Math.round(100*s.joursReal/s.joursPrev)+' % des jours prévus consommés.',p.id]);
+    if(p.mesDebut&&p.mesDebut>today()&&p.mesDebut<=addDays(today(),21))alerts.push(['',esc(p.client+' · '+p.nom)+' : départ sur site le '+dateFr(p.mesDebut)+'. Préparez les réservations.',p.id]);
+  });
+  let h=head(moisLabel(mois),'Tableau de bord','<a class="btn o" href="#calculateur">'+ic('calc',18)+'Estimer des frais</a><button class="btn p" data-act="newProjet">+ Nouveau projet</button>');
+  if(pfTodo.length)h+='<section class="hero" aria-label="Action en attente"><div style="display:flex;flex-direction:column;gap:6px;max-width:640px"><span class="t">Préfactures · '+moisLabel(pfMois)+'</span><span class="m">'+pfTodo.length+' préfacture'+(pfTodo.length>1?'s':'')+' à préparer pour Zakia.</span><span style="color:#D9E0EA">'+pfTodo.map(p=>esc(p.client)).join(', ')+'</span></div><a class="btn r" href="#prefactures" data-pfmois="'+pfMois+'">Préparer les préfactures</a></section>';
+  h+='<div class="filters"><label class="f">Client<select data-ui="dashClient"><option value="">Tous les clients</option>'+clients().map(c=>'<option'+(c===ui.dashClient?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label><label class="f">Ressource'+selRes('dashRes',ui.dashRes,'Toutes les ressources').replace('data-k="dashRes"','data-ui="dashRes"')+'</label></div>';
+  h+='<section class="kpis" aria-label="Indicateurs clés">'+
+    kpi('Projets en cours',actifs.length,st.length+' projet'+(st.length>1?'s':'')+' au total')+
+    kpi('Ressources sur site',surSite.size,'en mise en service aujourd\'hui')+
+    kpi('Budget prévu',eur(totPrev),'jours × TJM + frais estimés')+
+    kpi('Réalisé à date',eur(totReal),totPrev?Math.round(100*totReal/totPrev)+' % du prévu':'—')+
+    kpi('Frais · '+MOIS_FR[+mois.slice(5)-1],eur(fraisMois),'saisis ce mois-ci')+
+  '</section>';
+  h+='<section class="card"><div class="card-h"><h2>Suivi par projet</h2><a href="#projets" class="small" style="font-weight:600">Tous les projets</a></div>';
+  if(!st.length)h+='<div class="empty">Aucun projet pour l\'instant. Créez votre premier projet pour commencer le suivi.</div>';
+  else h+='<div class="scroll"><table class="tbl"><thead><tr><th>Client · projet</th><th>Phase</th><th>Ressources</th><th>Échéance MES</th><th class="n">Jours réal. / prévus</th><th>Consommé</th><th class="n">Prévu</th><th class="n">Réalisé</th><th class="n">Dont frais</th></tr></thead><tbody>'+
+    st.sort((a,b)=>(a.p.mesFin||'9')>(b.p.mesFin||'9')?1:-1).map(({p,s})=>{const pct=s.joursPrev?100*s.joursReal/s.joursPrev:0;
+      return '<tr><td><a href="#projet-'+p.id+'" style="font-weight:700;color:var(--navy);text-decoration:none">'+esc(p.client)+'</a><div class="small muted">'+esc(p.nom)+(p.site?' · '+esc(p.site):'')+'</div></td><td>'+phasePill(p)+'</td><td class="small">'+(s.resIds.map(id=>esc((byId('ressources',id)||{}).nom||'?')).join(', ')||'<span class="muted">—</span>')+'</td><td class="small">'+dateFr(p.mesFin)+delai(p)+'</td><td class="n">'+nf(s.joursReal)+' / '+nf(s.joursPrev)+'</td><td>'+bar(pct)+'</td><td class="n">'+eur(s.totalPrev)+'</td><td class="n">'+eur(s.totalReal)+'</td><td class="n">'+eur(s.fraisReal)+'</td></tr>'}).join('')+
+    '</tbody><tfoot><tr><td colspan="6">Total</td><td class="n">'+eur(totPrev)+'</td><td class="n">'+eur(totReal)+'</td><td class="n">'+eur(st.reduce((s,x)=>s+x.s.fraisReal,0))+'</td></tr></tfoot></table></div>';
+  h+='</section><div class="grid2">';
+  h+='<section class="card"><h2>Points d\'attention</h2>'+(alerts.length?'<ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px">'+alerts.slice(0,8).map(a=>'<li class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="pill '+a[0]+'" style="margin-top:2px">'+(a[0]==='bad'?'Retard':a[0]==='warn'?'Budget':'Départ')+'</span><a href="#projet-'+a[2]+'" style="color:var(--ink);text-decoration:none">'+a[1]+'</a></li>').join('')+'</ul>':'<div class="empty">Rien à signaler.</div>')+'</section>';
+  // répartition par client
+  const byC={};st.forEach(({p,s})=>{byC[p.client]=(byC[p.client]||0)+s.totalPrev});
+  const mx=Math.max(1,...Object.values(byC));
+  h+='<section class="card"><h2>Budget prévu par client</h2>'+(Object.keys(byC).length?'<div style="display:flex;flex-direction:column;gap:12px">'+Object.entries(byC).sort((a,b)=>b[1]-a[1]).map(([c,v])=>'<div style="display:grid;grid-template-columns:120px 1fr auto;gap:12px;align-items:center"><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c)+'</span><div class="bar" style="height:14px"><i style="width:'+(100*v/mx)+'%;background:var(--navy)"></i></div><span class="small" style="font-weight:700;font-variant-numeric:tabular-nums">'+eur(v)+'</span></div>').join('')+'</div>':'<div class="empty">Pas encore de données.</div>')+'</section>';
+  h+='</div>';
+  return h;
+}
+function addDays(d,k){const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+k);return x.toISOString().slice(0,10)}
+function delai(p){if(!p.mesFin||p.cloture)return'';const d=Math.round((new Date(p.mesFin)-new Date(today()))/864e5);if(d<0)return'<div class="small" style="color:var(--bad);font-weight:700">+'+(-d)+' j de retard</div>';return'<div class="small muted">dans '+d+' j</div>'}
+function kpi(l,v,s){return '<div class="kpi"><span class="l">'+esc(l)+'</span><span class="v">'+v+'</span><span class="s">'+esc(s)+'</span></div>'}
+
+function vProjets(){
+  const ps=list('projets').sort((a,b)=>(a.client+a.nom).localeCompare(b.client+b.nom));
+  let h=head('Clients et sites industriels','Projets','<button class="btn p" data-act="newProjet">+ Nouveau projet</button>');
+  h+='<section class="card">'+(ps.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Client</th><th>Projet · site</th><th>Développement</th><th>Mise en service</th><th>Phase</th><th class="n">Budget prévu</th><th></th></tr></thead><tbody>'+ps.map(p=>{const s=projStats(p.id);return '<tr><td style="font-weight:700">'+esc(p.client)+'</td><td><a href="#projet-'+p.id+'" style="font-weight:600">'+esc(p.nom)+'</a><div class="small muted">'+esc(p.site||'')+'</div></td><td class="small">'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</td><td class="small">'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</td><td>'+phasePill(p)+'</td><td class="n">'+eur(s.totalPrev)+'</td><td class="n"><a class="btn g sm" href="#projet-'+p.id+'">Ouvrir</a></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucun projet. Ajoutez par exemple « IKEA · entrepôt automatisé ».</div>')+'</section>';
+  return h;
+}
+
+function vProjet(id){
+  const p=byId('projets',id);if(!p)return head('Projet','Projet introuvable')+'<a href="#projets">Retour aux projets</a>';
+  const s=projStats(id);
+  const aff=list('affectations').filter(a=>a.projetId===id);
+  const est=list('estimations').filter(e=>e.projetId===id);
+  let h='<a href="#projets" class="small" style="font-weight:600">← Projets</a>'+head(p.client,p.nom,'<button class="btn o" data-act="editProjet" data-id="'+id+'">Modifier</button><a class="btn p" href="#calculateur" data-calcproj="'+id+'">Estimer des frais</a>');
+  h+='<section class="card"><div class="card-h"><div class="row">'+phasePill(p)+(p.refMecalux?'<span class="pill">Réf. Mecalux '+esc(p.refMecalux)+'</span>':'')+'</div>'+delai(p)+'</div><dl class="dl"><div><dt>Site</dt><dd>'+esc(p.site||'—')+'</dd></div><div><dt>Distance (aller)</dt><dd>'+(p.distanceKm?nf(p.distanceKm)+' km':'—')+'</dd></div><div><dt>Développement</dt><dd>'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</dd></div><div><dt>Mise en service</dt><dd>'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</dd></div><div><dt>Jours ouvrés sur site</dt><dd>'+(workdays(p.mesDebut,p.mesFin)||'—')+'</dd></div></dl>'+(p.notes?'<div class="note i">'+esc(p.notes)+'</div>':'')+'</section>';
+  h+='<section class="kpis">'+kpi('Prestations prévues',eur(s.montPrev),nf(s.joursPrev)+' jours')+kpi('Frais estimés',eur(s.fraisPrev),est.length+' estimation'+(est.length>1?'s':''))+kpi('Total prévu',eur(s.totalPrev),p.budgetMontant?'budget client '+eur(num(p.budgetMontant)):'prestations + frais')+kpi('Réalisé',eur(s.totalReal),nf(s.joursReal)+' j · '+eur(s.fraisReal)+' de frais')+'</section>';
+  // affectations
+  h+='<section class="card"><div class="card-h"><h2>Ressources affectées</h2><button class="btn o sm" data-act="newAff" data-id="'+id+'">+ Affecter une ressource</button></div>';
+  if(!aff.length)h+='<div class="empty">Aucune ressource affectée.</div>';
+  else h+='<div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th><th>Phase</th><th class="n">Jours prévus</th><th class="n">TJM</th><th class="n">Montant prévu</th><th class="n">Jours réalisés</th><th>Consommé</th><th></th></tr></thead><tbody>'+aff.sort((a,b)=>a.phase>b.phase?1:-1).map(a=>{const r=byId('ressources',a.ressourceId)||{nom:'?'};const tj=num(a.tjm)||num(r.tjmVente);const jr=list('temps').filter(t=>t.projetId===id&&t.ressourceId===a.ressourceId&&t.phase===a.phase).reduce((x,t)=>x+num(t.jours),0);const pct=num(a.joursPrevus)?100*jr/num(a.joursPrevus):0;
+    return '<tr><td style="font-weight:600">'+esc(r.nom)+'<div class="small muted">'+esc(r.role||'')+'</div></td><td><span class="pill '+(a.phase==='mes'?'mes':'dev')+'">'+(a.phase==='mes'?'Mise en service':'Développement')+'</span></td><td class="n">'+nf(a.joursPrevus)+'</td><td class="n">'+eur(tj)+'</td><td class="n">'+eur(num(a.joursPrevus)*tj)+'</td><td class="n">'+nf(jr)+'</td><td>'+bar(pct)+'</td><td class="n"><button class="btn g sm" data-act="editAff" data-id="'+a.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>';
+  h+='</section>';
+  // estimations
+  h+='<section class="card"><div class="card-h"><h2>Estimations de frais de déplacement</h2><a class="btn o sm" href="#calculateur" data-calcproj="'+id+'">+ Nouvelle estimation</a></div>';
+  h+=est.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Libellé</th><th>Ressource</th><th>Cas</th><th class="n">Jours</th><th class="n">Frais</th><th class="n">Temps de trajet</th><th></th></tr></thead><tbody>'+est.map(e=>'<tr><td style="font-weight:600">'+esc(e.libelle||'Estimation')+'<div class="small muted">'+dateFr((e.majLe||'').slice(0,10))+'</div></td><td>'+esc((byId('ressources',e.ressourceId)||{}).nom||'—')+'</td><td class="small">'+esc((CAS[e.params&&e.params.cas]||{}).nom||'')+'</td><td class="n">'+nf(e.params&&e.params.jours)+'</td><td class="n">'+eur(e.totalFrais)+'</td><td class="n">'+eur(e.trajet)+'</td><td class="n"><button class="btn g sm" data-act="loadEst" data-id="'+e.id+'">Rouvrir</button><button class="btn g sm" data-act="delEst" data-id="'+e.id+'" aria-label="Supprimer l\'estimation">Supprimer</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="4">Total frais estimés</td><td class="n">'+eur(s.fraisPrev)+'</td><td class="n">'+eur(est.reduce((x,e)=>x+num(e.trajet),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Utilisez le calculateur pour estimer les frais de la mise en service, puis enregistrez l\'estimation sur ce projet.</div>';
+  h+='</section>';
+  // mois par mois
+  const months=[...new Set(list('temps').filter(t=>t.projetId===id).map(t=>t.mois).concat(list('frais').filter(f=>f.projetId===id).map(f=>f.mois)))].sort();
+  h+='<section class="card"><div class="card-h"><h2>Réalisé mois par mois</h2><a class="btn o sm" href="#saisie" data-saisieproj="'+id+'">Saisir des jours ou des frais</a></div>';
+  h+=months.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Mois</th><th class="n">Jours</th><th class="n">Prestations</th><th class="n">Frais refacturables</th><th class="n">Total</th><th>Préfacture</th></tr></thead><tbody>'+months.map(m=>{const L=pfLines(id,m);const pr=L.filter(l=>l.type==='prestation');const fr=L.filter(l=>l.type==='frais');const pf=pfOf(id,m);
+    return '<tr><td style="font-weight:600;text-transform:capitalize">'+moisLabel(m)+'</td><td class="n">'+nf(pr.reduce((x,l)=>x+l.qte,0))+'</td><td class="n">'+eur(pr.reduce((x,l)=>x+l.montant,0))+'</td><td class="n">'+eur(fr.reduce((x,l)=>x+l.montant,0))+'</td><td class="n" style="font-weight:700">'+eur(L.reduce((x,l)=>x+l.montant,0))+'</td><td>'+pfStatusPill(pf)+' <a href="#prefacture-'+pfDocId(id,m)+'" class="small" style="font-weight:600">Ouvrir</a></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucun jour ni frais saisi pour l\'instant.</div>';
+  h+='</section>';
+  h+='<div class="row"><span class="sp"></span><button class="btn d sm" data-act="delProjet" data-id="'+id+'">Supprimer le projet</button></div>';
+  return h;
+}
+function pfStatusPill(pf){const s=pf&&pf.statut||'À préparer';const c={'Brouillon':'','Envoyée à Zakia':'warn','Validée Mecalux':'dev','BDC reçu':'mes','Facturée':'ok'}[s];return '<span class="pill '+(c||'')+'">'+esc(s)+'</span>'}
+
+function vRessources(){
+  const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));const m=curMonth();
+  let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
+  h+='<section class="card">'+(rs.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Nom</th><th>Rôle</th><th>Ville de départ</th><th>Barème</th><th class="n">TJM vente</th><th>Projets</th><th class="n">Jours prévus</th><th class="n">Jours · '+MOIS_FR[+m.slice(5)-1]+'</th><th></th></tr></thead><tbody>'+rs.map(r=>{const aff=list('affectations').filter(a=>a.ressourceId===r.id);const ps=[...new Set(aff.map(a=>a.projetId))].map(id=>byId('projets',id)).filter(Boolean);const jm=list('temps').filter(t=>t.ressourceId===r.id&&t.mois===m).reduce((x,t)=>x+num(t.jours),0);
+    return '<tr><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td>'+esc(r.ville||'')+'</td><td class="small">'+esc(profilById(r.profil).nom)+'</td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(ps.map(p=>'<a href="#projet-'+p.id+'">'+esc(p.client)+'</a>').join(', ')||'<span class="muted">—</span>')+'</td><td class="n">'+nf(aff.reduce((x,a)=>x+num(a.joursPrevus),0))+'</td><td class="n">'+nf(jm)+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
+  return h;
+}
+
+function vPlanning(){
+  const start=ui.planStart,N=12,months=[];for(let i=0;i<N;i++)months.push(addMonths(start,i));
+  const end=addMonths(start,N-1);const cm=curMonth();
+  const ps=list('projets').filter(p=>(p.devDebut||p.mesDebut))
+    .sort((a,b)=>(a.devDebut||a.mesDebut||'')>(b.devDebut||b.mesDebut||'')?1:-1);
+  let h=head('Vue sur 12 mois','Planning','<button class="btn o sm" data-act="planPrev" aria-label="Mois précédents">←</button><span style="font-weight:700;text-transform:capitalize">'+moisLabel(start)+' – '+moisLabel(end)+'</span><button class="btn o sm" data-act="planNext" aria-label="Mois suivants">→</button>');
+  const pos=d=>{const m=d.slice(0,7);const i=months.indexOf(m);if(i<0)return m<start?-1:N;const dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();return i+(+d.slice(8)-1)/dim};
+  function gbar(a,b,cls,lbl){if(!a||!b)return'';let x=pos(a),y=pos(b)+0.03;if(y<0||x>=N)return'';x=Math.max(0,x);y=Math.min(N,y);return{x,y,cls,lbl}}
+  let g='<div class="gantt" style="grid-template-columns:200px repeat('+N+',1fr)"><div class="gh" style="text-align:left">Projet</div>'+months.map(m=>'<div class="gh">'+moisCourt(m)+'</div>').join('');
+  if(!ps.length)g+='<div class="gl muted" style="grid-column:1/-1">Ajoutez des dates aux projets pour les voir ici.</div>';
+  ps.forEach(p=>{
+    const bars=[gbar(p.devDebut,p.devFin,'dev','Dév.'),gbar(p.mesDebut,p.mesFin,'mes','MES')].filter(Boolean);
+    g+='<div class="gl"><a href="#projet-'+p.id+'" style="font-weight:700;color:var(--navy);text-decoration:none">'+esc(p.client)+'</a> <span class="small muted">'+esc(p.nom)+'</span></div>';
+    g+='<div style="grid-column:2/-1;position:relative;display:grid;grid-template-columns:repeat('+N+',1fr)">'+months.map(m=>'<div class="gc'+(m===cm?' today':'')+'"></div>').join('')+bars.map(b=>'<div class="gbar '+b.cls+'" style="left:'+(100*b.x/N)+'%;width:calc('+(100*(b.y-b.x)/N)+'% - 2px)">'+b.lbl+'</div>').join('')+'</div>';
+  });
+  g+='</div>';
+  h+='<section class="card"><div class="card-h"><h2>Phases des projets</h2><div class="row small"><span class="pill" style="background:var(--steel);color:#fff">Développement</span><span class="pill" style="background:var(--rose);color:var(--navy)">Mise en service sur site</span></div></div><div class="scroll">'+g+'</div></section>';
+  // charge ressources
+  const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
+  const load={};
+  list('affectations').forEach(a=>{const p=byId('projets',a.projetId);if(!p)return;const d1=a.phase==='mes'?p.mesDebut:p.devDebut,d2=a.phase==='mes'?p.mesFin:p.devFin;const ms=monthsBetween(d1,d2);if(!ms.length)return;
+    const tot=workdays(d1,d2)||1;ms.forEach(m=>{const a1=m+'-01'>d1?m+'-01':d1;const last=m+'-'+String(new Date(+m.slice(0,4),+m.slice(5),0).getDate()).padStart(2,'0');const b1=last<d2?last:d2;const share=workdays(a1,b1)/tot*num(a.joursPrevus);
+      const k=a.ressourceId+'|'+m;load[k]=load[k]||{j:0,site:false};load[k].j+=share;if(a.phase==='mes')load[k].site=true})});
+  let t='<table class="tbl"><thead><tr><th>Ressource</th>'+months.map(m=>'<th class="n">'+moisCourt(m)+'</th>').join('')+'</tr></thead><tbody>'+rs.map(r=>'<tr><td style="font-weight:600;white-space:nowrap">'+esc(r.nom)+'</td>'+months.map(m=>{const l=load[r.id+'|'+m];if(!l||l.j<0.05)return'<td class="n muted">·</td>';const v=l.j;const bg=v>21?'var(--badbg)':l.site?'var(--blush)':'#DCE5F2';const c=v>21?'var(--bad)':'var(--navy)';return '<td class="n"><span class="heat" style="background:'+bg+';color:'+c+'" title="'+(l.site?'Dont mise en service sur site':'Développement')+'">'+nf(v)+'</span></td>'}).join('')+'</tr>').join('')+'</tbody></table>';
+  h+='<section class="card"><div class="card-h"><h2>Charge prévue par ressource (jours)</h2><span class="small muted">Jours prévus répartis sur les dates de chaque phase · rose = sur site · rouge = plus de 21 j</span></div>'+(rs.length?'<div class="scroll">'+t+'</div>':'<div class="empty">Aucune ressource.</div>')+'</section>';
+  return h;
+}
+
+function vCalc(){
+  const c=ui.calc,R=S.regles;
+  let h=head('Estimation avant départ','Calculateur de frais');
+  h+='<div class="grid2" style="align-items:start"><section class="card" aria-label="Paramètres"><h2>Le déplacement</h2><div class="formgrid">'+
+    '<label class="f">Projet'+selProj('projetId',c.projetId,'— Sans projet —').replace('data-k=','data-c=')+'</label>'+
+    '<label class="f">Ressource'+selRes('ressourceId',c.ressourceId,'— Choisir —').replace('data-k=','data-c=')+'</label>'+
+    '</div><fieldset style="border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px"><legend class="small" style="font-weight:600;color:var(--muted);margin-bottom:6px">Cas de déplacement</legend>'+
+    Object.entries(CAS).map(([k,v])=>'<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid '+(c.cas===k?'var(--plum)':'var(--line)')+';border-radius:12px;cursor:pointer;background:'+(c.cas===k?'var(--blush)':'#fff')+'"><input type="radio" name="cas" value="'+k+'" data-c="cas"'+(c.cas===k?' checked':'')+' style="margin-top:3px;accent-color:var(--plum)"><span><b style="color:var(--navy)">'+v.nom+'</b><br><span class="small muted">'+v.desc+'</span></span></label>').join('')+
+    '</fieldset><div class="formgrid">'+
+    '<label class="f">Barème appliqué<select data-c="profil">'+(R.profils||DEFAULT_REGLES.profils).map(z=>'<option value="'+z.id+'"'+(z.id===c.profil?' selected':'')+'>'+esc(z.nom)+'</option>').join('')+'</select></label>'+
+    '<label class="f">Jours ouvrés sur site<input type="number" min="0" step="1" data-c="jours" value="'+esc(c.jours)+'"></label>'+
+    '<label class="f">Distance aller (km)<input type="number" min="0" step="1" data-c="km" value="'+esc(c.km)+'"></label>'+
+    '<label class="f">Transport principal<select data-c="mode"'+(c.cas==='journee'?' disabled':'')+'><option value="voiture"'+(c.mode==='voiture'?' selected':'')+'>Voiture depuis le domicile</option><option value="train"'+(c.mode==='train'?' selected':'')+'>Train</option><option value="avion"'+(c.mode==='avion'?' selected':'')+'>Avion</option></select></label>'+
+    '<label class="f">Prix réel d\'une nuit (facultatif)<input type="number" min="0" step="1" data-c="nuitPrix" value="'+esc(c.nuitPrix)+'" placeholder="Forfait ou estimation"></label>'+
+    '<label class="f">Prix réel d\'un aller-retour (facultatif)<input type="number" min="0" step="1" data-c="arPrix" value="'+esc(c.arPrix)+'" placeholder="Train ou avion"'+(c.cas==='journee'||c.mode==='voiture'?' disabled':'')+'></label>'+
+    '<label class="f">TJM (facultatif)<input type="number" min="0" step="1" data-c="tjm" value="'+esc(c.tjm)+'" placeholder="TJM de la ressource"></label>'+
+    '</div><div class="row"><label class="row small" style="font-weight:600"><input type="checkbox" data-c="location"'+(c.location?' checked':'')+'> Location de voiture</label><label class="row small" style="font-weight:600"><input type="checkbox" data-c="arriveeVeille"'+((c.arriveeVeille==null?R.arriveeVeille:c.arriveeVeille)?' checked':'')+'> Arrivée la veille</label></div>'+
+    '<div class="note i small" id="calcRegle"></div><p class="small muted" style="margin:0">Barèmes modifiables dans <a href="#regles">Règles de frais</a>.</p></section>'+
+    '<section class="card" aria-live="polite" id="calcRes"></section></div>';
+  return h;
+}
+function renderCalcResult(){
+  const el=document.getElementById('calcRes');if(!el)return;const c=ui.calc;const r=calcFrais(c);
+  let h='<div class="card-h"><h2>Estimation</h2><span class="small muted">'+r.jours+' j sur site · '+r.nuits+' nuit'+(r.nuits>1?'s':'')+' · '+r.nbAR+' aller-retour'+(r.nbAR>1?'s':'')+'</span></div>';
+  r.warn.forEach(w=>h+='<div class="banner">'+esc(w)+'</div>');
+  h+='<div>'+r.lines.map(l=>'<div class="res-line"><span>'+esc(l.k)+'<br><span class="d">'+esc(l.d)+'</span></span><b style="font-variant-numeric:tabular-nums">'+eur2(l.v)+'</b></div>').join('')+'</div>';
+  h+='<div class="total"><span>Frais de déplacement</span><b>'+eur2(r.totalFrais)+'</b></div>';
+  h+='<div><div class="res-line"><span>Prestation sur site<br><span class="d">'+r.jours+' j × '+eur2(r.tjm)+'</span></span><b>'+eur2(r.presta)+'</b></div>'+(r.trajetJ?'<div class="res-line"><span>Temps de trajet facturé<br><span class="d">'+nf(r.trajetJ)+' j × '+eur2(r.tjm)+'</span></span><b>'+eur2(r.trajet)+'</b></div>':'')+'<div class="res-line"><span>Frais refacturés à Mecalux'+(num(S.regles.margeFrais)?'<br><span class="d">avec '+nf(S.regles.margeFrais)+' % de frais de gestion</span>':'')+'</span><b>'+eur2(r.refac)+'</b></div></div>';
+  h+='<div class="total" style="background:var(--plum)"><span>Coût total de l\'intervention</span><b>'+eur2(r.presta+r.trajet+r.refac)+'</b></div>';
+  h+='<p class="small muted" style="margin:0">Dont forfaits : '+eur2(r.forfaits)+' · dont au réel (estimé, sur justificatif) : '+eur2(r.reel)+'</p>';
+  if(!r.tjm)h+='<p class="small muted" style="margin:0">Choisissez une ressource ou saisissez un TJM pour chiffrer la prestation.</p>';
+  h+='<div class="row"><label class="f" style="flex:1 1 200px">Libellé de l\'estimation<input id="estLib" value="'+esc(c.libelle||'Mise en service '+(c.projetId?(byId('projets',c.projetId)||{}).client||'':''))+'"></label><button class="btn p" data-act="saveEst"'+(c.projetId?'':' disabled title="Choisissez un projet"')+'>Enregistrer sur le projet</button><button class="btn o" data-act="copyEst">Copier</button></div>';
+  if(!c.projetId)h+='<p class="small muted" style="margin:0">Choisissez un projet pour enregistrer l\'estimation dans son budget.</p>';
+  el.innerHTML=h;
+  const n=document.getElementById('calcRegle');if(n)n.innerHTML='<b>'+esc(r.profil.nom)+' :</b> '+esc(r.profil.regle||'');
+}
+
+function vSaisie(){
+  const m=ui.saisieMois;const pid=ui.saisieProjet||(list('projets')[0]||{}).id||'';
+  let h=head('Temps passés et frais réels','Saisie mensuelle');
+  h+='<div class="filters"><label class="f">Mois<input type="month" data-ui="saisieMois" value="'+m+'"></label><label class="f">Projet'+selProj('saisieProjet',pid,'').replace('data-k="saisieProjet"','data-ui="saisieProjet"')+'</label></div>';
+  if(!pid)return h+'<div class="empty">Créez d\'abord un projet.</div>';
+  const p=byId('projets',pid);
+  const aff=list('affectations').filter(a=>a.projetId===pid);
+  const resIds=[...new Set(aff.map(a=>a.ressourceId).concat(list('temps').filter(t=>t.projetId===pid&&t.mois===m).map(t=>t.ressourceId)))];
+  const tv=(rid,ph)=>{const t=byId('temps',[pid,rid,m,ph].join('_'));return t?t.jours:''};
+  h+='<section class="card"><div class="card-h"><h2>Jours travaillés · <span style="text-transform:capitalize">'+moisLabel(m)+'</span></h2><span class="small muted">Enregistrement automatique à la sortie du champ</span></div>';
+  h+=resIds.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th><th class="n">Développement (j)</th><th class="n">Mise en service (j)</th><th class="n">Montant</th></tr></thead><tbody>'+resIds.map(rid=>{const r=byId('ressources',rid)||{nom:'?'};const d=num(tv(rid,'dev')),s=num(tv(rid,'mes'));
+    return '<tr><td style="font-weight:600">'+esc(r.nom)+'</td><td class="n"><input class="inp-n" type="number" min="0" step="0.5" aria-label="Jours de développement, '+esc(r.nom)+'" data-temps="'+rid+'|dev" value="'+esc(tv(rid,'dev'))+'"'+(readOnly?' disabled':'')+'></td><td class="n"><input class="inp-n" type="number" min="0" step="0.5" aria-label="Jours de mise en service, '+esc(r.nom)+'" data-temps="'+rid+'|mes" value="'+esc(tv(rid,'mes'))+'"'+(readOnly?' disabled':'')+'></td><td class="n">'+eur(d*tjmFor(pid,rid,'dev')+s*tjmFor(pid,rid,'mes'))+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div>';
+  h+='</section>';
+  const fr=list('frais').filter(f=>f.projetId===pid&&f.mois===m).sort((a,b)=>(a.date||'')>(b.date||'')?1:-1);
+  h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div>';
+  h+=fr.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Ressource</th><th>Catégorie</th><th>Détail</th><th>Refacturable</th><th class="n">Montant TTC</th><th></th></tr></thead><tbody>'+fr.map(f=>'<tr><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
+  h+='<p class="small muted" style="margin:0">Hôtels, locations et billets déjà facturés par ailleurs : décochez « Refacturable » pour qu\'ils ne remontent pas dans la préfacture.</p></section>';
+  h+='<div class="row"><span class="sp"></span><a class="btn p" href="#prefacture-'+pfDocId(pid,m)+'">Voir la préfacture de '+MOIS_LONG[+m.slice(5)-1]+'</a></div>';
+  return h;
+}
+
+function vPrefactures(){
+  const m=ui.pfMois;
+  let h=head('Préparation de la facturation','Préfactures');
+  h+='<div class="filters"><label class="f">Mois<input type="month" data-ui="pfMois" value="'+m+'"></label><div class="note i small" style="flex:1 1 320px">Une préfacture par projet et par mois. Envoyez-la à Zakia, faites-la valider par Mecalux, puis notez le numéro du bon de commande reçu.</div></div>';
+  const rows=list('projets').map(p=>{const L=pfLines(p.id,m);const pf=pfOf(p.id,m);const tot=pf&&pf.lignes?pf.lignes.reduce((x,l)=>x+num(l.montant),0):L.reduce((x,l)=>x+l.montant,0);return{p,L,pf,tot}}).filter(x=>x.L.length||x.pf);
+  const total=rows.reduce((x,r)=>x+r.tot,0);
+  h+='<section class="kpis">'+kpi('Préfactures du mois',rows.length,'projets avec de l\'activité')+kpi('Montant HT',eur(total),'prestations + frais refacturés')+kpi('En attente de BDC',rows.filter(r=>r.pf&&['Envoyée à Zakia','Validée Mecalux'].includes(r.pf.statut)).length,'envoyées ou validées')+kpi('BDC reçus',rows.filter(r=>r.pf&&['BDC reçu','Facturée'].includes(r.pf.statut)).length,'prêtes à facturer')+'</section>';
+  h+='<section class="card">'+(rows.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Client · projet</th><th class="n">Jours</th><th class="n">Montant HT</th><th>Statut</th><th>N° BDC</th><th></th></tr></thead><tbody>'+rows.map(({p,L,pf,tot})=>'<tr><td style="font-weight:700">'+esc(p.client)+'<div class="small muted" style="font-weight:400">'+esc(p.nom)+'</div></td><td class="n">'+nf((pf&&pf.lignes||L).filter(l=>l.type==='prestation').reduce((x,l)=>x+num(l.qte),0))+'</td><td class="n" style="font-weight:700">'+eur2(tot)+'</td><td>'+pfStatusPill(pf)+(pf&&pf.lignes&&changed(pf,L)?' <span class="pill warn" title="Les saisies ont changé depuis que la préfacture a été figée">Saisies modifiées</span>':'')+'</td><td>'+esc(pf&&pf.bdc||'—')+'</td><td class="n"><a class="btn o sm" href="#prefacture-'+pfDocId(p.id,m)+'">Ouvrir</a></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="2">Total</td><td class="n">'+eur2(total)+'</td><td colspan="3"></td></tr></tfoot></table></div>':'<div class="empty">Aucune activité saisie en <span style="text-transform:capitalize">'+moisLabel(m)+'</span>. Les jours et frais se saisissent dans <a href="#saisie">Saisie mensuelle</a>.</div>')+'</section>';
+  return h;
+}
+function changed(pf,L){const a=pf.lignes.reduce((x,l)=>x+num(l.montant),0),b=L.reduce((x,l)=>x+l.montant,0);return Math.abs(a-b)>0.01}
+function vPrefacture(key){
+  const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);
+  const p=byId('projets',pid);if(!p)return head('Préfacture','Projet introuvable');
+  const pf=pfOf(pid,m);const live=pfLines(pid,m);const L=pf&&pf.lignes?pf.lignes:live;
+  const tot=L.reduce((x,l)=>x+num(l.montant),0);const st=pf&&pf.statut||'À préparer';const si=STATUTS_PF.indexOf(st);
+  let h='<a href="#prefactures" class="small" style="font-weight:600" data-pfmois="'+m+'">← Préfactures</a>'+head(moisLabel(m),'Préfacture '+p.client,'<button class="btn o" data-act="pfCsv" data-k="'+key+'">Télécharger (CSV)</button><button class="btn o" data-act="pfHtml" data-k="'+key+'">Télécharger (HTML)</button><button class="btn o" data-act="pfCopy" data-k="'+key+'">Copier</button>');
+  h+='<div class="steps" aria-label="Avancement">'+STATUTS_PF.map((s,k)=>'<span class="'+(k<si?'done':k===si?'cur':'')+'">'+(k+1)+'. '+s+'</span>').join('')+'</div>';
+  if(pf&&pf.lignes&&changed(pf,live))h+='<div class="banner">Les jours ou frais saisis ont changé depuis que cette préfacture a été figée (nouveau calcul : '+eur2(live.reduce((x,l)=>x+l.montant,0))+'). <button class="btn o sm" data-act="pfRefresh" data-k="'+key+'">Mettre à jour les lignes</button></div>';
+  h+='<div class="grid2" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start">';
+  h+='<section class="pf" aria-label="Aperçu de la préfacture"><div class="card-h" style="align-items:flex-start"><div><div class="eyebrow" style="font-size:12px">Préfacture · pour validation</div><h2 style="font-size:22px;margin-top:4px">'+esc(p.client)+' · '+esc(p.nom)+'</h2><div class="small muted">'+esc(p.site||'')+(p.refMecalux?' · Réf. Mecalux '+esc(p.refMecalux):'')+'</div></div><div class="small" style="text-align:right"><b>Période</b><br><span style="text-transform:capitalize">'+moisLabel(m)+'</span>'+(pf&&pf.bdc?'<br><b>BDC</b> '+esc(pf.bdc):'')+'</div></div>';
+  h+=L.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">PU HT</th><th class="n">Montant HT</th></tr></thead><tbody>'+L.map(l=>'<tr><td>'+esc(l.libelle)+'</td><td class="n">'+nf(l.qte)+' '+esc(l.unite)+'</td><td class="n">'+eur2(l.pu)+'</td><td class="n">'+eur2(l.montant)+'</td></tr>').join('')+'</tbody><tfoot><tr><td colspan="3">Total HT</td><td class="n">'+eur2(tot)+'</td></tr></tfoot></table></div>':'<div class="empty">Aucune ligne : saisissez les jours et frais du mois.</div>';
+  if(pf&&pf.notes)h+='<div class="small"><b>Notes :</b> '+esc(pf.notes)+'</div>';
+  h+='</section>';
+  h+='<section class="card"><h2>Suivi</h2><label class="f">Statut<select id="pfStatut"'+(readOnly?' disabled':'')+'>'+STATUTS_PF.map(s=>'<option'+(s===st?' selected':'')+'>'+s+'</option>').join('')+'</select></label><label class="f">N° de bon de commande Mecalux<input id="pfBdc" value="'+esc(pf&&pf.bdc||'')+'" placeholder="Reçu après validation"></label><label class="f">Notes pour Zakia<textarea id="pfNotes" rows="3">'+esc(pf&&pf.notes||'')+'</textarea></label><button class="btn p" data-act="pfSave" data-k="'+key+'"'+(readOnly?' disabled':'')+'>Enregistrer et figer les lignes</button>'+(pf&&pf.majLe?'<p class="small muted" style="margin:0">Dernière mise à jour le '+dateFr(pf.majLe.slice(0,10))+'</p>':'')+'<a class="small" href="#saisie" data-saisieproj="'+pid+'" data-saisiemois="'+m+'" style="font-weight:600">Corriger les jours ou les frais</a></section>';
+  h+='</div>';
+  return h;
+}
+
+function vRegles(){
+  const R=S.regles,P=R.profils||DEFAULT_REGLES.profils,E=Object.assign({},DEFAULT_REGLES.estimations,R.estimations||{});
+  let h=head('Règles applicables aux déplacements Mecalux','Règles de frais','<button class="btn o" data-act="resetRegles">Revenir au barème Harington</button><button class="btn p" data-act="saveRegles"'+(readOnly?' disabled':'')+'>Enregistrer les règles</button>');
+  h+='<div class="note">Rappel : seule la facture ou le ticket détaillé du commerçant vaut justificatif, pas le ticket de carte bancaire. Carte Pleo réservée aux dépenses liées à l\'activité ; photographier le reçu dans Pleo après chaque paiement.</div>';
+  const num2=(z,k,l,u)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.01" data-z="'+k+'" value="'+esc(z[k])+'" style="flex:1">'+(u?'<span class="small muted">'+u+'</span>':'')+'</span></label>';
+  const mode=(z,k,l)=>'<label class="f">'+l+'<select data-z="'+k+'"><option value="forfait"'+(z[k]==='forfait'?' selected':'')+'>Forfait</option><option value="reel"'+(z[k]==='reel'?' selected':'')+'>Au réel</option></select></label>';
+  h+='<div class="grid2">'+P.map((z,i)=>'<section class="card" data-pi="'+i+'"><div class="card-h"><label class="f" style="flex:1">Barème<input data-z="nom" value="'+esc(z.nom)+'"></label>'+(P.length>1?'<button class="btn g sm" data-act="delProfil" data-i="'+i+'">Retirer</button>':'')+'</div>'+
+    '<h3>Hébergement</h3><div class="formgrid">'+mode(z,'hebergement','Mode')+num2(z,'hotel','Forfait hôtel','€/nuit')+num2(z,'hotelEstime','Estimation si au réel','€/nuit')+'</div>'+
+    '<h3>Repas</h3><div class="formgrid">'+num2(z,'dejeuner','Déjeuner (forfait)','€/jour')+num2(z,'diner','Dîner (forfait)','€/nuit')+num2(z,'perDiem','Per diem hors hébergement','€/jour')+'</div><p class="small muted" style="margin:0">Si un per diem est renseigné, il remplace les forfaits déjeuner et dîner.</p>'+
+    '<h3>Location de voiture</h3><div class="formgrid">'+mode(z,'location','Mode')+num2(z,'locationJour','Forfait par jour travaillé','€/jour')+num2(z,'locationEstimee','Estimation si au réel','€/jour')+'</div>'+
+    '<label class="f">Règle telle que rédigée<textarea data-z="regle" rows="3">'+esc(z.regle||'')+'</textarea></label></section>').join('')+'</div>';
+  h+='<button class="btn o sm" data-act="addProfil" style="align-self:flex-start">+ Ajouter un barème</button>';
+  const e=(k,l,u)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.01" data-e="'+k+'" value="'+esc(E[k])+'" style="flex:1"><span class="small muted">'+u+'</span></span></label>';
+  const f=(k,l,u,st)=>'<label class="f">'+l+'<span class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="'+(st||'0.01')+'" data-r="'+k+'" value="'+esc(R[k])+'" style="flex:1">'+(u?'<span class="small muted">'+u+'</span>':'')+'</span></label>';
+  const cb=(k,l)=>'<label class="row small" style="font-weight:600"><input type="checkbox" data-r="'+k+'"'+(R[k]?' checked':'')+'> '+l+'</label>';
+  h+='<div class="grid2"><section class="card"><h2>Hypothèses pour les frais au réel</h2><p class="small muted" style="margin:0">Servent uniquement à estimer avant le départ : carburant, péages et billets sont remboursés au réel sur justificatif.</p><div class="formgrid">'+e('carburantKm','Carburant trajets','€/km')+e('peageKm','Péages','€/km')+e('carburantJourSite','Carburant sur place','€/jour')+e('trainAR','Train aller-retour','€')+e('avionAR','Avion aller-retour','€')+'</div></section>';
+  h+='<section class="card"><h2>Séjour et refacturation</h2><div class="formgrid">'+f('nuitsParSemaine','Nuits max. par semaine (retour le WE)','nuits','1')+f('seuilJourneeKm','Alerte déplacement à la journée au-delà de','km','1')+f('trajetCoef','Temps de trajet par aller-retour','jour','0.25')+f('margeFrais','Frais de gestion sur frais refacturés','%','0.5')+'</div>'+cb('arriveeVeille','Arrivée la veille du premier jour par défaut')+cb('trajetFacture','Facturer le temps de trajet à Mecalux')+cb('fraisRefacturablesParDefaut','Nouvelle dépense refacturable par défaut')+'</section></div>';
+  return h;
+}
+
+/* ---------- formulaires (dialogue) ---------- */
+const dlg=document.getElementById('dlg');
+function openForm(title,fields,data,onSave,extra){
+  data=data||{};
+  let h='<h2>'+esc(title)+'</h2><form id="frm" class="formgrid" novalidate>';
+  fields.forEach(f=>{
+    const v=data[f.k]!=null?data[f.k]:(f.def!=null?f.def:'');
+    const full=f.full?' style="grid-column:1/-1"':'';
+    if(f.type==='select')h+='<label class="f"'+full+'>'+esc(f.l)+'<select name="'+f.k+'"'+(f.req?' required':'')+'>'+f.opts.map(o=>'<option value="'+esc(o[0])+'"'+(String(o[0])===String(v)?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select></label>';
+    else if(f.type==='check')h+='<label class="row small" style="font-weight:600;grid-column:1/-1"><input type="checkbox" name="'+f.k+'"'+(v?' checked':'')+'> '+esc(f.l)+'</label>';
+    else if(f.type==='textarea')h+='<label class="f" style="grid-column:1/-1">'+esc(f.l)+'<textarea name="'+f.k+'" rows="3">'+esc(v)+'</textarea></label>';
+    else h+='<label class="f"'+full+'>'+esc(f.l)+'<input name="'+f.k+'" type="'+(f.type||'text')+'"'+(f.type==='number'?' step="any" min="0"':'')+' value="'+esc(v)+'"'+(f.req?' required':'')+(f.ph?' placeholder="'+esc(f.ph)+'"':'')+'></label>';
+  });
+  h+='</form><p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(extra||'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
+  document.getElementById('dlgBody').innerHTML=h;
+  dlg._save=async()=>{
+    const fm=document.getElementById('frm');const o={};
+    for(const f of fields){const el=fm.elements[f.k];let v=f.type==='check'?el.checked:el.value.trim();if(f.type==='number')v=v===''?'':num(v);if(f.req&&(v===''||v==null)){document.getElementById('frmErr').textContent='« '+f.l+' » est obligatoire.';el.focus();return}o[f.k]=v}
+    const ok=await onSave(o);if(ok!==false){dlg.close();}
+  };
+  dlg.showModal();
+  const first=dlg.querySelector('input,select,textarea');if(first)first.focus();
+}
+dlg.addEventListener('click',e=>{const b=e.target.closest('[data-dlg]');if(e.target===dlg){dlg.close();return}if(!b)return;if(b.dataset.dlg==='close')dlg.close();if(b.dataset.dlg==='ok')dlg._save();if(b.dataset.dlg==='del'&&dlg._del){dlg._del();}});
+dlg.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();dlg._save()}});
+function confirmBox(msg,onYes){
+  document.getElementById('dlgBody').innerHTML='<h2>Confirmer</h2><p style="margin:0">'+esc(msg)+'</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Supprimer</button></div>';
+  dlg.showModal();document.getElementById('cfYes').onclick=async()=>{dlg.close();await onYes()};
+}
+function formProjet(p){
+  openForm(p?'Modifier le projet':'Nouveau projet',[
+    {k:'client',l:'Client',req:true,ph:'IKEA, Limagrain, PepsiCo…'},{k:'nom',l:'Projet',req:true,ph:'Entrepôt automatisé'},
+    {k:'site',l:'Site (ville, pays)',ph:'Lyon, France'},
+    {k:'distanceKm',l:'Distance aller depuis la base (km)',type:'number'},{k:'refMecalux',l:'Référence Mecalux'},
+    {k:'devDebut',l:'Début développement',type:'date'},{k:'devFin',l:'Fin développement',type:'date'},
+    {k:'mesDebut',l:'Début mise en service',type:'date'},{k:'mesFin',l:'Fin mise en service',type:'date'},
+    {k:'budgetMontant',l:'Budget client (€ HT, facultatif)',type:'number'},
+    {k:'cloture',l:'Projet terminé et clôturé',type:'check'},
+    {k:'notes',l:'Notes',type:'textarea'}
+  ],p,async o=>{if(o.devDebut&&o.devFin&&o.devFin<o.devDebut){document.getElementById('frmErr').textContent='La fin du développement est avant son début.';return false}if(o.mesDebut&&o.mesFin&&o.mesFin<o.mesDebut){document.getElementById('frmErr').textContent='La fin de la mise en service est avant son début.';return false}
+    const id=p?p.id:uid('p');const ok=await save('projets',id,Object.assign({},p||{},o));if(ok){toast('Projet enregistré');if(!p)location.hash='projet-'+id}return ok});
+}
+function formRes(r){
+  openForm(r?'Modifier la ressource':'Nouvelle ressource',[
+    {k:'nom',l:'Nom',req:true},{k:'role',l:'Rôle',ph:'Automaticien, développeur WMS…'},
+    {k:'ville',l:'Ville de départ'},{k:'profil',l:'Barème de frais',type:'select',opts:(S.regles.profils||DEFAULT_REGLES.profils).map(z=>[z.id,z.nom]),def:'fr'},{k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
+    {k:'tjmCout',l:'Coût journalier (€, facultatif)',type:'number'},{k:'email',l:'E-mail',type:'email'}
+  ],r,async o=>{const ok=await save('ressources',r?r.id:uid('r'),Object.assign({},r||{},o));if(ok)toast('Ressource enregistrée');return ok},
+  r?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'');
+  dlg._del=r?()=>{if(list('affectations').some(a=>a.ressourceId===r.id)){document.getElementById('frmErr').textContent='Cette ressource est affectée à des projets : retirez d\'abord ses affectations.';return}dlg.close();del('ressources',r.id)}:null;
+}
+function formAff(pid,a){
+  if(!list('ressources').length){toast('Ajoutez d\'abord une ressource.');location.hash='ressources';return}
+  const p=byId('projets',pid);
+  openForm(a?'Modifier l\'affectation':'Affecter une ressource',[
+    {k:'ressourceId',l:'Ressource',type:'select',opts:list('ressources').map(r=>[r.id,r.nom]),req:true},
+    {k:'phase',l:'Phase',type:'select',opts:[['dev','Développement'],['mes','Mise en service sur site']],def:'dev'},
+    {k:'joursPrevus',l:'Jours prévus',type:'number',req:true,def:a?'':workdays(p.devDebut,p.devFin)||''},
+    {k:'tjm',l:'TJM spécifique (vide = TJM de la ressource)',type:'number'}
+  ],a,async o=>{const ok=await save('affectations',a?a.id:uid('a'),Object.assign({projetId:pid},a||{},o));if(ok)toast('Affectation enregistrée');return ok},
+  a?'<button class="btn d sm" type="button" data-dlg="del">Retirer</button>':'');
+  dlg._del=a?()=>{dlg.close();del('affectations',a.id)}:null;
+}
+function formFrais(f){
+  const pid=f?f.projetId:(ui.saisieProjet||(list('projets')[0]||{}).id);const m=f?f.mois:ui.saisieMois;
+  const resIds=[...new Set(list('affectations').filter(a=>a.projetId===pid).map(a=>a.ressourceId))];
+  const opts=(resIds.length?resIds:list('ressources').map(r=>r.id)).map(id=>[id,(byId('ressources',id)||{}).nom||'?']);
+  openForm(f?'Modifier la dépense':'Nouvelle dépense · '+moisLabel(m),[
+    {k:'date',l:'Date',type:'date',def:m===curMonth()?today():m+'-01'},{k:'ressourceId',l:'Ressource',type:'select',opts},
+    {k:'categorie',l:'Catégorie',type:'select',opts:CAT_FRAIS.map(c=>[c,c])},{k:'montant',l:'Montant TTC (€)',type:'number',req:true},
+    {k:'note',l:'Détail',full:true,ph:'Péage A7, hôtel Ibis Lyon…'},
+    {k:'refacturable',l:'Refacturable à Mecalux',type:'check',def:S.regles.fraisRefacturablesParDefaut},
+    {k:'justif',l:'Justificatif détaillé joint dans Pleo (obligatoire pour les frais au réel)',type:'check'},
+    {k:'dejaFacture',l:'Déjà facturé par ailleurs (hôtel, location, billet)',type:'check'}
+  ],f,async o=>{if(o.dejaFacture)o.refacturable=false;const ok=await save('frais',f?f.id:uid('f'),Object.assign({projetId:pid,mois:(o.date||m).slice(0,7)},f||{},o,{mois:(o.date||m).slice(0,7)}));if(ok)toast('Dépense enregistrée');return ok},
+  f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'');
+  dlg._del=f?()=>{dlg.close();del('frais',f.id)}:null;
+}
+
+/* ---------- exports ---------- */
+function pfData(key){const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);const p=byId('projets',pid);const pf=pfOf(pid,m);const L=pf&&pf.lignes?pf.lignes:pfLines(pid,m);return{p,m,pf,L,tot:L.reduce((x,l)=>x+num(l.montant),0)}}
+function pfFile(key){const {p,m}=pfData(key);return ('prefacture_'+p.client+'_'+p.nom+'_'+m).replace(/[^\w-]+/g,'_')}
+function pfText(key){const {p,m,pf,L,tot}=pfData(key);return 'Préfacture '+p.client+' · '+p.nom+' · '+moisLabel(m)+(pf&&pf.bdc?' · BDC '+pf.bdc:'')+'\n'+L.map(l=>l.libelle+'\t'+nf(l.qte)+' '+l.unite+'\t'+eur2(l.pu)+'\t'+eur2(l.montant)).join('\n')+'\nTotal HT\t\t\t'+eur2(tot)}
+function pfCsv(key){const {p,m,pf,L,tot}=pfData(key);const q=s=>'"'+String(s).replace(/"/g,'""')+'"';const n=v=>String((+v).toFixed(2)).replace('.',',');
+  return '﻿'+[['Client','Projet','Période','BDC','Désignation','Quantité','Unité','PU HT','Montant HT'].map(q).join(';')].concat(L.map(l=>[p.client,p.nom,m,pf&&pf.bdc||'',l.libelle,n(l.qte),l.unite,n(l.pu),n(l.montant)].map((v,k)=>k>=5&&k!==6?v:q(v)).join(';'))).concat([['','','','','Total HT','','','',n(tot)].map((v,k)=>k===8?v:q(v)).join(';')]).join('\r\n')}
+function pfHtml(key){const {p,m,pf,L,tot}=pfData(key);return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Préfacture '+esc(p.client)+' '+m+'</title><style>body{font-family:Arial,sans-serif;color:#1B1C1C;max-width:800px;margin:40px auto;padding:0 20px}h1{color:#21324E;font-size:22px}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}td.n,th.n{text-align:right}tfoot td{font-weight:bold;border-top:2px solid #21324E}.m{color:#4A5468;font-size:13px}</style></head><body><p class="m">PRÉFACTURE · POUR VALIDATION</p><h1>'+esc(p.client)+' · '+esc(p.nom)+'</h1><p class="m">'+esc(p.site||'')+(p.refMecalux?' · Réf. Mecalux '+esc(p.refMecalux):'')+'<br>Période : '+moisLabel(m)+(pf&&pf.bdc?'<br>Bon de commande : '+esc(pf.bdc):'')+'<br>Statut : '+esc(pf&&pf.statut||'À préparer')+'</p><table><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">PU HT</th><th class="n">Montant HT</th></tr></thead><tbody>'+L.map(l=>'<tr><td>'+esc(l.libelle)+'</td><td class="n">'+nf(l.qte)+' '+esc(l.unite)+'</td><td class="n">'+eur2(l.pu)+'</td><td class="n">'+eur2(l.montant)+'</td></tr>').join('')+'</tbody><tfoot><tr><td colspan="3">Total HT</td><td class="n">'+eur2(tot)+'</td></tr></tfoot></table>'+(pf&&pf.notes?'<p><b>Notes :</b> '+esc(pf.notes)+'</p>':'')+'</body></html>'}
+function dl(filename,data){
+  const type=filename.endsWith('.csv')?'text/csv;charset=utf-8':'text/html;charset=utf-8';
+  const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+async function copy(t){try{await navigator.clipboard.writeText(t);toast('Copié dans le presse-papiers')}catch(e){toast('Copie refusée par le navigateur.')}}
+
+/* ---------- événements ---------- */
+document.addEventListener('click',async e=>{
+  const a=e.target.closest('[data-pfmois],[data-calcproj],[data-saisieproj]');
+  if(a){if(a.dataset.pfmois)ui.pfMois=a.dataset.pfmois;if(a.dataset.calcproj){const p=byId('projets',a.dataset.calcproj);ui.calc.projetId=p.id;if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd;const af=list('affectations').find(x=>x.projetId===p.id&&x.phase==='mes');if(af){ui.calc.ressourceId=af.ressourceId;ui.calc.profil=profilOfRes(af.ressourceId);if(num(af.tjm))ui.calc.tjm=af.tjm}}if(a.dataset.saisieproj)ui.saisieProjet=a.dataset.saisieproj;if(a.dataset.saisiemois)ui.saisieMois=a.dataset.saisiemois}
+  const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  const act=b.dataset.act,id=b.dataset.id;
+  if(act==='logout'){await sb.auth.signOut();return}if(act==='pwd'){formPwd();return}if(act==='reload'){loadAll();return}
+  switch(act){
+    case'newProjet':formProjet();break;
+    case'editProjet':formProjet(byId('projets',id));break;
+    case'delProjet':confirmBox('Supprimer ce projet ? Ses affectations, jours saisis, frais, estimations et préfactures seront supprimés aussi.',async()=>{await del('projets',id);location.hash='projets'});break;
+    case'newRes':formRes();break;
+    case'editRes':formRes(byId('ressources',id));break;
+    case'newAff':formAff(id);break;
+    case'editAff':{const x=byId('affectations',id);formAff(x.projetId,x);break}
+    case'newFrais':formFrais();break;
+    case'editFrais':formFrais(byId('frais',id));break;
+    case'planPrev':ui.planStart=addMonths(ui.planStart,-3);render();break;
+    case'planNext':ui.planStart=addMonths(ui.planStart,3);render();break;
+    case'saveEst':{const c=ui.calc;if(!c.projetId)return;const r=calcFrais(c);const lib=(document.getElementById('estLib')||{}).value||'Estimation';
+      const ok=await save('estimations',c.estId||uid('e'),{projetId:c.projetId,ressourceId:c.ressourceId,libelle:lib,params:{cas:c.cas,profil:c.profil,arPrix:c.arPrix,jours:c.jours,km:c.km,mode:c.mode,location:c.location,nuitPrix:c.nuitPrix,arriveeVeille:c.arriveeVeille,tjm:c.tjm},detail:r.lines.map(l=>({k:l.k,d:l.d,v:l.v,t:l.t})),totalFrais:Math.round(r.totalFrais*100)/100,trajet:Math.round(r.trajet*100)/100,refac:Math.round(r.refac*100)/100});
+      if(ok){toast('Estimation enregistrée sur le projet');c.estId=null}break}
+    case'copyEst':{const r=calcFrais(ui.calc);copy(r.lines.map(l=>l.k+' ('+l.d+') : '+eur2(l.v)).join('\n')+'\nTotal frais : '+eur2(r.totalFrais)+'\nPrestation : '+eur2(r.presta)+(r.trajet?'\nTemps de trajet : '+eur2(r.trajet):'')+'\nCoût total : '+eur2(r.presta+r.trajet+r.refac));break}
+    case'loadEst':{const x=byId('estimations',id);Object.assign(ui.calc,x.params||{},{projetId:x.projetId,ressourceId:x.ressourceId,libelle:x.libelle,estId:x.id});location.hash='calculateur';break}
+    case'delEst':confirmBox('Supprimer cette estimation ?',()=>del('estimations',id));break;
+    case'pfSave':case'pfRefresh':{const key=b.dataset.k;const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);const pf=pfOf(pid,m)||{};
+      const o={projetId:pid,mois:m,statut:act==='pfSave'?document.getElementById('pfStatut').value:(pf.statut||'Brouillon'),bdc:act==='pfSave'?document.getElementById('pfBdc').value.trim():(pf.bdc||''),notes:act==='pfSave'?document.getElementById('pfNotes').value:(pf.notes||''),lignes:pfLines(pid,m).map(l=>Object.assign({},l,{pu:Math.round(l.pu*100)/100,montant:Math.round(l.montant*100)/100}))};
+      if(o.statut==='BDC reçu'&&!o.bdc){toast('Saisissez le numéro du BDC.');document.getElementById('pfBdc').focus();return}
+      const hist=(pf.historique||[]).slice(-19);if(pf.statut!==o.statut)hist.push({statut:o.statut,le:new Date().toISOString()});o.historique=hist;
+      if(await save('prefactures',key,o))toast('Préfacture enregistrée');break}
+    case'pfCsv':dl(pfFile(b.dataset.k)+'.csv',pfCsv(b.dataset.k));break;
+    case'pfHtml':dl(pfFile(b.dataset.k)+'.html',pfHtml(b.dataset.k));break;
+    case'pfCopy':copy(pfText(b.dataset.k));break;
+    case'addProfil':{const r=readRegles();r.profils.push({id:uid('b'),nom:'Nouveau barème',hebergement:'reel',hotel:0,hotelEstime:90,dejeuner:0,diner:0,perDiem:0,location:'reel',locationJour:0,locationEstimee:50,regle:''});S.regles=r;render();break}
+    case'delProfil':{const r=readRegles();if(r.profils.length<2){toast('Gardez au moins un barème.');return}r.profils.splice(+b.dataset.i,1);S.regles=r;render();break}
+    case'saveRegles':await saveRegles(readRegles());toast('Règles enregistrées');break;
+    case'resetRegles':confirmBox('Remplacer vos règles par les valeurs par défaut ?',async()=>{await saveRegles(clone(DEFAULT_REGLES));toast('Valeurs par défaut rétablies')});break;
+  }
+});
+function readRegles(){
+  const r=clone(S.regles);const m=document.getElementById('main');
+  m.querySelectorAll('[data-r]').forEach(el=>{r[el.dataset.r]=el.type==='checkbox'?el.checked:num(el.value)});
+  r.estimations=Object.assign({},DEFAULT_REGLES.estimations,r.estimations||{});
+  m.querySelectorAll('[data-e]').forEach(el=>{r.estimations[el.dataset.e]=num(el.value)});
+  m.querySelectorAll('[data-pi]').forEach(box=>{const z=r.profils[+box.dataset.pi];box.querySelectorAll('[data-z]').forEach(el=>{const k=el.dataset.z;z[k]=['nom','regle','hebergement','location'].includes(k)?el.value:num(el.value)})});
+  return r;
+}
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.dataset.ui){ui[t.dataset.ui]=t.value;pending=false;render();return}
+  if(t.dataset.c){const k=t.dataset.c;ui.calc[k]=t.type==='checkbox'?t.checked:t.value;
+    if(k==='projetId'&&t.value){const p=byId('projets',t.value);if(p){if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd}}
+    if(k==='ressourceId'){ui.calc.tjm='';if(t.value)ui.calc.profil=profilOfRes(t.value)}
+    if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
+  if(t.dataset.temps){const [rid,ph]=t.dataset.temps.split('|');const pid=ui.saisieProjet||(list('projets')[0]||{}).id;const m=ui.saisieMois;const id=[pid,rid,m,ph].join('_');const v=num(t.value);
+    if(!t.value||v===0){if(byId('temps',id))await del('temps',id)}else if(!byId('temps',id)||num(byId('temps',id).jours)!==v){await save('temps',id,{projetId:pid,ressourceId:rid,mois:m,phase:ph,jours:v})}
+    toast('Enregistré');return}
+});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.c&&t.type==='number'){ui.calc[t.dataset.c]=t.value;renderCalcResult()}});
+
+render();
+initDb();
+})();
+</script>
+</body>
+</html>
