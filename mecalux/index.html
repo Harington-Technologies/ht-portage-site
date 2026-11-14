@@ -526,10 +526,10 @@ function vProjet(id){
 function pfStatusPill(pf){const s=pf&&pf.statut||'À préparer';const c={'Brouillon':'','Envoyée à Zakia':'warn','Validée Mecalux':'dev','BDC reçu':'mes','Facturée':'ok'}[s];return '<span class="pill '+(c||'')+'">'+esc(s)+'</span>'}
 
 function vRessources(){
-  const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));const m=curMonth();
+  const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
   let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
-  h+='<section class="card">'+(rs.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Ville de départ</th><th>Barème</th><th class="n">TJM vente</th><th>Projets</th><th class="n">Jours prévus</th><th class="n">Jours · '+MOIS_FR[+m.slice(5)-1]+'</th><th></th></tr></thead><tbody>'+rs.map(r=>{const aff=list('affectations').filter(a=>a.ressourceId===r.id);const ps=[...new Set(aff.map(a=>a.projetId))].map(id=>byId('projets',id)).filter(Boolean);const jm=list('temps').filter(t=>t.ressourceId===r.id&&t.mois===m).reduce((x,t)=>x+num(t.jours),0);
-    return '<tr><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td>'+esc(r.ville||'')+'</td><td class="small">'+esc(profilById(r.profil).nom)+'</td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(ps.map(p=>'<a href="#projet-'+p.id+'">'+esc(p.client)+'</a>').join(', ')||'<span class="muted">—</span>')+'</td><td class="n">'+nf(aff.reduce((x,a)=>x+num(a.joursPrevus),0))+'</td><td class="n">'+nf(jm)+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
+  h+='<section class="card">'+(rs.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Ville de départ</th><th>Barème</th><th class="n">TJM vente</th><th></th></tr></thead><tbody>'+rs.map(r=>{
+    return '<tr><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td>'+esc(r.ville||'')+'</td><td class="small">'+esc(profilById(r.profil).nom)+'</td><td class="n">'+eur(r.tjmVente)+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
   return h;
 }
 
