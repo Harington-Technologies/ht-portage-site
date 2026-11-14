@@ -30,6 +30,7 @@ $$;
 create table if not exists public.mecalux_ressources (
   id         text primary key,
   nom        text not null,
+  code       text,                                 -- trigramme (SBO, BHI…)
   role       text,
   ville      text,
   profil     text not null default 'fr',          -- barème : 'fr' (France), 'tn' (Tunisie)…
