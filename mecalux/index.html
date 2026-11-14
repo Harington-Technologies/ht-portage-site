@@ -120,6 +120,8 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .cb:focus-visible{outline:2px solid var(--plum);outline-offset:1px}
 .sw{display:inline-flex;width:20px;height:20px;border-radius:5px;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:6px;border:1px solid}
 .tabs button.on .sw{border-color:#fff}
+.tbl th button.tri{font:inherit;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;display:inline-flex;gap:2px;align-items:center}
+.tbl th button.tri:hover,.tbl th[aria-sort=ascending] button.tri,.tbl th[aria-sort=descending] button.tri{color:var(--navy)}
 .tbl tr.frow th{padding:6px 6px 10px;border-bottom:1px solid var(--line2);text-transform:none;letter-spacing:0}
 .tbl tr.frow input,.tbl tr.frow select{width:100%;min-width:70px;min-height:34px;padding:6px 8px;font-size:13px;font-weight:400;border-radius:8px}
 .tbl tr.frow input.on,.tbl tr.frow select.on{border-color:var(--plum);background:var(--blush)}
@@ -476,6 +478,7 @@ function render(){
   if(dbState==='init'){m.innerHTML='';return}
   m.innerHTML=(MODE_DEV?'<div class="banner">Mode développement : accès sans connexion. N\'enregistrez pas encore de données sensibles.</div>':'')+(dbState==='loading'?'<div class="banner" style="background:#E8EEF6;color:var(--navy)">Chargement des données…</div>':'')+html;
   if(r==='calculateur')renderCalcResult();
+  m.querySelectorAll('table.triable').forEach(appliquerTri);
   m.querySelectorAll('table.filtrable').forEach(appliquerFiltres);
 }
 function head(eyebrow,title,actions){return '<header class="top"><div><p class="eyebrow">'+esc(eyebrow)+'</p><h1>'+esc(title)+'</h1></div><div class="row">'+(actions||'')+'</div></header>'}
@@ -578,6 +581,9 @@ function filtreLigne(tid,cols){
     return '<th><input type="search" data-f="'+k+'" data-t="'+tid+'" class="'+on+'" value="'+esc(v)+'" placeholder="'+esc(c.ph||'Filtrer')+'" aria-label="Filtrer par '+esc(c.l)+'"></th>';
   }).join('')+'</tr>';
 }
+function appliquerTri(tbl){const t=(ui.tri||{})[tbl.id];tbl.querySelectorAll('button.tri').forEach(b=>{const on=t&&+b.dataset.tri===t.col;b.closest('th').setAttribute('aria-sort',on?(t.dir>0?'ascending':'descending'):'none');b.querySelector('.fl').textContent=on?(t.dir>0?' ▲':' ▼'):''});
+  if(!t)return;const tb=tbl.tBodies[0];const val=tr=>{const c=tr.cells[t.col];if(!c)return '';const v=c.dataset.v;if(v!=null&&v!==''&&!isNaN(+v))return +v;return (v!=null?v:c.textContent).trim().toLowerCase()};
+  [...tb.rows].sort((a,b)=>{const x=val(a),y=val(b);return (x<y?-1:x>y?1:0)*t.dir}).forEach(r=>tb.appendChild(r))}
 function appliquerFiltres(tbl){
   const f=ui.filtres[tbl.id]||{};const keys=Object.keys(f).filter(k=>f[k]);
   const lignes=[...tbl.tBodies[0].rows];let vis=0;
@@ -594,7 +600,7 @@ function appliquerFiltres(tbl){
     });
     tr.hidden=!ok;if(ok)vis++;
   });
-  const c=document.getElementById(tbl.id+'-compte');if(c)c.textContent=(keys.length?vis+' sur '+lignes.length:lignes.length)+' ressource'+(lignes.length>1?'s':'');
+  const c=document.getElementById(tbl.id+'-compte');const mot=tbl.id==='tblFrais'?'dépense':'ressource';if(c)c.textContent=(keys.length?vis+' sur '+lignes.length:lignes.length)+' '+mot+(lignes.length>1?'s':'');
 }
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.f==null||!t.dataset.t)return;const tid=t.dataset.t;ui.filtres[tid]=ui.filtres[tid]||{};ui.filtres[tid][t.dataset.f]=t.value;t.classList.toggle('on',!!t.value);const tbl=document.getElementById(tid);if(tbl)appliquerFiltres(tbl)});
 
@@ -792,7 +798,12 @@ function vSaisie(){
   h+=vCalendrier(pid,m,resIds);
   const tous=list('frais').filter(f=>f.projetId===pid&&f.mois===m).sort((a,b)=>(a.date||'')>(b.date||'')?1:-1);const fr=tous.filter(f=>f.statut!=='ecarte'),ec=tous.filter(f=>f.statut==='ecarte');
   h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><div class="row"><a class="btn o sm" href="#import-pleo">Import Pleo de l\'équipe</a><button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div></div>';
-  h+=fr.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Ressource</th><th>Catégorie</th><th>Détail</th><th>Refacturable</th><th class="n">Montant TTC</th><th></th></tr></thead><tbody>'+fr.map(f=>'<tr><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill dev" title="'+esc(f.categoriePleo||'')+'">Pleo</span> <b>'+esc(f.marchand||'')+'</b> ':'')+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
+  const nomR=f=>(byId('ressources',f.ressourceId)||{}).nom||'—';
+  h+=fr.length?'<div class="card-h"><span class="small muted" id="tblFrais-compte">'+fr.length+' dépenses</span><button class="btn g sm" data-act="razFiltres" data-t="tblFrais">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable triable" id="tblFrais"><thead><tr>'+
+    [['Date','date'],['Ressource','txt'],['Catégorie','txt'],['Détail','txt'],['Refacturable','txt'],['Montant TTC','num']].map(([t,k],ci)=>'<th'+(k==='num'?' class="n"':'')+'><button type="button" class="tri" data-tri="'+ci+'" data-t="tblFrais">'+t+'<span class="fl" aria-hidden="true"></span></button></th>').join('')+'<th></th></tr>'+
+    filtreLigne('tblFrais',[{t:'texte',l:'Date',ph:'ex. 03/11'},{t:'liste',l:'Ressource',o:[...new Set(fr.map(nomR))].sort()},{t:'liste',l:'Catégorie',o:[...new Set(fr.map(f=>f.categorie||''))].filter(Boolean).sort()},{t:'texte',l:'Détail',ph:'Marchand, note…'},{t:'liste',l:'Refacturable',o:['Oui','Non']},{t:'texte',l:'Montant',ph:'ex. >50'},null])+'</thead><tbody>'+
+    fr.map(f=>'<tr><td class="small" data-v="'+esc(f.date||'')+'">'+dateFr(f.date)+'<span hidden> '+esc((f.date||'').split('-').reverse().join('/'))+'</span></td><td>'+esc(nomR(f))+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill dev" title="'+esc(f.categoriePleo||'')+'">Pleo</span> <b>'+esc(f.marchand||'')+'</b> ':'')+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n" data-v="'+num(f.montant)+'">'+eur2(f.montant)+'</td><td class="n" style="white-space:nowrap"><button class="btn g sm" data-act="ecarterFrais" data-id="'+f.id+'">Écarter</button><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button></td></tr>').join('')+
+    '</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
   if(ec.length)h+='<details><summary class="small" style="cursor:pointer;font-weight:700;color:var(--muted)">Frais écartés ('+ec.length+') · '+eur2(ec.reduce((x,f)=>x+num(f.montant),0))+'</summary><div class="scroll"><table class="tbl" style="margin-top:8px"><tbody>'+ec.map(f=>'<tr style="opacity:.75"><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill">Pleo</span> ':'')+'<b>'+esc(f.marchand||f.categorie)+'</b></td><td class="small">'+esc(f.motif||'')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="reintegrer" data-id="'+f.id+'">Réintégrer</button></td></tr>').join('')+'</tbody></table></div></details>';
   h+='<p class="small muted" style="margin:0">Hôtels, locations et billets déjà facturés par ailleurs : décochez « Refacturable » pour qu\'ils ne remontent pas dans la préfacture.</p></section>';
   h+='<div class="row"><span class="sp"></span><a class="btn p" href="#prefacture-'+pfDocId(pid,m)+'">Voir la préfacture de '+MOIS_LONG[+m.slice(5)-1]+'</a></div>';
@@ -1066,6 +1077,7 @@ async function copy(t){try{await navigator.clipboard.writeText(t);toast('Copié 
 
 /* ---------- événements ---------- */
 document.addEventListener('click',async e=>{
+  const tb=e.target.closest('button.tri');if(tb){const tid=tb.dataset.t,col=+tb.dataset.tri;ui.tri=ui.tri||{};const cur=ui.tri[tid];ui.tri[tid]={col,dir:cur&&cur.col===col?-cur.dir:1};const tbl=document.getElementById(tid);if(tbl)appliquerTri(tbl);return}
   const a=e.target.closest('[data-pfmois],[data-calcproj],[data-saisieproj]');
   const pm=e.target.closest('[data-pleomois]');if(pm){ui.pleoMois=pm.dataset.pleomois;setTimeout(render,0)}
   if(a){if(a.dataset.pfmois)ui.pfMois=a.dataset.pfmois;if(a.dataset.calcproj){const p=byId('projets',a.dataset.calcproj);ui.calc.projetId=p.id;if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd;const af=list('affectations').find(x=>x.projetId===p.id&&x.phase==='mes');if(af){ui.calc.ressourceId=af.ressourceId;ui.calc.profil=profilOfRes(af.ressourceId);if(num(af.tjm))ui.calc.tjm=af.tjm}}if(a.dataset.saisieproj)ui.saisieProjet=a.dataset.saisieproj;if(a.dataset.saisiemois)ui.saisieMois=a.dataset.saisiemois}
@@ -1103,6 +1115,7 @@ document.addEventListener('click',async e=>{
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
     case'pleoFermer':ui.pleo=null;render();break;
+    case'ecarterFrais':{const f=byId('frais',id);if(!f)break;openForm('Écarter la dépense',[{k:'motif',l:'Motif d\'écart',req:true,full:true,ph:'Ex. repas couvert par le per diem, déjà facturé…'}],{motif:f.motif||''},async o=>{const ok=await save('frais',id,Object.assign({},f,{statut:'ecarte',motif:o.motif,refacturable:false}));if(ok)toast('Dépense écartée');return ok});break}
     case'razFiltres':ui.filtres[b.dataset.t]={};render();break;
     case'newRes':formRes();break;
     case'editRes':formRes(byId('ressources',id));break;
