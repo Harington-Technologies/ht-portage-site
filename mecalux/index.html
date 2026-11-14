@@ -152,9 +152,9 @@ const COLLS=['projets','ressources','affectations','temps','frais','estimations'
 /* Barèmes Harington · déplacements Mecalux (livret d'accueil CDC Mecalux) */
 const DEFAULT_REGLES={
   profils:[
-    {id:'fr',nom:'Collaborateur France',hebergement:'forfait',hotel:56,hotelEstime:90,dejeuner:20,diner:20,perDiem:0,location:'forfait',locationJour:40,locationEstimee:50,
+    {id:'fr',code:'H',nom:'Forfait avec hébergement',hebergement:'forfait',hotel:56,hotelEstime:90,dejeuner:20,diner:20,perDiem:0,location:'forfait',locationJour:40,locationEstimee:50,
      regle:'Hors Île-de-France avec hébergement : hôtel 56 € + déjeuner 20 € + dîner 20 € par jour (hôtel au réel possible si justifié). Sans hébergement : déjeuner 20 €. Location voiture 40 € par jour travaillé et facturé. Carburant, péage, avion, train, bus au réel avec justificatif.'},
-    {id:'tn',nom:'Collaborateur Tunisie',hebergement:'reel',hotel:0,hotelEstime:90,dejeuner:0,diner:0,perDiem:70,location:'reel',locationJour:0,locationEstimee:50,
+    {id:'tn',code:'P',nom:'Per diem',hebergement:'reel',hotel:0,hotelEstime:90,dejeuner:0,diner:0,perDiem:70,location:'reel',locationJour:0,locationEstimee:50,
      regle:'Per diem 70 € par jour hors hébergement. Hébergement, billet d\'avion, location voiture, carburant, péage, train et bus au réel, justificatif obligatoire dans Pleo.'}
   ],
   estimations:{carburantKm:0.12,peageKm:0.07,carburantJourSite:10,trainAR:150,avionAR:350},
@@ -177,7 +177,7 @@ const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','ao�
 /* ---------- état ---------- */
 const S={regles:clone(DEFAULT_REGLES),moisCfg:{},pleoAlias:{}};COLLS.forEach(c=>S[c]={});
 let dbState='init', readOnly=false;
-const ui={filtres:{tblRes:{6:'Actif'}},dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
+const ui={filtres:{tblRes:{5:'Actif'}},dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
   calc:{projetId:'',ressourceId:'',cas:'semaine',profil:'fr',jours:10,km:500,mode:'voiture',location:true,nuitPrix:'',arPrix:'',arriveeVeille:null,tjm:''}};
 
 /* ---------- utilitaires ---------- */
@@ -202,8 +202,6 @@ function workdays(a,b){if(!a||!b||b<a)return 0;let n=0,d=new Date(a+'T12:00:00')
 function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 function profilById(id){const P=S.regles.profils||DEFAULT_REGLES.profils;return P.find(z=>z.id===id)||P[0]}
 function estActif(r){return !!r&&r.actif!==false&&!(r.dateFin&&r.dateFin<today())}
-function paysOf(id){return ({fr:'FR',tn:'TN'})[id]||profilById(id).nom}
-function paysR(r){return (r&&r.pays)||(r&&r.profil==='tn'?'TN':'FR')}
 function profilOfRes(rid){const r=byId('ressources',rid);return r&&r.profil||'fr'}
 const ICON={
  dash:'<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
@@ -607,10 +605,10 @@ document.addEventListener('input',e=>{const t=e.target;if(t.dataset.f==null||!t.
 function vRessources(){
   const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
   let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
-  const roles=[...new Set(rs.map(r=>r.role).filter(Boolean))].sort(),pays=[...new Set(rs.map(r=>paysR(r)))].sort();
-  h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th>Pays</th><th class="n">TJM vente</th><th>Fin de mission</th><th>Statut</th><th></th></tr>'+
-    filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Rôle',o:roles},{t:'liste',l:'Pays',o:pays},{t:'texte',l:'TJM',ph:'ex. >400'},{t:'texte',l:'Fin de mission'},{t:'liste',l:'Statut',o:['Actif','Inactif']},null])+'</thead><tbody>'+rs.map(r=>{
-    return '<tr'+(estActif(r)?'':' style="opacity:.6"')+'><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td><span class="pill '+(paysR(r)==='TN'?'mes':'dev')+'">'+esc(paysR(r))+'</span></td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(r.dateFin?dateFr(r.dateFin):'—')+'</td><td>'+(estActif(r)?'<span class="pill ok">Actif</span>':'<span class="pill">Inactif</span>')+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
+  const roles=[...new Set(rs.map(r=>r.role).filter(Boolean))].sort();
+  h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th class="n">TJM vente</th><th>Fin de mission</th><th>Statut</th><th></th></tr>'+
+    filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Rôle',o:roles},{t:'texte',l:'TJM',ph:'ex. >400'},{t:'texte',l:'Fin de mission'},{t:'liste',l:'Statut',o:['Actif','Inactif']},null])+'</thead><tbody>'+rs.map(r=>{
+    return '<tr'+(estActif(r)?'':' style="opacity:.6"')+'><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(r.dateFin?dateFr(r.dateFin):'—')+'</td><td>'+(estActif(r)?'<span class="pill ok">Actif</span>':'<span class="pill">Inactif</span>')+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
   return h;
 }
 
@@ -771,7 +769,7 @@ function vCalendrier(pid,m,resIds){
     Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés">Travaillé</th><th class="n">Frais barème</th><th></th></tr></thead><tbody>';
   const nCols=Object.keys(TYPES_J).length+1;
   rows.forEach(({rid,r,c})=>{const k=calId(pid,rid,m);const jours=(ui.draft&&ui.draft[k])||(c&&c.jours)||{};const bar=(ui.draftB&&ui.draftB[k])||(c&&c.baremes)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);const rb=resumeBaremes(bar,r.profil);
-    h+='<tr class="rt"><th class="cn" rowspan="2">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'<div class="small muted" style="font-weight:400">'+esc(paysR(r))+'</div></th>'+
+    h+='<tr class="rt"><th class="cn" rowspan="2">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'</th>'+
       J.map(j=>{const t=jours[j.iso]||'';return '<td class="cc"><button type="button" class="'+cellClass(t,j)+'" data-cell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+(j.ferie?' ('+esc(j.ferie)+')':j.we?' (week-end)':'')+' : '+(t?TYPES_J[t].nom:'non travaillé')+'">'+(t?TYPES_J[t].c:'')+'</button></td>'}).join('')+
       Object.keys(TYPES_J).map(kk=>'<td class="n">'+(rs[kk].total||'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td>'+
       '<td class="n" rowspan="2" style="font-weight:700">'+(Object.keys(bar).length?eur(rb.montant)+(rb.nuitsReel?'<div class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit'+(rb.nuitsReel>1?'s':'')+' au réel</div>':''):'<span class="muted">—</span>')+'</td>'+
@@ -1032,7 +1030,7 @@ function formProjet(p){
 function formRes(r){
   openForm(r?'Modifier la ressource':'Nouvelle ressource',[
     {k:'nom',l:'Nom',req:true},{k:'code',l:'Trigramme',ph:'SBO'},{k:'role',l:'Rôle',ph:'Automaticien, développeur WMS…'},
-    {k:'pays',l:'Pays du collaborateur',type:'select',opts:[['FR','FR · France'],['TN','TN · Tunisie']],def:'FR'},{k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
+    {k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
     {k:'tjmCout',l:'Coût journalier (€, facultatif)',type:'number'},{k:'email',l:'E-mail',type:'email'},
     {k:'dateFin',l:'Fin de mission ou date de départ',type:'date'},
     {k:'actif',l:'Actif (décocher si le collaborateur est parti ; il devient aussi inactif après la date de fin)',type:'check',def:true}
