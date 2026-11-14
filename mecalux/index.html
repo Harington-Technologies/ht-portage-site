@@ -293,6 +293,9 @@ const TABLES={
   estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
   prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le']
 };
+// MODE DÉVELOPPEMENT : pas de connexion (Cloudflare Turnstile bloque la connexion pour l'instant).
+// Remettre à false et appliquer le bloc « Retour au mode sécurisé » de supabase/mecalux-mode-dev.sql avant la mise en service.
+const MODE_DEV=true;
 const TBL=c=>'mecalux_'+c;
 const toSnake=k=>k.replace(/[A-Z]/g,c=>'_'+c.toLowerCase());
 const toCamel=k=>k.replace(/_([a-z])/g,(m,c)=>c.toUpperCase());
@@ -331,9 +334,10 @@ document.addEventListener('focusout',()=>{if(pending)setTimeout(()=>{if(pending)
 async function loadAll(){
   dbState='loading';render();
   try{
+    if(MODE_DEV){membre=true}else{
     const {data:ok,error:e0}=await sb.rpc('mecalux_est_membre');
     if(e0)throw e0;
-    membre=!!ok;
+    membre=!!ok;}
     if(!membre){dbState='refuse';render();return}
     const res=await Promise.all(COLLS.map(c=>sb.from(TBL(c)).select('*')));
     res.forEach((r,i)=>{if(r.error)throw r.error;const o={};r.data.forEach(row=>{o[row.id]=fromRow(row)});S[COLLS[i]]=o});
@@ -355,11 +359,15 @@ function subscribe(){
     scheduleRender();
   }).subscribe();
 }
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&session&&membre&&dbState==='ok'){loadAll()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(session||MODE_DEV)&&membre&&dbState==='ok'){loadAll()}});
 
 async function initDb(){
   const cfg=window.HTP_CONFIG||{};
   if(!window.supabase||!cfg.supabaseUrl||!cfg.supabaseAnonKey){dbState='config';render();return}
+  if(MODE_DEV){
+    sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'mecalux-dev'}});
+    loadAll();return;
+  }
   // Même session que l'espace HT Portage (storageKey partagée)
   sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'htp-espace'}});
   const {data}=await sb.auth.getSession();session=data.session;
@@ -405,8 +413,8 @@ function renderMenu(){
   const r=route();const base=r.startsWith('projet-')?'projets':r.startsWith('prefacture-')?'prefactures':r;
   const pfAttente=list('prefactures').filter(p=>p.statut&&p.statut!=='Facturée'&&p.statut!=='Brouillon').length;
   document.getElementById('menu').innerHTML=ROUTES.map(([k,l,i])=>'<a href="#'+k+'"'+(base===k?' class="on" aria-current="page"':'')+'>'+ic(i)+l+(k==='prefactures'&&pfAttente?'<span class="badge">'+pfAttente+'</span>':'')+'</a>').join('');
-  const st={init:'Connexion…',loading:'Chargement des données…',ok:'Données à jour',login:'Non connecté',refuse:'Accès non autorisé',erreur:'Erreur de connexion',config:'Configuration manquante'}[dbState]||'';
-  const who=session&&session.user?session.user.email:'';
+  const st={init:'Connexion…',loading:'Chargement des données…',ok:MODE_DEV?'Mode développement · sans connexion':'Données à jour',login:'Non connecté',refuse:'Accès non autorisé',erreur:'Erreur de connexion',config:'Configuration manquante'}[dbState]||'';
+  const who=MODE_DEV?'':(session&&session.user?session.user.email:'');
   document.getElementById('sidebox').innerHTML='<span class="k">'+(who?'Connecté':'État')+'</span><span style="word-break:break-all">'+esc(who||st)+'</span>'+(who?'<span class="small">'+esc(st)+'</span><div class="row" style="margin-top:4px"><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="pwd">Mot de passe</button><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="logout">Déconnexion</button></div>':'')+'<span class="k" style="margin-top:6px">Circuit de facturation</span><span>Préfacture → Zakia → validation Mecalux → BDC</span>';
   document.getElementById('menu').style.display=(dbState==='ok'||dbState==='loading')?'':'none';
 }
@@ -424,7 +432,7 @@ function render(){
   if(dbState==='refuse'){m.innerHTML='<section class="card"><h1>Accès non autorisé</h1><p style="margin:0">Votre compte ('+esc(session&&session.user.email)+') n\'est pas dans la liste de l\'équipe. Demandez à l\'administrateur de l\'ajouter dans la table « mecalux_equipe ».</p><button class="btn o" data-act="logout" style="align-self:flex-start">Se déconnecter</button></section>';return}
   if(dbState==='erreur'){m.innerHTML='<section class="card"><h1>Connexion à la base impossible</h1><p class="muted" style="margin:0">'+esc(authMsg)+'</p><button class="btn p" data-act="reload" style="align-self:flex-start">Réessayer</button></section>';return}
   if(dbState==='init'){m.innerHTML='';return}
-  m.innerHTML=(dbState==='loading'?'<div class="banner" style="background:#E8EEF6;color:var(--navy)">Chargement des données…</div>':'')+html;
+  m.innerHTML=(MODE_DEV?'<div class="banner">Mode développement : accès sans connexion. N\'enregistrez pas encore de données sensibles.</div>':'')+(dbState==='loading'?'<div class="banner" style="background:#E8EEF6;color:var(--navy)">Chargement des données…</div>':'')+html;
   if(r==='calculateur')renderCalcResult();
 }
 function head(eyebrow,title,actions){return '<header class="top"><div><p class="eyebrow">'+esc(eyebrow)+'</p><h1>'+esc(title)+'</h1></div><div class="row">'+(actions||'')+'</div></header>'}
