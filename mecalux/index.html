@@ -101,6 +101,19 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .steps span{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--line);color:var(--muted)}
 .steps span.done{background:var(--okbg);color:var(--ok)}.steps span.cur{background:var(--navy);color:#fff}
 .inp-n{width:84px;text-align:right}
+.cal{border-collapse:separate;border-spacing:2px;font-size:12px}
+.cal th.cn{position:sticky;left:0;background:#fff;z-index:1;text-align:left;min-width:180px;padding:0 8px 0 0;font-weight:600;font-size:13px;white-space:nowrap}
+.cal thead th.cd{min-width:30px;text-align:center;font-weight:600;color:var(--muted);font-size:11px;line-height:1.25;padding:3px 0;border-radius:6px}
+.cal thead th.cd b{display:block;font-size:13px;color:var(--navy)}
+.cal thead th.cd.we{background:#E9EDF2}.cal thead th.cd.fe{background:#F6E1EA}
+.cal td.cc{padding:0}.cal td.n,.cal th.n{padding:0 6px;text-align:right;font-variant-numeric:tabular-nums}
+.cb{width:30px;height:32px;border:1px solid var(--line2);border-radius:6px;background:#fff;font:inherit;font-weight:700;font-size:12px;cursor:pointer;touch-action:none;padding:0;color:var(--navy);display:block}
+.cb.we{background:#E9EDF2}.cb.fe{background:#F6E1EA;border-color:#E2B9CB}
+.cb.t-dev,.sw.t-dev{background:#435B7B;color:#fff;border-color:#435B7B}.cb.t-mes,.sw.t-mes{background:#C187A1;color:#21324E;border-color:#C187A1}
+.cb:disabled{cursor:default}.cb:disabled:not(.t-dev):not(.t-mes){opacity:.6}
+.cb:focus-visible{outline:2px solid var(--plum);outline-offset:1px}
+.sw{display:inline-flex;width:20px;height:20px;border-radius:5px;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:6px;border:1px solid}
+.tabs button.on .sw{border-color:#fff}
 .tbl tr.frow th{padding:6px 6px 10px;border-bottom:1px solid var(--line2);text-transform:none;letter-spacing:0}
 .tbl tr.frow input,.tbl tr.frow select{width:100%;min-width:70px;min-height:34px;padding:6px 8px;font-size:13px;font-weight:400;border-radius:8px}
 .tbl tr.frow input.on,.tbl tr.frow select.on{border-color:var(--plum);background:var(--blush)}
@@ -128,7 +141,7 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 (function(){
 "use strict";
 /* ---------- constantes ---------- */
-const COLLS=['projets','ressources','affectations','temps','frais','estimations','prefactures'];
+const COLLS=['projets','ressources','affectations','temps','frais','estimations','prefactures','calendrier'];
 /* Barèmes Harington · déplacements Mecalux (livret d'accueil CDC Mecalux) */
 const DEFAULT_REGLES={
   profils:[
@@ -296,7 +309,8 @@ const TABLES={
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
   frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','maj_le'],
   estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
-  prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le']
+  prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le'],
+  calendrier:['id','projet_id','ressource_id','mois','jours','resume','valide','valide_le','maj_le']
 };
 // MODE DÉVELOPPEMENT : pas de connexion (Cloudflare Turnstile bloque la connexion pour l'instant).
 // Remettre à false et appliquer le bloc « Retour au mode sécurisé » de supabase/mecalux-mode-dev.sql avant la mise en service.
@@ -330,6 +344,7 @@ function handleErr(e){
 }
 let pending=false;
 function scheduleRender(){
+  if(typeof paint!=='undefined'&&paint){pending=true;return}
   const a=document.activeElement;
   if(a&&document.getElementById('main').contains(a)&&a.matches('input,select,textarea')){pending=true;return}
   render();
@@ -657,6 +672,63 @@ async function moisComplet(pid,rid,m,coche){const je=joursEffectifs(m);
   if(coche){const ph=phaseDefaut(pid,rid),autre=ph==='dev'?'mes':'dev';await setJours(pid,rid,m,autre,0);await setJours(pid,rid,m,ph,je)}
   else{await setJours(pid,rid,m,'dev',0);await setJours(pid,rid,m,'mes',0)}}
 
+/* ---------- calendrier jour par jour ---------- */
+const TYPES_J={dev:{c:'D',nom:'Développement'},mes:{c:'M',nom:'Mise en service'}};
+const JS_COURT=['D','L','M','M','J','V','S'];
+function calId(pid,rid,m){return [pid,rid,m].join('_')}
+function calOf(pid,rid,m){return byId('calendrier',calId(pid,rid,m))}
+function joursMois(m){const [y,mo]=m.split('-').map(Number);const fer={};feriesFR(y).forEach(f=>fer[f[0]]=f[1]);const dim=new Date(y,mo,0).getDate();const out=[];
+  for(let d=1;d<=dim;d++){const iso=m+'-'+String(d).padStart(2,'0');const w=new Date(Date.UTC(y,mo-1,d)).getUTCDay();out.push({iso,d,w,we:w===0||w===6,ferie:fer[iso]||''})}return out}
+function resumeJours(jours,m){const info={};joursMois(m).forEach(j=>info[j.iso]=j);const r={};Object.keys(TYPES_J).forEach(t=>r[t]={ouvre:0,we:0,ferie:0,total:0});
+  Object.entries(jours||{}).forEach(([iso,t])=>{const j=info[iso];if(!j||!r[t])return;r[t][j.ferie?'ferie':j.we?'we':'ouvre']++;r[t].total++});return r}
+let paint=null;
+function draftOf(pid,rid,m){ui.draft=ui.draft||{};const k=calId(pid,rid,m);if(!ui.draft[k])ui.draft[k]=Object.assign({},(calOf(pid,rid,m)||{}).jours||{});return ui.draft[k]}
+async function saveCal(pid,rid,m,jours,extra){
+  const cur=calOf(pid,rid,m)||{};const r=resumeJours(jours,m);
+  const ok=await save('calendrier',calId(pid,rid,m),Object.assign({projetId:pid,ressourceId:rid,mois:m,jours,resume:r,valide:!!cur.valide,valideLe:cur.valideLe||''},extra||{}));
+  if(ok){await setJours(pid,rid,m,'dev',r.dev.total);await setJours(pid,rid,m,'mes',r.mes.total)}
+  return ok;
+}
+function cellClass(t,j){return 'cb'+(j.we?' we':'')+(j.ferie?' fe':'')+(t?' t-'+t:'')}
+function majCellule(btn,t){const [rid,iso]=btn.dataset.cell.split('|');const j=joursMois(iso.slice(0,7)).find(x=>x.iso===iso);btn.className=cellClass(t,j);btn.textContent=t?TYPES_J[t].c:'';}
+function peindre(btn){if(!paint||btn.disabled)return;const [rid,iso]=btn.dataset.cell.split('|');const d=draftOf(paint.pid,rid,paint.m);
+  if(paint.val)d[iso]=paint.val;else delete d[iso];paint.rows.add(rid);majCellule(btn,paint.val)}
+document.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-cell]');if(!b||b.disabled||e.button>0)return;e.preventDefault();
+  const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const [rid,iso]=b.dataset.cell.split('|');const cur=draftOf(pid,rid,m)[iso];
+  paint={pid,m,val:ui.pinceau&&cur!==ui.pinceau?ui.pinceau:'',rows:new Set()};peindre(b)});
+document.addEventListener('pointermove',e=>{if(!paint)return;const el=document.elementFromPoint(e.clientX,e.clientY);const b=el&&el.closest&&el.closest('[data-cell]');if(b)peindre(b)});
+async function finPeinture(){if(!paint)return;const p=paint;paint=null;for(const rid of p.rows){const k=calId(p.pid,rid,p.m);await saveCal(p.pid,rid,p.m,ui.draft[k]);delete ui.draft[k]}pending=false;render()}
+document.addEventListener('pointerup',finPeinture);document.addEventListener('pointercancel',finPeinture);
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-cell]');if(!b||b.disabled||e.detail!==0)return; // clavier (Entrée / Espace)
+  const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const [rid,iso]=b.dataset.cell.split('|');const cur=draftOf(pid,rid,m)[iso];
+  paint={pid,m,val:ui.pinceau&&cur!==ui.pinceau?ui.pinceau:'',rows:new Set()};peindre(b);await finPeinture();const nb=document.querySelector('[data-cell="'+b.dataset.cell+'"]');if(nb)nb.focus()});
+
+function vCalendrier(pid,m,resIds){
+  const J=joursMois(m);const jo=joursOuvres(m);const pz=ui.pinceau==null?(ui.pinceau='dev'):ui.pinceau;
+  const rows=resIds.map(rid=>({rid,r:byId('ressources',rid)||{nom:'?'},c:calOf(pid,rid,m)}));
+  const avecJours=rows.filter(x=>x.c&&Object.keys(x.c.jours||{}).length);const toutValide=avecJours.length>0&&avecJours.every(x=>x.c.valide);
+  let h='<section class="card"><div class="card-h"><h2>Jours d\'intervention · <span style="text-transform:capitalize">'+moisLabel(m)+'</span></h2>'+(toutValide?'<span class="pill ok">Mois validé</span>':avecJours.length?'<span class="pill warn">Saisie en cours</span>':'')+'</div>';
+  h+='<div class="note i small"><b>'+jo.n+' jours ouvrés</b> du lundi au vendredi'+(jo.feries.length?', hors '+jo.feries.map(f=>esc(f[1])+' ('+dateFr(f[0]).replace(/ \d{4}$/,'')+')').join(', '):'')+'. Choisissez un type puis cliquez ou glissez sur les jours. Cliquer à nouveau sur un jour du même type le retire. Week-ends et jours fériés sont saisissables.</div>';
+  h+='<div class="row"><span class="small" style="font-weight:700;color:var(--muted)">Type :</span><div class="tabs" role="radiogroup" aria-label="Type d\'intervention">'+
+    Object.entries(TYPES_J).map(([k,t])=>'<button type="button" role="radio" aria-checked="'+(pz===k)+'" class="'+(pz===k?'on':'')+'" data-act="pinceau" data-t="'+k+'"><span class="sw t-'+k+'">'+t.c+'</span>'+t.nom+'</button>').join('')+
+    '<button type="button" role="radio" aria-checked="'+(pz==='')+'" class="'+(pz===''?'on':'')+'" data-act="pinceau" data-t="">Gomme</button></div><span class="sp"></span>'+
+    (rows.length&&!toutValide?'<button class="btn o sm" data-act="calFillAll">Mois complet pour tous</button>':'')+'</div>';
+  if(!rows.length)return h+'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div></section>';
+  h+='<div class="scroll"><table class="cal"><thead><tr><th class="cn">Ressource</th>'+J.map(j=>'<th class="cd'+(j.we?' we':'')+(j.ferie?' fe':'')+'"'+(j.ferie?' title="'+esc(j.ferie)+'"':'')+'><span>'+JS_COURT[j.w]+'</span><b>'+j.d+'</b></th>').join('')+
+    '<th class="n">Dév.</th><th class="n">MES</th><th class="n">Total</th><th></th></tr></thead><tbody>';
+  rows.forEach(({rid,r,c})=>{const jours=(ui.draft&&ui.draft[calId(pid,rid,m)])||(c&&c.jours)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=rs.dev.total+rs.mes.total;
+    h+='<tr><th class="cn">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'</th>'+
+      J.map(j=>{const t=jours[j.iso]||'';return '<td class="cc"><button type="button" class="'+cellClass(t,j)+'" data-cell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+(j.ferie?' ('+esc(j.ferie)+')':j.we?' (week-end)':'')+' : '+(t?TYPES_J[t].nom:'non travaillé')+'">'+(t?TYPES_J[t].c:'')+'</button></td>'}).join('')+
+      '<td class="n">'+rs.dev.total+'</td><td class="n">'+rs.mes.total+'</td><td class="n" style="font-weight:700">'+tot+'</td><td class="n" style="white-space:nowrap">'+(v?'':'<button class="btn g sm" data-act="calFill" data-rid="'+rid+'" title="Tous les jours ouvrés avec le type choisi">Mois</button><button class="btn g sm" data-act="calClear" data-rid="'+rid+'">Vider</button>')+'</td></tr>'});
+  h+='</tbody></table></div>';
+  // récapitulatif
+  h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n">Total</th><th>Statut</th></tr></thead><tbody>'+
+    rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=Object.keys(TYPES_J).reduce((x,k)=>x+rs[k].total,0);
+      return '<tr><td style="font-weight:600">'+esc(r.nom)+'</td>'+Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total?'<b>'+rs[k].total+'</b> <span class="muted small">('+rs[k].ouvre+' · '+rs[k].we+' · '+rs[k].ferie+')</span>':'<span class="muted">—</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+tot+'</td><td>'+(c&&c.valide?'<span class="pill ok">Validé '+dateFr(String(c.valideLe).slice(0,10)).replace(/ \d{4}$/,'')+'</span>':tot?'<span class="pill warn">À valider</span>':'<span class="muted small">—</span>')+'</td></tr>'}).join('')+'</tbody></table></div>';
+  h+='<div class="row"><span class="sp"></span>'+(toutValide?'<button class="btn o" data-act="calRouvrir">Rouvrir la saisie</button>':'<button class="btn p" data-act="calValider"'+(avecJours.length?'':' disabled')+'>Valider le mois</button>')+'</div></section>';
+  return h;
+}
+
 function vSaisie(){
   const m=ui.saisieMois;const pid=ui.saisieProjet||(list('projets')[0]||{}).id||'';
   let h=head('Temps passés et frais réels','Saisie mensuelle');
@@ -666,12 +738,8 @@ function vSaisie(){
   const aff=list('affectations').filter(a=>a.projetId===pid);
   const resIds=[...new Set(aff.map(a=>a.ressourceId).concat(list('temps').filter(t=>t.projetId===pid&&t.mois===m).map(t=>t.ressourceId)))];
   const tv=(rid,ph)=>{const t=byId('temps',[pid,rid,m,ph].join('_'));return t?t.jours:''};
-  const jo=joursOuvres(m),je=joursEffectifs(m),perso=je!==jo.n;
-  h+='<section class="card"><div class="card-h"><h2>Jours travaillés · <span style="text-transform:capitalize">'+moisLabel(m)+'</span></h2><span class="small muted">Enregistrement automatique à la sortie du champ</span></div>';
-  h+='<div class="note i row" style="align-items:center"><label class="row" style="font-weight:700;color:var(--navy)">Jours effectifs du mois <input class="inp-n" type="number" min="0" max="31" step="0.5" data-jeff="'+m+'" value="'+je+'" aria-label="Jours effectifs du mois"'+(readOnly?' disabled':'')+'></label><span class="small">'+jo.n+' jours ouvrés du lundi au vendredi'+(jo.feries.length?', hors '+jo.feries.map(f=>esc(f[1])+' ('+dateFr(f[0]).replace(/ \d{4}$/,'')+')').join(', '):'')+'.'+(perso?' <b>Valeur modifiée pour ce mois.</b> <button class="btn g sm" data-act="jeffReset" data-m="'+m+'">Revenir à '+jo.n+'</button>':'')+'</span></div>';
-  h+=resIds.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th><th><label class="row" style="gap:6px;white-space:nowrap"><input type="checkbox" data-mcall="1"'+(resIds.length&&resIds.every(rid=>num(tv(rid,'dev'))+num(tv(rid,'mes'))===je)&&je>0?' checked':'')+(readOnly?' disabled':'')+' aria-label="Cocher tout le mois pour toutes les ressources"> Mois complet</label></th><th class="n">Développement (j)</th><th class="n">Mise en service (j)</th><th class="n">Total (j)</th><th class="n">Montant</th></tr></thead><tbody>'+resIds.map(rid=>{const r=byId('ressources',rid)||{nom:'?'};const d=num(tv(rid,'dev')),s=num(tv(rid,'mes'));const tot=d+s;
-    return '<tr><td style="font-weight:600">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+'</td><td><input type="checkbox" data-mc="'+rid+'"'+(je>0&&tot===je?' checked':'')+(readOnly?' disabled':'')+' aria-label="Mois complet pour '+esc(r.nom)+'"></td><td class="n"><input class="inp-n" type="number" min="0" step="0.5" aria-label="Jours de développement, '+esc(r.nom)+'" data-temps="'+rid+'|dev" value="'+esc(tv(rid,'dev'))+'"'+(readOnly?' disabled':'')+'></td><td class="n"><input class="inp-n" type="number" min="0" step="0.5" aria-label="Jours de mise en service, '+esc(r.nom)+'" data-temps="'+rid+'|mes" value="'+esc(tv(rid,'mes'))+'"'+(readOnly?' disabled':'')+'></td><td class="n" style="font-weight:700'+(tot>je?';color:var(--bad)':'')+'"'+(tot>je?' title="Plus que les jours effectifs du mois"':'')+'>'+nf(tot)+'</td><td class="n">'+eur(d*tjmFor(pid,rid,'dev')+s*tjmFor(pid,rid,'mes'))+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div>';
-  h+='</section>';
+  resIds.push(...list('calendrier').filter(c=>c.projetId===pid&&c.mois===m&&!resIds.includes(c.ressourceId)).map(c=>c.ressourceId));
+  h+=vCalendrier(pid,m,resIds);
   const fr=list('frais').filter(f=>f.projetId===pid&&f.mois===m).sort((a,b)=>(a.date||'')>(b.date||'')?1:-1);
   h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div>';
   h+=fr.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Ressource</th><th>Catégorie</th><th>Détail</th><th>Refacturable</th><th class="n">Montant TTC</th><th></th></tr></thead><tbody>'+fr.map(f=>'<tr><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
@@ -835,6 +903,17 @@ document.addEventListener('click',async e=>{
     case'editProjet':formProjet(byId('projets',id));break;
     case'delProjet':confirmBox('Supprimer ce projet ? Ses affectations, jours saisis, frais, estimations et préfactures seront supprimés aussi.',async()=>{await del('projets',id);location.hash='projets'});break;
     case'jeffReset':{const mm=b.dataset.m;S.moisCfg[mm]=Object.assign({},S.moisCfg[mm],{joursEffectifs:null});const {error}=await sb.from(TBL('config')).upsert({id:'mois_'+mm,data:S.moisCfg[mm],maj_le:new Date().toISOString()});if(error)handleErr(error);render();break}
+    case'pinceau':ui.pinceau=b.dataset.t;render();break;
+    case'calFill':case'calFillAll':case'calClear':{const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const t=ui.pinceau||'dev';
+      const rids=act==='calFillAll'?[...new Set([...document.querySelectorAll('[data-cell]')].filter(x=>!x.disabled).map(x=>x.dataset.cell.split('|')[0]))]:[b.dataset.rid];
+      for(const rid of rids){const c=calOf(pid,rid,m);if(c&&c.valide)continue;const d=Object.assign({},(c&&c.jours)||{});
+        if(act==='calClear'){Object.keys(d).forEach(k=>delete d[k])}else{joursMois(m).filter(j=>!j.we&&!j.ferie).forEach(j=>d[j.iso]=t)}
+        await saveCal(pid,rid,m,d)}
+      toast(act==='calClear'?'Jours effacés':'Jours ouvrés remplis ('+TYPES_J[t].nom+')');render();break}
+    case'calValider':case'calRouvrir':{const pid=ui.saisieProjet||(list('projets')[0]||{}).id,m=ui.saisieMois;const val=act==='calValider';
+      const cs=list('calendrier').filter(c=>c.projetId===pid&&c.mois===m&&Object.keys(c.jours||{}).length);
+      for(const c of cs)await saveCal(pid,c.ressourceId,m,c.jours,{valide:val,valideLe:val?new Date().toISOString():''});
+      toast(val?'Mois validé : '+cs.length+' ressource'+(cs.length>1?'s':''):'Saisie rouverte');render();break}
     case'razFiltres':ui.filtres[b.dataset.t]={};render();break;
     case'newRes':formRes();break;
     case'editRes':formRes(byId('ressources',id));break;

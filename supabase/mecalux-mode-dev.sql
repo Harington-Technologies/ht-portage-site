@@ -10,7 +10,7 @@
 do $$
 declare t text;
 begin
-  foreach t in array array['mecalux_ressources','mecalux_projets','mecalux_affectations','mecalux_temps','mecalux_frais','mecalux_estimations','mecalux_prefactures','mecalux_config']
+  foreach t in array array['mecalux_ressources','mecalux_projets','mecalux_affectations','mecalux_temps','mecalux_frais','mecalux_estimations','mecalux_prefactures','mecalux_config','mecalux_calendrier']
   loop
     execute format('drop policy if exists "dev_anon_tout" on public.%I', t);
     execute format('create policy "dev_anon_tout" on public.%I for all to anon using (true) with check (true)', t);
@@ -25,7 +25,7 @@ end $$;
 -- do $$
 -- declare t text;
 -- begin
---   foreach t in array array['mecalux_ressources','mecalux_projets','mecalux_affectations','mecalux_temps','mecalux_frais','mecalux_estimations','mecalux_prefactures','mecalux_config']
+--   foreach t in array array['mecalux_ressources','mecalux_projets','mecalux_affectations','mecalux_temps','mecalux_frais','mecalux_estimations','mecalux_prefactures','mecalux_config','mecalux_calendrier']
 --   loop
 --     execute format('drop policy if exists "dev_anon_tout" on public.%I', t);
 --     execute format('revoke insert, update, delete on public.%I from anon', t);
