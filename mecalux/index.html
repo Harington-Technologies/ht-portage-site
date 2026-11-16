@@ -588,7 +588,7 @@ function vProjet(id){
   h+='</section>';
   // estimations
   h+='<section class="card"><div class="card-h"><h2>Estimations de frais de déplacement</h2><a class="btn o sm" href="#calculateur" data-calcproj="'+id+'">+ Nouvelle estimation</a></div>';
-  h+=est.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Libellé</th><th>Ressource</th><th>Cas</th><th class="n">Jours</th><th class="n">Frais</th><th class="n">Temps de trajet</th><th></th></tr></thead><tbody>'+est.map(e=>'<tr><td style="font-weight:600">'+esc(e.libelle||'Estimation')+'<div class="small muted">'+dateFr((e.majLe||'').slice(0,10))+'</div></td><td>'+esc((byId('ressources',e.ressourceId)||{}).nom||'—')+'</td><td class="small">'+esc((CAS[e.params&&e.params.cas]||{}).nom||'')+'</td><td class="n">'+nf(e.params&&e.params.jours)+'</td><td class="n">'+eur(e.totalFrais)+'</td><td class="n">'+eur(e.trajet)+'</td><td class="n"><button class="btn g sm" data-act="loadEst" data-id="'+e.id+'">Rouvrir</button><button class="btn g sm" data-act="delEst" data-id="'+e.id+'" aria-label="Supprimer l\'estimation">Supprimer</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="4">Total frais estimés</td><td class="n">'+eur(s.fraisPrev)+'</td><td class="n">'+eur(est.reduce((x,e)=>x+num(e.trajet),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Utilisez le calculateur pour estimer les frais de la mise en service, puis enregistrez l\'estimation sur ce projet.</div>';
+  h+=est.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Libellé</th><th>Ressource</th><th>Cas</th><th class="n">Jours</th><th class="n">Frais</th><th class="n">Temps de trajet</th><th></th></tr></thead><tbody>'+est.map(e=>'<tr><td style="font-weight:600">'+esc(e.libelle||'Estimation')+'<div class="small muted">'+dateFr((e.majLe||'').slice(0,10))+'</div></td><td>'+esc((byId('ressources',e.ressourceId)||{}).nom||'—')+'</td><td class="small">'+esc((CAS[e.params&&e.params.cas]||{}).nom||'')+'</td><td class="n">'+nf(e.params&&e.params.jours)+'</td><td class="n">'+eur(e.totalFrais)+'</td><td class="n">'+eur(e.trajet)+'</td><td class="n"><button class="btn g sm" data-act="loadEst" data-id="'+e.id+'">Rouvrir</button><button class="btn g sm" data-act="pdfEstId" data-id="'+e.id+'">PDF</button><button class="btn g sm" data-act="delEst" data-id="'+e.id+'" aria-label="Supprimer l\'estimation">Supprimer</button></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="4">Total frais estimés</td><td class="n">'+eur(s.fraisPrev)+'</td><td class="n">'+eur(est.reduce((x,e)=>x+num(e.trajet),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Utilisez le calculateur pour estimer les frais de la mise en service, puis enregistrez l\'estimation sur ce projet.</div>';
   h+='</section>';
   // mois par mois
   const months=[...new Set(list('temps').filter(t=>t.projetId===id).map(t=>t.mois).concat(list('frais').filter(f=>f.projetId===id).map(f=>f.mois),list('calendrier').filter(c=>c.projetId===id).map(c=>c.mois)))].sort();
@@ -729,7 +729,7 @@ function renderCalcResult(){
   h+='<div class="total" style="background:var(--plum)"><span>Coût total de l\'intervention</span><b>'+eur2(r.presta+r.trajet+r.refac)+'</b></div>';
   h+='<p class="small muted" style="margin:0">Dont forfaits : '+eur2(r.forfaits)+' · dont au réel (estimé, sur justificatif) : '+eur2(r.reel)+'</p>';
   if(!r.tjm)h+='<p class="small muted" style="margin:0">Choisissez une ressource ou saisissez un TJM pour chiffrer la prestation.</p>';
-  h+='<div class="row"><label class="f" style="flex:1 1 200px">Libellé de l\'estimation<input id="estLib" value="'+esc(c.libelle||'Mise en service '+(c.projetId?(byId('projets',c.projetId)||{}).client||'':''))+'"></label><button class="btn p" data-act="saveEst"'+(c.projetId?'':' disabled title="Choisissez un projet"')+'>Enregistrer sur le projet</button><button class="btn o" data-act="copyEst">Copier</button></div>';
+  h+='<div class="row"><label class="f" style="flex:1 1 200px">Libellé de l\'estimation<input id="estLib" value="'+esc(c.libelle||'Mise en service '+(c.projetId?(byId('projets',c.projetId)||{}).client||'':''))+'"></label><button class="btn p" data-act="saveEst"'+(c.projetId?'':' disabled title="Choisissez un projet"')+'>Enregistrer sur le projet</button><button class="btn o" data-act="copyEst">Copier</button><button class="btn o" data-act="pdfEst">Exporter en PDF</button></div>';
   if(!c.projetId)h+='<p class="small muted" style="margin:0">Choisissez un projet pour enregistrer l\'estimation dans son budget.</p>';
   el.innerHTML=h;
   const n=document.getElementById('calcRegle');if(n)n.innerHTML='<b>'+esc(r.profil.nom)+' :</b> '+esc(r.profil.regle||'');
@@ -1079,6 +1079,37 @@ async function enregistrerPleo(){const P=ui.pleo;const dec=P.lignes.filter(l=>l.
   render()}
 async function memoriserAlias(owner,rid){const k=cleOwner(owner);if(!k||!rid)return;S.pleoAlias=Object.assign({},S.pleoAlias,{[k]:rid});const {error}=await sb.from(TBL('config')).upsert({id:'pleo_alias',data:S.pleoAlias,maj_le:new Date().toISOString()});if(error)handleErr(error)}
 
+/* ---------- export PDF de l'estimation ---------- */
+function chargerScript(src){return new Promise((ok,ko)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>ko(new Error('Bibliothèque PDF indisponible.'));document.head.appendChild(s)})}
+async function chargerJsPDF(){if(!(window.jspdf&&window.jspdf.jsPDF))await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  if(!window.jspdf.jsPDF.API.autoTable)await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');return window.jspdf.jsPDF}
+async function pdfEstimation(c,libelle){
+  let JS;try{toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){toast(e.message);return}
+  const t=v=>String(v==null?'':v).replace(/[  ]/g,' ').replace(/→/g,'->').replace(/½/g,' 1/2');const E2=v=>t(eur2(v));
+  const r=calcFrais(c);const p=byId('projets',c.projetId);const res=byId('ressources',c.ressourceId);
+  const doc=new JS({unit:'mm',format:'a4'});const W=210,M=16;const NAVY=[33,50,78],PLUM=[120,78,97],MUTED=[74,84,104];
+  doc.setFillColor(...NAVY);doc.rect(0,0,W,30,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(17);doc.text('Estimation de frais de déplacement',M,15);
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(t('Pilotage équipe Mecalux · éditée le '+new Date().toLocaleDateString('fr-FR')),M,23);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(12.5);doc.text(t(libelle||'Estimation'),M,42);
+  const info=[['Projet',p?p.client+' · '+p.nom:'Sans projet'],['Ressource',res?(res.code?res.code+' · ':'')+res.nom:'—'],['Cas de déplacement',(CAS[c.cas]||{}).nom||''],['Barème appliqué',r.profil?r.profil.nom:''],
+    ['Jours sur site',nf(r.jours)+' j'],['Nuits',r.nuits+(r.nuitsExtra?' (dont '+r.nuitsExtra+' en plus : départ +'+r.nDep+', arrivée +'+r.nArr+')':'')],['Allers-retours',String(r.nbAR)],['TJM',r.tjm?E2(r.tjm):'non renseigné']];
+  doc.autoTable({startY:47,theme:'plain',body:info.map(([k,v])=>[t(k),t(v)]),styles:{fontSize:9.5,cellPadding:{top:1.2,bottom:1.2,left:0,right:2},textColor:[27,28,28]},columnStyles:{0:{cellWidth:45,textColor:MUTED},1:{fontStyle:'bold'}},margin:{left:M,right:M}});
+  doc.autoTable({startY:doc.lastAutoTable.finalY+6,head:[['Poste','Détail du calcul','Montant']],body:r.lines.filter(l=>Math.abs(l.v)>=0.005).map(l=>[t(l.k),t(l.d),E2(l.v)]),foot:[['Frais de déplacement','',{content:E2(r.totalFrais),styles:{halign:'right'}}]],
+    styles:{fontSize:9,cellPadding:2.2,textColor:[27,28,28]},headStyles:{fillColor:NAVY,textColor:255},footStyles:{fillColor:[241,244,247],textColor:NAVY,fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:62},2:{halign:'right',cellWidth:30}},alternateRowStyles:{fillColor:[250,251,252]},margin:{left:M,right:M}});
+  const syn=[['Prestation sur site',t(nf(r.jours)+' j × '+eur2(r.tjm)),E2(r.presta)]];
+  if(r.trajetJ)syn.push(['Temps de trajet facturé',t(nf(r.trajetJ)+' j × '+eur2(r.tjm)),E2(r.trajet)]);
+  syn.push(['Frais refacturés à Mecalux',num(S.regles.margeFrais)?t('frais + '+nf(S.regles.margeFrais)+' % de frais de gestion'):'',E2(r.refac)]);
+  doc.autoTable({startY:doc.lastAutoTable.finalY+5,body:syn,foot:[['Coût total de l\'intervention','',{content:E2(r.presta+r.trajet+r.refac),styles:{halign:'right'}}]],styles:{fontSize:9.5,cellPadding:2.4,textColor:[27,28,28]},
+    footStyles:{fillColor:PLUM,textColor:255,fontStyle:'bold',fontSize:11},columnStyles:{0:{cellWidth:62,fontStyle:'bold'},2:{halign:'right',cellWidth:30}},margin:{left:M,right:M}});
+  let y=doc.lastAutoTable.finalY+7;doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(...MUTED);
+  const notes=['Dont forfaits : '+eur2(r.forfaits)+' · dont frais au réel (estimés, remboursés sur justificatif) : '+eur2(r.reel)+'.'].concat(r.warn||[]).concat(r.tjm?[]:['TJM non renseigné : la prestation n\'est pas chiffrée.']);
+  notes.forEach(n=>{const ls=doc.splitTextToSize(t(n),W-2*M);doc.text(ls,M,y);y+=ls.length*4.2});
+  const pages=doc.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(...MUTED);doc.text(t('Estimation indicative avant départ, établie selon les barèmes en vigueur. Les frais au réel sont remboursés sur justificatif.'),M,287);doc.text(i+' / '+pages,W-M,287,{align:'right'})}
+  const nom=('estimation_'+(p?p.client+'_'+p.nom:'sans-projet')+'_'+(res?res.code||res.nom:'')+'_'+today()).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w-]+/g,'_');
+  doc.save(nom+'.pdf');toast('PDF téléchargé');
+}
+
 function formProjet(p){
   openForm(p?'Modifier le projet':'Nouveau projet',[
     {k:'client',l:'Client',req:true,ph:'IKEA, Limagrain, PepsiCo…'},{k:'nom',l:'Projet',req:true,ph:'Entrepôt automatisé'},
@@ -1205,6 +1236,8 @@ document.addEventListener('click',async e=>{
     case'saveEst':{const c=ui.calc;if(!c.projetId)return;const r=calcFrais(c);const lib=(document.getElementById('estLib')||{}).value||'Estimation';
       const ok=await save('estimations',c.estId||uid('e'),{projetId:c.projetId,ressourceId:c.ressourceId,libelle:lib,params:{cas:c.cas,profil:c.profil,arPrix:c.arPrix,nuitsDepart:c.nuitsDepart,nuitsArrivee:c.nuitsArrivee,trainNb:c.trainNb,trainPrix:c.trainPrix,qKm:c.qKm,qCarb:c.qCarb,qPeage:c.qPeage,avionNb:c.avionNb,avionPrix:c.avionPrix,divers:(c.divers||[]).filter(d=>num(d.montant)||String(d.lib||'').trim()),jours:c.jours,km:c.km,mode:c.mode,location:c.location,nuitPrix:c.nuitPrix,tjm:c.tjm},detail:r.lines.map(l=>({k:l.k,d:l.d,v:l.v,t:l.t})),totalFrais:Math.round(r.totalFrais*100)/100,trajet:Math.round(r.trajet*100)/100,refac:Math.round(r.refac*100)/100});
       if(ok){toast('Estimation enregistrée sur le projet');c.estId=null}break}
+    case'pdfEst':pdfEstimation(Object.assign({},ui.calc),(document.getElementById('estLib')||{}).value||ui.calc.libelle);break;
+    case'pdfEstId':{const x=byId('estimations',id);if(!x)break;const pr=clone(x.params||{});const c=Object.assign({},ui.calc,{trainNb:'',trainPrix:'',avionNb:'',avionPrix:'',nuitsDepart:'',nuitsArrivee:'',qKm:'',qCarb:'',qPeage:'',divers:[]},pr,{projetId:x.projetId,ressourceId:x.ressourceId});pdfEstimation(c,x.libelle);break}
     case'copyEst':{const r=calcFrais(ui.calc);copy(r.lines.map(l=>l.k+' ('+l.d+') : '+eur2(l.v)).join('\n')+'\nTotal frais : '+eur2(r.totalFrais)+'\nPrestation : '+eur2(r.presta)+(r.trajet?'\nTemps de trajet : '+eur2(r.trajet):'')+'\nCoût total : '+eur2(r.presta+r.trajet+r.refac));break}
     case'loadEst':{const x=byId('estimations',id);const pr=clone(x.params||{});Object.assign(ui.calc,{qKm:'',qCarb:'',qPeage:'',trainNb:'',trainPrix:'',avionNb:'',avionPrix:'',nuitsDepart:'',nuitsArrivee:'',divers:[]},pr,{divers:(pr.divers||[]).map(d=>Object.assign({},d))},{projetId:x.projetId,ressourceId:x.ressourceId,libelle:x.libelle,estId:x.id});location.hash='calculateur';break}
     case'delEst':confirmBox('Supprimer cette estimation ?',()=>del('estimations',id));break;
