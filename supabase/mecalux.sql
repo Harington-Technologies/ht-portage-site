@@ -218,3 +218,6 @@ alter table public.mecalux_calendrier add column if not exists baremes jsonb not
 
 -- Pays du collaborateur (indépendant du barème) ; le calendrier référence l'identifiant du barème configuré
 alter table public.mecalux_ressources add column if not exists pays text;
+
+-- Frais au réel saisis en prix par jour × jours travaillés (hôtel, location, voiture Harington)
+alter table public.mecalux_frais add column if not exists par_jour boolean not null default false, add column if not exists prix_jour numeric(10,2), add column if not exists jours numeric(6,2), add column if not exists jours_auto boolean not null default true;
