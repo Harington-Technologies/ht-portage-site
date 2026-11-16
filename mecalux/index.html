@@ -125,6 +125,9 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .tabs button.on .sw{border-color:#fff}
 .tbl th button.tri{font:inherit;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;display:inline-flex;gap:2px;align-items:center}
 .tbl th button.tri:hover,.tbl th[aria-sort=ascending] button.tri,.tbl th[aria-sort=descending] button.tri{color:var(--navy)}
+.chg-t td.chg{min-width:84px;padding:6px 6px;vertical-align:top}.chg-t td.chg.prevu .chg-bar{opacity:.55;outline:1.5px dashed var(--line2);outline-offset:1px}
+.chg-bar{display:flex;height:9px;border-radius:4px;overflow:hidden;background:var(--bg)}.chg-bar i{display:block;height:100%}
+.chg-n{font-size:11px;font-weight:700;margin-top:4px;white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap}.chg-t td.sur .chg-n{text-decoration:underline wavy var(--bad)}
 .tbl tr.frow th{padding:6px 6px 10px;border-bottom:1px solid var(--line2);text-transform:none;letter-spacing:0}
 .tbl tr.frow input,.tbl tr.frow select{width:100%;min-width:70px;min-height:34px;padding:6px 8px;font-size:13px;font-weight:400;border-radius:8px}
 .tbl tr.frow input.on,.tbl tr.frow select.on{border-color:var(--plum);background:var(--blush)}
@@ -202,7 +205,7 @@ function dateFr(d){if(!d)return'—';const [y,m,j]=d.split('-');return +j+' '+MO
 function list(c){return Object.values(S[c])}
 function byId(c,id){return S[c][id]}
 function monthsBetween(a,b){if(!a||!b)return[];let out=[],m=a.slice(0,7),e=b.slice(0,7),g=0;while(m<=e&&g<60){out.push(m);m=addMonths(m,1);g++}return out}
-function workdays(a,b){if(!a||!b||b<a)return 0;let n=0,d=new Date(a+'T12:00:00'),e=new Date(b+'T12:00:00');while(d<=e){const w=d.getDay();if(w&&w<6)n++;d.setDate(d.getDate()+1)}return n}
+function workdays(a,b){if(!a||!b||b<a)return 0;let n=0,d=new Date(a+'T12:00:00'),e=new Date(b+'T12:00:00');const fer={};while(d<=e){const w=d.getDay();const y=d.getFullYear();if(!fer[y])fer[y]=new Set(feriesFR(y).map(f=>f[0]));const iso=y+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(w&&w<6&&!fer[y].has(iso))n++;d.setDate(d.getDate()+1)}return n} // lundi-vendredi hors jours fériés
 function toast(m){const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 function profilById(id){const P=S.regles.profils||DEFAULT_REGLES.profils;return P.find(z=>z.id===id)||P[0]}
 function estActif(r){return !!r&&r.actif!==false&&!(r.dateFin&&r.dateFin<today())}
@@ -658,14 +661,29 @@ function vPlanning(){
   });
   g+='</div>';
   h+='<section class="card"><div class="card-h"><h2>Phases des projets</h2><div class="row small"><span class="pill" style="background:var(--steel);color:#fff">Développement</span><span class="pill" style="background:var(--rose);color:var(--navy)">Mise en service sur site</span></div></div><div class="scroll">'+g+'</div></section>';
-  // charge ressources
-  const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
+  // charge par ressource : saisi (calendrier) ou prévisionnel (affectations), reste des jours ouvrés en R&D
+  const rs=list('ressources').filter(r=>estActif(r)||!ui.planActifs).sort((a,b)=>a.nom.localeCompare(b.nom));
   const load={};
-  list('affectations').forEach(a=>{const p=byId('projets',a.projetId);if(!p)return;const d1=a.phase==='mes'?p.mesDebut:p.devDebut,d2=a.phase==='mes'?p.mesFin:p.devFin;const ms=monthsBetween(d1,d2);if(!ms.length)return;
+  list('affectations').forEach(a=>{const p=byId('projets',a.projetId);if(!p||p.cloture)return;const d1=a.phase==='mes'?p.mesDebut:p.devDebut,d2=a.phase==='mes'?p.mesFin:p.devFin;const ms=monthsBetween(d1,d2);if(!ms.length)return;
     const tot=workdays(d1,d2)||1;ms.forEach(m=>{const a1=m+'-01'>d1?m+'-01':d1;const last=m+'-'+String(new Date(+m.slice(0,4),+m.slice(5),0).getDate()).padStart(2,'0');const b1=last<d2?last:d2;const share=workdays(a1,b1)/tot*num(a.joursPrevus);
-      const k=a.ressourceId+'|'+m;load[k]=load[k]||{j:0,site:false};load[k].j+=share;if(a.phase==='mes')load[k].site=true})});
-  let t='<table class="tbl"><thead><tr><th>Ressource</th>'+months.map(m=>'<th class="n">'+moisCourt(m)+'</th>').join('')+'</tr></thead><tbody>'+rs.map(r=>'<tr><td style="font-weight:600;white-space:nowrap">'+esc(r.nom)+'</td>'+months.map(m=>{const l=load[r.id+'|'+m];if(!l||l.j<0.05)return'<td class="n muted">·</td>';const v=l.j;const bg=v>21?'var(--badbg)':l.site?'var(--blush)':'#DCE5F2';const c=v>21?'var(--bad)':'var(--navy)';return '<td class="n"><span class="heat" style="background:'+bg+';color:'+c+'" title="'+(l.site?'Dont mise en service sur site':'Développement')+'">'+nf(v)+'</span></td>'}).join('')+'</tr>').join('')+'</tbody></table>';
-  h+='<section class="card"><div class="card-h"><h2>Charge prévue par ressource (jours)</h2><span class="small muted">Jours prévus répartis sur les dates de chaque phase · rose = sur site · rouge = plus de 21 j</span></div>'+(rs.length?'<div class="scroll">'+t+'</div>':'<div class="empty">Aucune ressource.</div>')+'</section>';
+      const k=a.ressourceId+'|'+m;load[k]=load[k]||{j:0,projets:{}};load[k].j+=share;load[k].projets[p.id]=(load[k].projets[p.id]||0)+share})});
+  const CAT=[['trav','Travaillé','#435B7B','#fff'],['depl','Déplacement','#1F6F78','#fff'],['conge','Congés','#2E6B4F','#fff'],['rd','R&D','#C08A1E','#1B1C1C']];
+  const arr=v=>Math.round(v*2)/2;
+  function charge(r,m){if(r.dateFin&&r.dateFin<m+'-01')return null;const ouv=joursOuvres(m).n;
+    const cs=list('calendrier').filter(c=>c.ressourceId===r.id&&c.mois===m&&c.jours&&Object.keys(c.jours).length);
+    if(cs.length){const o={src:'saisi',trav:0,depl:0,conge:0,rd:0,ouv,projets:{}};cs.forEach(c=>{Object.values(c.jours).forEach(v=>{const x=pj(v);if(!x)return;const k=x.t==='dev'||x.t==='mes'?'trav':x.t;if(o[k]!=null)o[k]+=x.q;if(k==='trav')o.projets[c.projetId]=(o.projets[c.projetId]||0)+x.q})});return o}
+    const l=load[r.id+'|'+m];const trav=l?arr(l.j):0;return {src:'prevu',trav,depl:0,conge:0,rd:Math.max(0,ouv-trav),ouv,projets:l?l.projets:{}}}
+  function cellule(o){if(!o)return '<td class="n muted" title="Hors effectif">—</td>';const tot=CAT.reduce((x,c)=>x+o[c[0]],0);const base=Math.max(o.ouv,tot)||1;
+    const tip=(o.src==='saisi'?'Saisi au calendrier':'Prévisionnel (affectations)')+' · '+o.ouv+' j ouvrés\n'+CAT.filter(c=>o[c[0]]).map(c=>c[1]+' : '+nf(o[c[0]])+' j').join('\n')+(Object.keys(o.projets).length?'\nProjets : '+Object.entries(o.projets).map(([id,j])=>{const p=byId('projets',id);return (p?p.client:'?')+' ('+nf(arr(j))+' j)'}).join(', '):'');
+    return '<td class="chg'+(o.src==='prevu'?' prevu':'')+(o.trav>o.ouv?' sur':'')+'" title="'+esc(tip)+'"><div class="chg-bar">'+CAT.map(c=>o[c[0]]?'<i style="width:'+(100*o[c[0]]/base)+'%;background:'+c[2]+'"></i>':'').join('')+'</div><div class="chg-n">'+CAT.filter(c=>o[c[0]]).map(c=>'<span style="color:'+(c[0]==='rd'?'#8A5A00':c[2])+'">'+nf(o[c[0]])+' '+c[1].charAt(0)+'</span>').join(' ')+'</div></td>'}
+  const tots={};
+  let t='<table class="tbl chg-t"><thead><tr><th>Ressource</th>'+months.map(m=>'<th class="n">'+moisCourt(m)+'<div class="small muted" style="font-weight:400;text-transform:none;letter-spacing:0">'+joursOuvres(m).n+' j ouvrés</div></th>').join('')+'<th class="n">Total 12 mois</th></tr></thead><tbody>'+
+    rs.map(r=>{const T={trav:0,depl:0,conge:0,rd:0};const cells=months.map(m=>{const o=charge(r,m);if(o){CAT.forEach(c=>{T[c[0]]+=o[c[0]];tots[m]=tots[m]||{trav:0,depl:0,conge:0,rd:0};tots[m][c[0]]+=o[c[0]]})}return cellule(o)}).join('');
+      return '<tr><td style="font-weight:600;white-space:nowrap">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+'</td>'+cells+'<td class="n small" style="white-space:nowrap">'+CAT.filter(c=>T[c[0]]).map(c=>'<div><b style="color:'+(c[0]==='rd'?'#8A5A00':c[2])+'">'+nf(T[c[0]])+'</b> '+c[1].toLowerCase()+'</div>').join('')+'</td></tr>'}).join('')+
+    '</tbody><tfoot><tr><td>Équipe</td>'+months.map(m=>{const o=tots[m];return '<td class="n small" style="white-space:nowrap">'+(o?CAT.filter(c=>o[c[0]]).map(c=>'<div>'+nf(o[c[0]])+' '+c[1].charAt(0)+'</div>').join(''):'—')+'</td>'}).join('')+'<td></td></tr></tfoot></table>';
+  h+='<section class="card"><div class="card-h"><h2>Charge par ressource (jours)</h2><label class="row small" style="font-weight:600"><input type="checkbox" data-act="planActifs"'+(ui.planActifs?' checked':'')+'> Actifs seulement</label></div>'+
+    '<div class="row small">'+CAT.map(c=>'<span class="row" style="gap:6px"><i style="display:inline-block;width:14px;height:10px;border-radius:3px;background:'+c[2]+'"></i>'+c[1]+' ('+c[1].charAt(0)+')</span>').join('')+'<span class="row" style="gap:6px"><i style="display:inline-block;width:14px;height:10px;border-radius:3px;border:1.5px dashed var(--line2)"></i>Prévisionnel</span><span class="muted">· Mois saisis : calendrier de la saisie mensuelle. Mois à venir : affectations réparties sur les dates des phases ; jours ouvrés restants en R&D (mois sans affectation = R&D). Survolez une case pour le détail.</span></div>'+
+    (rs.length?'<div class="scroll">'+t+'</div>':'<div class="empty">Aucune ressource.</div>')+'</section>';
   return h;
 }
 
@@ -1174,6 +1192,7 @@ document.addEventListener('click',async e=>{
       confirmBox('Supprimer définitivement les '+ids.length+' dépense'+(ids.length>1?'s':'')+' affichée'+(ids.length>1?'s':'')+' ('+eur2(tot)+') ? Les dépenses masquées par les filtres et les frais écartés ne sont pas concernés.',async()=>{for(const i of ids)await del('frais',i);toast(ids.length+' dépense'+(ids.length>1?'s':'')+' supprimée'+(ids.length>1?'s':''))});break}
     case'calcDiversAdd':ui.calc.divers=(ui.calc.divers||[]).concat([{lib:'',montant:''}]);render();{const ins=document.querySelectorAll('[data-div$="|lib"]');if(ins.length)ins[ins.length-1].focus()}break;
     case'calcDiversDel':ui.calc.divers=(ui.calc.divers||[]).filter((_,i)=>i!==+b.dataset.i);render();break;
+    case'planActifs':ui.planActifs=!ui.planActifs;render();break;
     case'razFiltres':ui.filtres[b.dataset.t]={};render();break;
     case'newRes':formRes();break;
     case'editRes':formRes(byId('ressources',id));break;
