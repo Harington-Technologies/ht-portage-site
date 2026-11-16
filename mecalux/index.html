@@ -164,7 +164,7 @@ const DEFAULT_REGLES={
   estimations:{carburantKm:0.12,peageKm:0.07,carburantJourSite:10,trainAR:150,avionAR:350},
   seuilJourneeKm:80, nuitsParSemaine:4, nuitsDepart:1, nuitsArrivee:2,
   trajetFacture:false, trajetCoef:0.5,
-  margeFrais:0, fraisRefacturablesParDefaut:true
+  margeFrais:0, fraisRefacturablesParDefaut:true, majSamedi:150, majDimFerie:200
 };
 const CAS={
   journee:{nom:'Déplacement à la journée',desc:'Retour au domicile chaque soir, pas d\'hôtel.'},
@@ -234,25 +234,39 @@ function projStats(pid){
   const montPrev=aff.reduce((s,a)=>s+num(a.joursPrevus)*(num(a.tjm)||num((byId('ressources',a.ressourceId)||{}).tjmVente)),0);
   const fraisPrev=est.reduce((s,e)=>s+num(e.totalFrais),0);
   const joursReal=tmp.reduce((s,t)=>s+num(t.jours),0);
-  const montReal=tmp.reduce((s,t)=>s+num(t.jours)*tjmFor(pid,t.ressourceId,t.phase),0);
-  const fraisBareme=list('calendrier').filter(c=>c.projetId===pid).reduce((s,c)=>s+resumeBaremes(c.baremes).montant,0);
+  const couples=[...new Set(tmp.map(t=>t.ressourceId+'|'+t.mois).concat(list('calendrier').filter(c=>c.projetId===pid).map(c=>c.ressourceId+'|'+c.mois)))];
+  const montReal=couples.reduce((s,k)=>{const [rid,mo]=k.split('|');return s+prestationLignes(pid,rid,mo).reduce((x,l)=>x+l.montant,0)},0);
+  const fraisBareme=list('calendrier').filter(c=>c.projetId===pid).reduce((s,c)=>s+resumeBaremes(c.baremes,c.jours).montant,0);
   const fraisReal=fr.reduce((s,f)=>s+num(f.montant),0)+fraisBareme;
   const fraisRefac=fr.filter(f=>f.refacturable!==false).reduce((s,f)=>s+num(f.montant),0);
   const resIds=[...new Set(aff.map(a=>a.ressourceId))];
   return {joursPrev,montPrev,fraisPrev,joursReal,montReal,fraisReal,fraisRefac,resIds,totalPrev:montPrev+fraisPrev,totalReal:montReal+fraisReal};
 }
+/* jours facturés au TJM, avec majoration samedi / dimanche et férié (à partir du calendrier quand il existe) */
+function prestationLignes(pid,rid,mois){const out=[];const R=S.regles;const kS=num(R.majSamedi||150)/100,kD=num(R.majDimFerie||200)/100;
+  const c=list('calendrier').find(x=>x.projetId===pid&&x.ressourceId===rid&&x.mois===mois&&x.jours&&Object.keys(x.jours).length);
+  const lib=ph=>ph==='mes'?'Mise en service sur site':'Développement';
+  if(c){const info={};joursMois(mois).forEach(j=>info[j.iso]=j);const b={dev:{n:0,sam:0,dim:0},mes:{n:0,sam:0,dim:0}};
+    Object.entries(c.jours).forEach(([iso,v])=>{const x=pj(v),j=info[iso];if(!x||!j||!b[x.t])return;b[x.t][j.ferie||j.w===0?'dim':j.w===6?'sam':'n']+=x.q});
+    ['dev','mes'].forEach(ph=>{const tj=tjmFor(pid,rid,ph),q=b[ph];
+      if(q.n)out.push({type:'prestation',libelle:lib(ph),qte:q.n,unite:'j',pu:tj,montant:q.n*tj});
+      if(q.sam)out.push({type:'prestation',libelle:lib(ph)+' · samedi ('+nf(kS*100)+' %)',qte:q.sam,unite:'j',pu:tj*kS,montant:q.sam*tj*kS});
+      if(q.dim)out.push({type:'prestation',libelle:lib(ph)+' · dimanche et jours fériés ('+nf(kD*100)+' %)',qte:q.dim,unite:'j',pu:tj*kD,montant:q.dim*tj*kD})});
+    return out}
+  list('temps').filter(t=>t.projetId===pid&&t.ressourceId===rid&&t.mois===mois&&num(t.jours)>0).sort((a,b)=>a.phase>b.phase?1:-1).forEach(t=>{const tj=tjmFor(pid,rid,t.phase);out.push({type:'prestation',libelle:lib(t.phase),qte:num(t.jours),unite:'j',pu:tj,montant:num(t.jours)*tj})});
+  return out}
 const RUBRIQUES=[['prestation','Jours d\'intervention'],['bareme','Frais au barème'],['frais','Frais réels']];
 function pfLines(pid,mois){
   const lines=[];const m=1+num(S.regles.margeFrais)/100;const marge=m!==1?' (+'+nf(S.regles.margeFrais)+' %)':'';
   const tmp=list('temps').filter(t=>t.projetId===pid&&t.mois===mois&&num(t.jours)>0);
   const fr=list('frais').filter(f=>f.projetId===pid&&f.mois===mois&&f.refacturable!==false&&f.statut!=='ecarte');
   const cals=list('calendrier').filter(c=>c.projetId===pid&&c.mois===mois&&c.baremes&&Object.keys(c.baremes).length);
-  const rids=[...new Set(tmp.map(t=>t.ressourceId).concat(cals.map(c=>c.ressourceId),fr.map(f=>f.ressourceId||'')))];
+  const calJ=list('calendrier').filter(c=>c.projetId===pid&&c.mois===mois&&c.jours&&Object.keys(c.jours).length);
+  const rids=[...new Set(tmp.map(t=>t.ressourceId).concat(cals.map(c=>c.ressourceId),calJ.map(c=>c.ressourceId),fr.map(f=>f.ressourceId||'')))];
   const nomDe=rid=>(byId('ressources',rid)||{}).nom||(rid?'?':'Sans collaborateur');
   rids.sort((x,y)=>nomDe(x).localeCompare(nomDe(y))).forEach(rid=>{const r=byId('ressources',rid)||{};const collab={id:rid,nom:nomDe(rid),code:r.code||''};
-    ['dev','mes'].forEach(ph=>{const t=tmp.find(x=>x.ressourceId===rid&&x.phase===ph);if(!t)return;const tj=tjmFor(pid,rid,ph);
-      lines.push({type:'prestation',collab,libelle:ph==='mes'?'Mise en service sur site':'Développement',qte:num(t.jours),unite:'j',pu:tj,montant:num(t.jours)*tj})});
-    majBaremes();const c=cals.find(x=>x.ressourceId===rid);if(c){const n={};Object.values(c.baremes).forEach(b=>{if(BAREMES_J[b])n[b]=(n[b]||0)+1});
+    prestationLignes(pid,rid,mois).forEach(l=>lines.push(Object.assign(l,{collab})));
+    majBaremes();const c=cals.find(x=>x.ressourceId===rid);if(c){const n={};Object.entries(c.baremes).forEach(([iso,b])=>{if(BAREMES_J[b]&&baremeCompte(iso,c.jours))n[b]=(n[b]||0)+1});
       ORDRE_B.filter(b=>n[b]).forEach(b=>{const mb=montantBareme(b);lines.push({type:'bareme',collab,libelle:'Barème '+codeB(b)+' · '+BAREMES_J[b].nom+marge,qte:n[b],unite:'j',pu:mb.v*m,montant:n[b]*mb.v*m})})}
     const g={};fr.filter(f=>(f.ressourceId||'')===rid).forEach(f=>{const k=f.categorie||'Divers';g[k]=(g[k]||0)+num(f.montant)});
     Object.keys(g).sort().forEach(k=>lines.push({type:'frais',collab,libelle:k+marge,qte:1,unite:'forfait',pu:g[k]*m,montant:g[k]*m}));
@@ -722,7 +736,7 @@ async function moisComplet(pid,rid,m,coche){const je=joursEffectifs(m);
   else{await setJours(pid,rid,m,'dev',0);await setJours(pid,rid,m,'mes',0)}}
 
 /* ---------- calendrier jour par jour ---------- */
-const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mise en service',court:'MES'},depl:{c:'DP',nom:'Déplacement',court:'Dépl.'},rd:{c:'R',nom:'R&D',court:'R&D'},conge:{c:'C',nom:'Congés',court:'Congés',nonTravaille:true}};
+const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mise en service',court:'MES'},depl:{c:'DP',nom:'Déplacement',court:'Dépl.'},rd:{c:'R',nom:'R&D',court:'R&D',nonTravaille:true},conge:{c:'C',nom:'Congés',court:'Congés',nonTravaille:true}};
 const totalTravaille=rs=>Object.keys(TYPES_J).filter(k=>!TYPES_J[k].nonTravaille).reduce((x,k)=>x+rs[k].total,0);
 /* barème de frais du jour (montants selon le pays du collaborateur, cf. Règles de frais) */
 /* les 3 barèmes Mecalux (montants repris de la page Règles de frais) */
@@ -751,12 +765,13 @@ function pj(v){if(!v)return null;const [t,f]=String(v).split('/');return {t,q:f=
 const libJour=v=>{const x=pj(v);return x&&TYPES_J[x.t]?TYPES_J[x.t].c+(x.demi?'½':''):''};
 function resumeJours(jours,m){const info={};joursMois(m).forEach(j=>info[j.iso]=j);const r={};Object.keys(TYPES_J).forEach(t=>r[t]={ouvre:0,we:0,ferie:0,total:0});
   Object.entries(jours||{}).forEach(([iso,v])=>{const j=info[iso],x=pj(v);if(!j||!x||!r[x.t])return;r[x.t][j.ferie?'ferie':j.we?'we':'ouvre']+=x.q;r[x.t].total+=x.q});return r}
-function resumeBaremes(baremes,profil){const n={};let tot=0,reel=0;Object.values(baremes||{}).forEach(b=>{if(!BAREMES_J[b])return;n[b]=(n[b]||0)+1;const x=montantBareme(b,profil);tot+=x.v;if(x.reel)reel++});return {n,montant:tot,nuitsReel:reel}}
+function baremeCompte(iso,jours){const x=pj((jours||{})[iso]);return !(x&&TYPES_J[x.t]&&TYPES_J[x.t].nonTravaille)}
+function resumeBaremes(baremes,jours){const n={};let tot=0,reel=0;Object.entries(baremes||{}).forEach(([iso,b])=>{if(!BAREMES_J[b]||!baremeCompte(iso,jours))return;n[b]=(n[b]||0)+1;const x=montantBareme(b);tot+=x.v;if(x.reel)reel++});return {n,montant:tot,nuitsReel:reel}}
 let paint=null;
 function draftOf(pid,rid,m,kind){const D=kind==='b'?(ui.draftB=ui.draftB||{}):(ui.draft=ui.draft||{});const k=calId(pid,rid,m);if(!D[k])D[k]=Object.assign({},((calOf(pid,rid,m)||{})[kind==='b'?'baremes':'jours'])||{});return D[k]}
 async function saveCal(pid,rid,m,jours,extra){
   const cur=calOf(pid,rid,m)||{};jours=jours||cur.jours||{};const baremes=(extra&&extra.baremes)||cur.baremes||{};
-  const r=resumeJours(jours,m);r.baremes=resumeBaremes(baremes,(byId('ressources',rid)||{}).profil);
+  const r=resumeJours(jours,m);r.baremes=resumeBaremes(baremes,jours);
   const ok=await save('calendrier',calId(pid,rid,m),Object.assign({projetId:pid,ressourceId:rid,mois:m,jours,baremes,resume:r,valide:!!cur.valide,valideLe:cur.valideLe||''},extra||{},{baremes}));
   if(ok){await setJours(pid,rid,m,'dev',r.dev.total);await setJours(pid,rid,m,'mes',r.mes.total)}
   return ok;
@@ -798,19 +813,19 @@ function vCalendrier(pid,m,resIds){
     (rows.length&&!toutValide?'<button class="btn o sm" data-act="calBaremeAll" title="Applique le barème choisi à tous les jours travaillés (hors congés) de tous les collaborateurs">Barème sur les jours travaillés</button>':'')+'</div>';
   if(!rows.length)return h+'<div class="empty">Aucune ressource affectée à ce projet. <a href="#projet-'+pid+'">Affecter une ressource</a></div></section>';
   h+='<div class="scroll"><table class="cal"><thead><tr><th class="cn">Ressource</th>'+J.map(j=>'<th class="cd'+(j.we?' we':'')+(j.ferie?' fe':'')+'"'+(j.ferie?' title="'+esc(j.ferie)+'"':'')+'><span>'+JS_COURT[j.w]+'</span><b>'+j.d+'</b></th>').join('')+
-    Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés">Travaillé</th><th class="n">Frais barème</th><th></th></tr></thead><tbody>';
+    Object.values(TYPES_J).map(t=>'<th class="n">'+t.court+'</th>').join('')+'<th class="n" title="Hors congés et R&amp;D">Travaillé</th><th class="n">Frais barème</th><th></th></tr></thead><tbody>';
   const nCols=Object.keys(TYPES_J).length+1;
-  rows.forEach(({rid,r,c})=>{const k=calId(pid,rid,m);const jours=(ui.draft&&ui.draft[k])||(c&&c.jours)||{};const bar=(ui.draftB&&ui.draftB[k])||(c&&c.baremes)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);const rb=resumeBaremes(bar,r.profil);
+  rows.forEach(({rid,r,c})=>{const k=calId(pid,rid,m);const jours=(ui.draft&&ui.draft[k])||(c&&c.jours)||{};const bar=(ui.draftB&&ui.draftB[k])||(c&&c.baremes)||{};const v=!!(c&&c.valide);const rs=resumeJours(jours,m);const tot=totalTravaille(rs);const rb=resumeBaremes(bar,jours);
     h+='<tr class="rt"><th class="cn">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+(v?' <span class="pill ok" title="Validé">✓</span>':'')+'</th>'+
       J.map(j=>{const t=jours[j.iso]||'';const x=pj(t);return '<td class="cc"><button type="button" class="'+cellClass(t,j)+'" data-cell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+' aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+(j.ferie?' ('+esc(j.ferie)+')':j.we?' (week-end)':'')+' : '+(x&&TYPES_J[x.t]?TYPES_J[x.t].nom+(x.demi?', demi-journée':''):'non travaillé')+'">'+libJour(t)+'</button></td>'}).join('')+
       Object.keys(TYPES_J).map(kk=>'<td class="n">'+(rs[kk].total?nf(rs[kk].total):'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+nf(tot)+'</td>'+
       '<td class="n" rowspan="2" style="font-weight:700">'+(Object.keys(bar).length?eur(rb.montant)+(rb.nuitsReel?'<div class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit'+(rb.nuitsReel>1?'s':'')+' au réel</div>':''):'<span class="muted">—</span>')+'</td>'+
       '<td class="n" rowspan="2" style="white-space:nowrap">'+(v?'':'<button class="btn g sm" data-act="calFill" data-rid="'+rid+'" title="Tous les jours ouvrés avec le type choisi">Mois</button><button class="btn g sm" data-act="calBareme" data-rid="'+rid+'" title="Le barème choisi sur tous ses jours travaillés">Barème</button><button class="btn g sm" data-act="calClear" data-rid="'+rid+'">Vider</button>')+'</td></tr>';
-    h+='<tr class="rb"><th class="cn lb">Barème déplacement</th>'+J.map(j=>{const b=bar[j.iso]||'';return '<td class="cc"><button type="button" class="'+bcellClass(b,j)+'" data-bcell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+(b?' style="'+styleB(b)+'"':'')+' title="'+(b?esc((BAREMES_J[b]?BAREMES_J[b].nom:'Barème supprimé')+' : '+detailBareme(b)):'Barème du jour')+'" aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+', barème : '+(b?esc(BAREMES_J[b]?BAREMES_J[b].nom:'supprimé'):'aucun')+'">'+esc(b?codeB(b):'')+'</button></td>'}).join('')+'<td colspan="'+nCols+'" class="small muted" style="padding-left:6px;white-space:nowrap">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>codeB(b)+' '+rb.n[b]).join(' · '):'barème')+'</td></tr>'});
+    h+='<tr class="rb"><th class="cn lb">Barème déplacement</th>'+J.map(j=>{if(!baremeCompte(j.iso,jours))return '<td class="cc"><button type="button" class="cb bc'+(j.we?' we':'')+(j.ferie?' fe':'')+'" disabled title="Pas de barème (congés ou R&amp;D)" aria-label="Pas de barème ce jour"></button></td>';const b=bar[j.iso]||'';return '<td class="cc"><button type="button" class="'+bcellClass(b,j)+'" data-bcell="'+rid+'|'+j.iso+'"'+(v?' disabled':'')+(b?' style="'+styleB(b)+'"':'')+' title="'+(b?esc((BAREMES_J[b]?BAREMES_J[b].nom:'Barème supprimé')+' : '+detailBareme(b)):'Barème du jour')+'" aria-label="'+esc(r.nom)+', '+dateFr(j.iso)+', barème : '+(b?esc(BAREMES_J[b]?BAREMES_J[b].nom:'supprimé'):'aucun')+'">'+esc(b?codeB(b):'')+'</button></td>'}).join('')+'<td colspan="'+nCols+'" class="small muted" style="padding-left:6px;white-space:nowrap">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>codeB(b)+' '+rb.n[b]).join(' · '):'barème')+'</td></tr>'});
   h+='</tbody></table></div>';
   // récapitulatif
-  h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n" title="Hors congés">Total travaillé</th><th class="n">Barèmes</th><th class="n">Frais barème</th><th>Statut</th></tr></thead><tbody>'+
-    rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=totalTravaille(rs);const rb=resumeBaremes((c&&c.baremes)||{},r.profil);
+  h+='<h3 style="margin-top:6px">Récapitulatif du mois</h3><div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th>'+Object.values(TYPES_J).map(t=>'<th class="n">'+t.nom+'<br><span style="font-weight:400;text-transform:none">sem. · WE · fériés</span></th>').join('')+'<th class="n" title="Hors congés et R&amp;D">Total travaillé</th><th class="n">Barèmes</th><th class="n">Frais barème</th><th>Statut</th></tr></thead><tbody>'+
+    rows.map(({rid,r,c})=>{const rs=resumeJours((c&&c.jours)||{},m);const tot=totalTravaille(rs);const rb=resumeBaremes((c&&c.baremes)||{},(c&&c.jours)||{});
       return '<tr><td style="font-weight:600">'+esc(r.nom)+'</td>'+Object.keys(TYPES_J).map(k=>'<td class="n">'+(rs[k].total?'<b>'+nf(rs[k].total)+'</b> <span class="muted small">('+nf(rs[k].ouvre)+' · '+nf(rs[k].we)+' · '+nf(rs[k].ferie)+')</span>':'<span class="muted">—</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+nf(tot)+'</td>'+
         '<td class="n small">'+(Object.keys(rb.n).length?ORDRE_B.filter(b=>rb.n[b]).map(b=>[b,rb.n[b]]).map(([b,n])=>'<span title="'+esc(BAREMES_J[b].nom+' : '+detailBareme(b))+'">'+esc(codeB(b))+' '+n+'</span>').join(' · '):'<span class="muted">—</span>')+'</td>'+
         '<td class="n" style="font-weight:700">'+(Object.keys(rb.n).length?eur(rb.montant)+(rb.nuitsReel?' <span class="small muted" style="font-weight:400">+ '+rb.nuitsReel+' nuit(s) au réel</span>':''):'<span class="muted">—</span>')+'</td>'+
@@ -896,7 +911,7 @@ function vRegles(){
   h+='<div class="grid2"><section class="card"><h2>Calculateur de frais : estimation avant départ</h2><p class="small muted" style="margin:0">Ces valeurs servent <b>uniquement</b> à la page « Calculateur de frais », pour chiffrer un déplacement à l\'avance. Elles n\'ont aucun effet sur la saisie mensuelle ni sur les préfactures, où carburant, péages et billets sont pris au réel.</p><div class="formgrid">'+
     e('carburantKm','Carburant sur le trajet','€/km','coût moyen par km parcouru')+e('peageKm','Péages','€/km','coût moyen par km d\'autoroute')+e('carburantJourSite','Carburant sur place','€/jour','avec une voiture de location')+e('trainAR','Train aller-retour','€')+e('avionAR','Avion aller-retour','€')+
     f('nuitsParSemaine','Nuits par semaine','nuits','1','si retour au domicile le week-end')+f('seuilJourneeKm','Alerte « aller-retour dans la journée »','km','1','au-delà de cette distance')+'</div>'+f('nuitsDepart','Nuits en plus au départ','nuit(s)','1','par aller-retour')+f('nuitsArrivee','Nuits en plus à l\'arrivée','nuit(s)','1','par aller-retour')+cb('trajetFacture','Ajouter le temps de trajet au chiffrage')+f('trajetCoef','Temps de trajet par aller-retour','jour','0.25')+'</section>';
-  h+='<section class="card"><h2>Préfacture et saisie</h2><p class="small muted" style="margin:0">Ces réglages s\'appliquent aux préfactures et à la saisie des dépenses.</p><div class="formgrid">'+f('margeFrais','Frais de gestion ajoutés aux frais refacturés','%','0.5','0 % = refacturation à l\'euro près (barème et frais réels)')+'</div>'+cb('fraisRefacturablesParDefaut','Une dépense ajoutée à la main est « refacturable » par défaut')+'</section></div>';
+  h+='<section class="card"><h2>Préfacture et saisie</h2><p class="small muted" style="margin:0">Ces réglages s\'appliquent aux préfactures et à la saisie des dépenses.</p><div class="formgrid">'+f('margeFrais','Frais de gestion ajoutés aux frais refacturés','%','0.5','0 % = refacturation à l\'euro près (barème et frais réels)')+f('majSamedi','Samedi travaillé','% du TJM','1','Développement et mise en service')+f('majDimFerie','Dimanche et jour férié travaillés','% du TJM','1','un férié tombant un samedi compte à ce taux')+'</div>'+cb('fraisRefacturablesParDefaut','Une dépense ajoutée à la main est « refacturable » par défaut')+'</section></div>';
   return h;
 }
 
