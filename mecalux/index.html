@@ -272,8 +272,10 @@ function pfLines(pid,mois){
     prestationLignes(pid,rid,mois).forEach(l=>lines.push(Object.assign(l,{collab})));
     majBaremes();const c=cals.find(x=>x.ressourceId===rid);if(c){const n={};Object.entries(c.baremes).forEach(([iso,b])=>{if(BAREMES_J[b]&&baremeCompte(iso,c.jours))n[b]=(n[b]||0)+1});
       ORDRE_B.filter(b=>n[b]).forEach(b=>{const mb=montantBareme(b);lines.push({type:'bareme',collab,libelle:'Barème '+codeB(b)+' · '+BAREMES_J[b].nom+marge,qte:n[b],unite:'j',pu:mb.v*m,montant:n[b]*mb.v*m})})}
-    const g={};fr.filter(f=>(f.ressourceId||'')===rid).forEach(f=>{const k=f.categorie||'Divers';g[k]=(g[k]||0)+num(f.montant)});
-    Object.keys(g).sort().forEach(k=>lines.push({type:'frais',collab,libelle:k+marge,qte:1,unite:'forfait',pu:g[k]*m,montant:g[k]*m}));
+    // frais réels détaillés : par jour (jours × prix) ou une ligne par dépense (date, marchand ou note)
+    fr.filter(f=>(f.ressourceId||'')===rid).sort((a,b)=>((a.categorie||'')+(a.date||''))>((b.categorie||'')+(b.date||''))?1:-1).forEach(f=>{const cat=f.categorie||'Divers';
+      if(f.parJour&&num(f.jours))lines.push({type:'frais',collab,libelle:cat+marge,qte:num(f.jours),unite:'j',pu:num(f.prixJour)*m,montant:num(f.montant)*m});
+      else{const det=[f.date?dateFr(f.date).replace(/ \d{4}$/,''):'',f.marchand||f.note||''].filter(Boolean).join(' · ');lines.push({type:'frais',collab,libelle:cat+(det?' · '+det:'')+marge,qte:1,unite:'',pu:num(f.montant)*m,montant:num(f.montant)*m})}});
   });
   return lines;
 }
