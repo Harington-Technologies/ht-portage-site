@@ -182,7 +182,7 @@ const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','ao�
 const S={regles:clone(DEFAULT_REGLES),moisCfg:{},pleoAlias:{}};COLLS.forEach(c=>S[c]={});
 let dbState='init', readOnly=false;
 const ui={filtres:{tblRes:{5:'Actif'}},dashClient:'',dashRes:'',pfMois:curMonth(),saisieMois:curMonth(),saisieProjet:'',planStart:addMonths(curMonth(),-1),projTab:'synthese',
-  calc:{projetId:'',ressourceId:'',cas:'semaine',profil:'fr',jours:10,km:500,mode:'voiture',location:true,nuitPrix:'',arPrix:'',nuitsDepart:'',nuitsArrivee:'',tjm:''}};
+  calc:{projetId:'',ressourceId:'',cas:'semaine',profil:'fr',jours:10,km:500,mode:'voiture',location:true,nuitPrix:'',arPrix:'',nuitsDepart:'',nuitsArrivee:'',tjm:'',trainNb:'',trainPrix:'',avionNb:'',avionPrix:'',divers:[]}};
 
 /* ---------- utilitaires ---------- */
 function clone(o){return JSON.parse(JSON.stringify(o))}
@@ -313,6 +313,11 @@ function calcFrais(c){
     else lines.push({k:'Location voiture (au réel)',d:presence+' j × '+eur2(P.locationEstimee)+' (estimation)',v:presence*num(P.locationEstimee),t:'reel'});
     if(mode!=='voiture'&&num(E.carburantJourSite))lines.push({k:'Carburant sur place (au réel)',d:jours+' j × '+eur2(E.carburantJourSite)+' (estimation)',v:jours*num(E.carburantJourSite),t:'reel'});
   }
+  // frais complémentaires : train et avion à part, frais divers
+  const tNb=num(c.trainNb),aNb=num(c.avionNb);
+  if(tNb>0){const pu=num(c.trainPrix)||num(E.trainAR);lines.push({k:'Train (en plus)',d:nf(tNb)+' A/R × '+eur2(pu)+(num(c.trainPrix)?'':' (estimation)'),v:tNb*pu,t:'reel'})}
+  if(aNb>0){const pu=num(c.avionPrix)||num(E.avionAR);lines.push({k:'Avion (en plus)',d:nf(aNb)+' A/R × '+eur2(pu)+(num(c.avionPrix)?'':' (estimation)'),v:aNb*pu,t:'reel'})}
+  (c.divers||[]).forEach(d=>{if(num(d.montant))lines.push({k:'Divers · '+(String(d.lib||'').trim()||'sans libellé'),d:'',v:num(d.montant),t:'reel'})});
   lines.forEach(l=>l.v=R2(l.v));
   const totalFrais=lines.reduce((s,l)=>s+l.v,0);
   const forfaits=lines.filter(l=>l.t==='forfait').reduce((s,l)=>s+l.v,0);
@@ -663,6 +668,13 @@ function vCalc(){
     '<label class="f">Prix réel d\'un aller-retour (facultatif)<input type="number" min="0" step="1" data-c="arPrix" value="'+esc(c.arPrix)+'" placeholder="Train ou avion"'+(c.cas==='journee'||c.mode==='voiture'?' disabled':'')+'></label>'+
     '<label class="f">TJM (facultatif)<input type="number" min="0" step="1" data-c="tjm" value="'+esc(c.tjm)+'" placeholder="TJM de la ressource"></label>'+
     '</div><div class="row"><label class="row small" style="font-weight:600"><input type="checkbox" data-c="location"'+(c.location?' checked':'')+'> Location de voiture</label></div><div class="formgrid"><label class="f">Nuits en plus au départ<input type="number" min="0" step="1" data-c="nuitsDepart" value="'+esc(c.nuitsDepart)+'" placeholder="'+esc(R.nuitsDepart)+' (par défaut)"'+(c.cas==='journee'?' disabled':'')+'></label><label class="f">Nuits en plus à l\'arrivée<input type="number" min="0" step="1" data-c="nuitsArrivee" value="'+esc(c.nuitsArrivee)+'" placeholder="'+esc(R.nuitsArrivee)+' (par défaut)"'+(c.cas==='journee'?' disabled':'')+'></label></div><p class="small muted" style="margin:0">Ajoutées à chaque aller-retour.</p>'+
+    '<h3 style="margin-top:6px">Frais complémentaires</h3><div class="formgrid">'+
+    '<label class="f">Train : allers-retours<input type="number" min="0" step="1" data-c="trainNb" value="'+esc(c.trainNb)+'" placeholder="0"></label>'+
+    '<label class="f">Train : prix d\'un A/R<input type="number" min="0" step="1" data-c="trainPrix" value="'+esc(c.trainPrix)+'" placeholder="'+esc((R.estimations||{}).trainAR||DEFAULT_REGLES.estimations.trainAR)+' (estimation)"></label>'+
+    '<label class="f">Avion : allers-retours<input type="number" min="0" step="1" data-c="avionNb" value="'+esc(c.avionNb)+'" placeholder="0"></label>'+
+    '<label class="f">Avion : prix d\'un A/R<input type="number" min="0" step="1" data-c="avionPrix" value="'+esc(c.avionPrix)+'" placeholder="'+esc((R.estimations||{}).avionAR||DEFAULT_REGLES.estimations.avionAR)+' (estimation)"></label></div>'+
+    '<div style="display:flex;flex-direction:column;gap:8px">'+(c.divers||[]).map((d,i)=>'<div class="row" style="flex-wrap:nowrap"><input data-div="'+i+'|lib" value="'+esc(d.lib||'')+'" placeholder="Frais divers (ex. visa, parking aéroport…)" aria-label="Libellé du frais divers" style="flex:1;min-width:0"><input type="number" min="0" step="0.01" data-div="'+i+'|montant" value="'+esc(d.montant||'')+'" placeholder="Montant €" aria-label="Montant du frais divers" style="width:120px"><button class="btn g sm" data-act="calcDiversDel" data-i="'+i+'" aria-label="Retirer ce frais divers">Retirer</button></div>').join('')+
+    '<button class="btn o sm" data-act="calcDiversAdd" style="align-self:flex-start">+ Ajouter un frais divers</button></div>'+
     '<div class="note i small" id="calcRegle"></div><p class="small muted" style="margin:0">Barèmes modifiables dans <a href="#regles">Règles de frais</a>.</p></section>'+
     '<section class="card" aria-live="polite" id="calcRes"></section></div>';
   return h;
@@ -1137,6 +1149,8 @@ document.addEventListener('click',async e=>{
     case'delFraisAffiches':{const tbl=document.getElementById('tblFrais');if(!tbl)break;const ids=[...tbl.tBodies[0].rows].filter(r=>!r.hidden).map(r=>r.dataset.id).filter(Boolean);if(!ids.length){toast('Aucune dépense affichée.');break}
       const tot=ids.reduce((x,i)=>x+num((byId('frais',i)||{}).montant),0);
       confirmBox('Supprimer définitivement les '+ids.length+' dépense'+(ids.length>1?'s':'')+' affichée'+(ids.length>1?'s':'')+' ('+eur2(tot)+') ? Les dépenses masquées par les filtres et les frais écartés ne sont pas concernés.',async()=>{for(const i of ids)await del('frais',i);toast(ids.length+' dépense'+(ids.length>1?'s':'')+' supprimée'+(ids.length>1?'s':''))});break}
+    case'calcDiversAdd':ui.calc.divers=(ui.calc.divers||[]).concat([{lib:'',montant:''}]);render();{const ins=document.querySelectorAll('[data-div$="|lib"]');if(ins.length)ins[ins.length-1].focus()}break;
+    case'calcDiversDel':ui.calc.divers=(ui.calc.divers||[]).filter((_,i)=>i!==+b.dataset.i);render();break;
     case'razFiltres':ui.filtres[b.dataset.t]={};render();break;
     case'newRes':formRes();break;
     case'editRes':formRes(byId('ressources',id));break;
@@ -1147,10 +1161,10 @@ document.addEventListener('click',async e=>{
     case'planPrev':ui.planStart=addMonths(ui.planStart,-3);render();break;
     case'planNext':ui.planStart=addMonths(ui.planStart,3);render();break;
     case'saveEst':{const c=ui.calc;if(!c.projetId)return;const r=calcFrais(c);const lib=(document.getElementById('estLib')||{}).value||'Estimation';
-      const ok=await save('estimations',c.estId||uid('e'),{projetId:c.projetId,ressourceId:c.ressourceId,libelle:lib,params:{cas:c.cas,profil:c.profil,arPrix:c.arPrix,nuitsDepart:c.nuitsDepart,nuitsArrivee:c.nuitsArrivee,jours:c.jours,km:c.km,mode:c.mode,location:c.location,nuitPrix:c.nuitPrix,tjm:c.tjm},detail:r.lines.map(l=>({k:l.k,d:l.d,v:l.v,t:l.t})),totalFrais:Math.round(r.totalFrais*100)/100,trajet:Math.round(r.trajet*100)/100,refac:Math.round(r.refac*100)/100});
+      const ok=await save('estimations',c.estId||uid('e'),{projetId:c.projetId,ressourceId:c.ressourceId,libelle:lib,params:{cas:c.cas,profil:c.profil,arPrix:c.arPrix,nuitsDepart:c.nuitsDepart,nuitsArrivee:c.nuitsArrivee,trainNb:c.trainNb,trainPrix:c.trainPrix,avionNb:c.avionNb,avionPrix:c.avionPrix,divers:(c.divers||[]).filter(d=>num(d.montant)||String(d.lib||'').trim()),jours:c.jours,km:c.km,mode:c.mode,location:c.location,nuitPrix:c.nuitPrix,tjm:c.tjm},detail:r.lines.map(l=>({k:l.k,d:l.d,v:l.v,t:l.t})),totalFrais:Math.round(r.totalFrais*100)/100,trajet:Math.round(r.trajet*100)/100,refac:Math.round(r.refac*100)/100});
       if(ok){toast('Estimation enregistrée sur le projet');c.estId=null}break}
     case'copyEst':{const r=calcFrais(ui.calc);copy(r.lines.map(l=>l.k+' ('+l.d+') : '+eur2(l.v)).join('\n')+'\nTotal frais : '+eur2(r.totalFrais)+'\nPrestation : '+eur2(r.presta)+(r.trajet?'\nTemps de trajet : '+eur2(r.trajet):'')+'\nCoût total : '+eur2(r.presta+r.trajet+r.refac));break}
-    case'loadEst':{const x=byId('estimations',id);Object.assign(ui.calc,x.params||{},{projetId:x.projetId,ressourceId:x.ressourceId,libelle:x.libelle,estId:x.id});location.hash='calculateur';break}
+    case'loadEst':{const x=byId('estimations',id);const pr=clone(x.params||{});Object.assign(ui.calc,{trainNb:'',trainPrix:'',avionNb:'',avionPrix:'',nuitsDepart:'',nuitsArrivee:'',divers:[]},pr,{divers:(pr.divers||[]).map(d=>Object.assign({},d))},{projetId:x.projetId,ressourceId:x.ressourceId,libelle:x.libelle,estId:x.id});location.hash='calculateur';break}
     case'delEst':confirmBox('Supprimer cette estimation ?',()=>del('estimations',id));break;
     case'pfSave':case'pfRefresh':{const key=b.dataset.k;const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);const pf=pfOf(pid,m)||{};
       const o={projetId:pid,mois:m,statut:act==='pfSave'?document.getElementById('pfStatut').value:(pf.statut||'Brouillon'),bdc:act==='pfSave'?document.getElementById('pfBdc').value.trim():(pf.bdc||''),notes:act==='pfSave'?document.getElementById('pfNotes').value:(pf.notes||''),lignes:pfLines(pid,m).map(l=>Object.assign({},l,{pu:Math.round(l.pu*100)/100,montant:Math.round(l.montant*100)/100}))};
@@ -1199,7 +1213,7 @@ document.addEventListener('change',async e=>{
     if(!t.value||v===0){if(byId('temps',id))await del('temps',id)}else if(!byId('temps',id)||num(byId('temps',id).jours)!==v){await save('temps',id,{projetId:pid,ressourceId:rid,mois:m,phase:ph,jours:v})}
     toast('Enregistré');return}
 });
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset.pk==='motif'&&ui.pleo){const tr=t.closest('tr[data-pi]');if(tr)ui.pleo.lignes[+tr.dataset.pi].motif=t.value;return}if(t.dataset.c&&t.type==='number'){ui.calc[t.dataset.c]=t.value;renderCalcResult()}});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.div){const [i,k]=t.dataset.div.split('|');const d=(ui.calc.divers||[])[+i];if(d){d[k]=t.value;renderCalcResult()}return}if(t.dataset.pk==='motif'&&ui.pleo){const tr=t.closest('tr[data-pi]');if(tr)ui.pleo.lignes[+tr.dataset.pi].motif=t.value;return}if(t.dataset.c&&t.type==='number'){ui.calc[t.dataset.c]=t.value;renderCalcResult()}});
 
 render();
 initDb();
