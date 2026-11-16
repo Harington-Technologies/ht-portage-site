@@ -167,7 +167,7 @@ const DEFAULT_REGLES={
   estimations:{carburantKm:0.12,peageKm:0.07,carburantJourSite:10,trainAR:150,avionAR:350},
   seuilJourneeKm:80, nuitsParSemaine:4, nuitsDepart:1, nuitsArrivee:2,
   trajetFacture:false, trajetCoef:0.5,
-  margeFrais:0, fraisRefacturablesParDefaut:true, majSamedi:150, majDimFerie:200
+  margeFrais:0, fraisRefacturablesParDefaut:true, majSamedi:150, majDimFerie:200, voitureHarington:45
 };
 const CAS={
   journee:{nom:'Déplacement à la journée',desc:'Retour au domicile chaque soir, pas d\'hôtel.'},
@@ -176,8 +176,9 @@ const CAS={
   ponctuel:{nom:'Intervention ponctuelle',desc:'Mission courte avec un seul aller-retour.'}
 };
 const STATUTS_PF=['Brouillon','Envoyée à Zakia','Validée Mecalux','BDC reçu','Facturée'];
-const CAT_FRAIS=['Forfait hôtel','Hôtel (au réel)','Forfait repas','Per diem','Repas','Location voiture','Carburant','Péages','Train','Avion','Bus / taxi','Parking','Divers'];
-const CAT_FORFAIT=['Forfait hôtel','Forfait repas','Per diem'];
+const CAT_FRAIS=['Forfait hôtel','Hôtel (au réel)','Forfait repas','Per diem','Repas','Location voiture','Voiture Harington','Carburant','Péages','Train','Avion','Bus / taxi','Parking','Divers'];
+const CAT_FORFAIT=['Forfait hôtel','Forfait repas','Per diem','Voiture Harington'];
+const CAT_JOUR=['Hôtel (au réel)','Location voiture','Voiture Harington']; // saisis en prix par jour × jours travaillés
 const MOIS_FR=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
@@ -356,7 +357,7 @@ const TABLES={
   projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','notes','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
-  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','source','statut','motif','pleo_ref','marchand','categorie_pleo','maj_le'],
+  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','par_jour','prix_jour','jours','jours_auto','source','statut','motif','pleo_ref','marchand','categorie_pleo','maj_le'],
   estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
   prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le'],
   calendrier:['id','projet_id','ressource_id','mois','jours','baremes','resume','valide','valide_le','maj_le']
@@ -787,11 +788,14 @@ function baremeCompte(iso,jours){const x=pj((jours||{})[iso]);return !(x&&TYPES_
 function resumeBaremes(baremes,jours){const n={};let tot=0,reel=0;Object.entries(baremes||{}).forEach(([iso,b])=>{if(!BAREMES_J[b]||!baremeCompte(iso,jours))return;n[b]=(n[b]||0)+1;const x=montantBareme(b);tot+=x.v;if(x.reel)reel++});return {n,montant:tot,nuitsReel:reel}}
 let paint=null;
 function draftOf(pid,rid,m,kind){const D=kind==='b'?(ui.draftB=ui.draftB||{}):(ui.draft=ui.draft||{});const k=calId(pid,rid,m);if(!D[k])D[k]=Object.assign({},((calOf(pid,rid,m)||{})[kind==='b'?'baremes':'jours'])||{});return D[k]}
+/* jours travaillés d'un collaborateur sur un projet et un mois (calendrier, hors congés et R&D, demi-journées comprises) */
+function joursTravCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille?j.q:0)},0)}
+async function majFraisParJour(pid,rid,m){const n=joursTravCal(pid,rid,m);for(const f of list('frais').filter(x=>x.parJour&&x.joursAuto!==false&&x.projetId===pid&&x.ressourceId===rid&&x.mois===m)){const mt=Math.round(num(f.prixJour)*n*100)/100;if(num(f.montant)!==mt||num(f.jours)!==n)await save('frais',f.id,Object.assign({},f,{montant:mt,jours:n}))}}
 async function saveCal(pid,rid,m,jours,extra){
   const cur=calOf(pid,rid,m)||{};jours=jours||cur.jours||{};const baremes=(extra&&extra.baremes)||cur.baremes||{};
   const r=resumeJours(jours,m);r.baremes=resumeBaremes(baremes,jours);
   const ok=await save('calendrier',calId(pid,rid,m),Object.assign({projetId:pid,ressourceId:rid,mois:m,jours,baremes,resume:r,valide:!!cur.valide,valideLe:cur.valideLe||''},extra||{},{baremes}));
-  if(ok){await setJours(pid,rid,m,'dev',r.dev.total);await setJours(pid,rid,m,'mes',r.mes.total)}
+  if(ok){await setJours(pid,rid,m,'dev',r.dev.total);await setJours(pid,rid,m,'mes',r.mes.total);await majFraisParJour(pid,rid,m)}
   return ok;
 }
 function cellClass(v,j){const x=pj(v);return 'cb'+(j.we?' we':'')+(j.ferie?' fe':'')+(x?' t-'+x.t+(x.demi?' demi':''):'')}
@@ -869,7 +873,7 @@ function vSaisie(){
   h+=fr.length?'<div class="card-h"><span class="small muted" id="tblFrais-compte">'+fr.length+' dépenses</span><div class="row"><button class="btn g sm" data-act="razFiltres" data-t="tblFrais">Effacer les filtres</button><button class="btn d sm" data-act="delFraisAffiches">Supprimer les dépenses affichées</button></div></div><div class="scroll"><table class="tbl filtrable triable" id="tblFrais"><thead><tr>'+
     [['Date','date'],['Ressource','txt'],['Catégorie','txt'],['Détail','txt'],['Refacturable','txt'],['Montant TTC','num']].map(([t,k],ci)=>'<th'+(k==='num'?' class="n"':'')+'><button type="button" class="tri" data-tri="'+ci+'" data-t="tblFrais">'+t+'<span class="fl" aria-hidden="true"></span></button></th>').join('')+'<th></th></tr>'+
     filtreLigne('tblFrais',[{t:'texte',l:'Date',ph:'ex. 03/11'},{t:'liste',l:'Ressource',o:[...new Set(fr.map(nomR))].sort()},{t:'liste',l:'Catégorie',o:[...new Set(fr.map(f=>f.categorie||''))].filter(Boolean).sort()},{t:'texte',l:'Détail',ph:'Marchand, note…'},{t:'liste',l:'Refacturable',o:['Oui','Non']},{t:'texte',l:'Montant',ph:'ex. >50'},null])+'</thead><tbody>'+
-    fr.map(f=>'<tr data-id="'+f.id+'"><td class="small" data-v=""'+esc(f.date||'')+'">'+dateFr(f.date)+'<span hidden> '+esc((f.date||'').split('-').reverse().join('/'))+'</span></td><td>'+esc(nomR(f))+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill dev" title="'+esc(f.categoriePleo||'')+'">Pleo</span> <b>'+esc(f.marchand||'')+'</b> ':'')+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n" data-v="'+num(f.montant)+'">'+eur2(f.montant)+'</td><td class="n" style="white-space:nowrap"><button class="btn g sm" data-act="ecarterFrais" data-id="'+f.id+'">Écarter</button><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button><button class="btn g sm" data-act="delFrais" data-id="'+f.id+'" style="color:var(--bad)" aria-label="Supprimer la dépense">Supprimer</button></td></tr>').join('')+
+    fr.map(f=>'<tr data-id="'+f.id+'"><td class="small" data-v="'+esc(f.date||'')+'">'+dateFr(f.date)+'<span hidden> '+esc((f.date||'').split('-').reverse().join('/'))+'</span></td><td>'+esc(nomR(f))+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill dev" title="'+esc(f.categoriePleo||'')+'">Pleo</span> <b>'+esc(f.marchand||'')+'</b> ':'')+(f.parJour?'<span class="pill" title="Prix par jour × jours'+(f.joursAuto!==false?' travaillés du calendrier':' saisis')+'">par jour</span> '+nf(f.jours)+' j'+(f.joursAuto!==false?' travaillés':'')+' × '+eur2(f.prixJour)+' ':'')+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n" data-v="'+num(f.montant)+'">'+eur2(f.montant)+'</td><td class="n" style="white-space:nowrap"><button class="btn g sm" data-act="ecarterFrais" data-id="'+f.id+'">Écarter</button><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button><button class="btn g sm" data-act="delFrais" data-id="'+f.id+'" style="color:var(--bad)" aria-label="Supprimer la dépense">Supprimer</button></td></tr>').join('')+
     '</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
   if(ec.length)h+='<details><summary class="small" style="cursor:pointer;font-weight:700;color:var(--muted)">Frais écartés ('+ec.length+') · '+eur2(ec.reduce((x,f)=>x+num(f.montant),0))+'</summary><div class="scroll"><table class="tbl" style="margin-top:8px"><tbody>'+ec.map(f=>'<tr style="opacity:.75"><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill">Pleo</span> ':'')+'<b>'+esc(f.marchand||f.categorie)+'</b></td><td class="small">'+esc(f.motif||'')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="reintegrer" data-id="'+f.id+'">Réintégrer</button><button class="btn g sm" data-act="delFrais" data-id="'+f.id+'" style="color:var(--bad)" aria-label="Supprimer la dépense">Supprimer</button></td></tr>').join('')+'</tbody></table></div></details>';
   h+='<p class="small muted" style="margin:0">Hôtels, locations et billets déjà facturés par ailleurs : décochez « Refacturable » pour qu\'ils ne remontent pas dans la préfacture.</p></section>';
@@ -929,7 +933,7 @@ function vRegles(){
   h+='<div class="grid2"><section class="card"><h2>Calculateur de frais : estimation avant départ</h2><p class="small muted" style="margin:0">Ces valeurs servent <b>uniquement</b> à la page « Calculateur de frais », pour chiffrer un déplacement à l\'avance. Elles n\'ont aucun effet sur la saisie mensuelle ni sur les préfactures, où carburant, péages et billets sont pris au réel.</p><div class="formgrid">'+
     e('carburantKm','Carburant sur le trajet','€/km','coût moyen par km parcouru')+e('peageKm','Péages','€/km','coût moyen par km d\'autoroute')+e('carburantJourSite','Carburant sur place','€/jour','avec une voiture de location')+e('trainAR','Train aller-retour','€')+e('avionAR','Avion aller-retour','€')+
     f('nuitsParSemaine','Nuits par semaine','nuits','1','si retour au domicile le week-end')+f('seuilJourneeKm','Alerte « aller-retour dans la journée »','km','1','au-delà de cette distance')+'</div>'+f('nuitsDepart','Nuits en plus au départ','nuit(s)','1','par aller-retour')+f('nuitsArrivee','Nuits en plus à l\'arrivée','nuit(s)','1','par aller-retour')+cb('trajetFacture','Ajouter le temps de trajet au chiffrage')+f('trajetCoef','Temps de trajet par aller-retour','jour','0.25')+'</section>';
-  h+='<section class="card"><h2>Préfacture et saisie</h2><p class="small muted" style="margin:0">Ces réglages s\'appliquent aux préfactures et à la saisie des dépenses.</p><div class="formgrid">'+f('margeFrais','Frais de gestion ajoutés aux frais refacturés','%','0.5','0 % = refacturation à l\'euro près (barème et frais réels)')+f('majSamedi','Samedi travaillé','% du TJM','1','Développement et mise en service')+f('majDimFerie','Dimanche et jour férié travaillés','% du TJM','1','un férié tombant un samedi compte à ce taux')+'</div>'+cb('fraisRefacturablesParDefaut','Une dépense ajoutée à la main est « refacturable » par défaut')+'</section></div>';
+  h+='<section class="card"><h2>Préfacture et saisie</h2><p class="small muted" style="margin:0">Ces réglages s\'appliquent aux préfactures et à la saisie des dépenses.</p><div class="formgrid">'+f('margeFrais','Frais de gestion ajoutés aux frais refacturés','%','0.5','0 % = refacturation à l\'euro près (barème et frais réels)')+f('voitureHarington','Voiture Harington mise à disposition','€/jour','1','prix par jour travaillé proposé par défaut')+f('majSamedi','Samedi travaillé','% du TJM','1','Développement et mise en service')+f('majDimFerie','Dimanche et jour férié travaillés','% du TJM','1','un férié tombant un samedi compte à ce taux')+'</div>'+cb('fraisRefacturablesParDefaut','Une dépense ajoutée à la main est « refacturable » par défaut')+'</section></div>';
   return h;
 }
 
@@ -1148,19 +1152,43 @@ function formAff(pid,a){
 }
 function formFrais(f){
   const pid=f?f.projetId:(ui.saisieProjet||(list('projets')[0]||{}).id);const m=f?f.mois:ui.saisieMois;
-  const resIds=[...new Set(list('affectations').filter(a=>a.projetId===pid).map(a=>a.ressourceId))];
+  const resIds=[...new Set(list('affectations').filter(a=>a.projetId===pid).map(a=>a.ressourceId).concat(list('calendrier').filter(c=>c.projetId===pid&&c.mois===m).map(c=>c.ressourceId)))];
   const opts=(resIds.length?resIds:list('ressources').filter(r=>estActif(r)||(f&&f.ressourceId===r.id)).map(r=>r.id)).map(id=>[id,(byId('ressources',id)||{}).nom||'?']);
-  openForm(f?'Modifier la dépense':'Nouvelle dépense · '+moisLabel(m),[
-    {k:'date',l:'Date',type:'date',def:m===curMonth()?today():m+'-01'},{k:'ressourceId',l:'Ressource',type:'select',opts},
-    {k:'categorie',l:'Catégorie',type:'select',opts:CAT_FRAIS.map(c=>[c,c])},{k:'montant',l:'Montant TTC (€)',type:'number',req:true},
-    {k:'note',l:'Détail',full:true,ph:'Péage A7, hôtel Ibis Lyon…'},
-    {k:'refacturable',l:'Refacturable à Mecalux',type:'check',def:S.regles.fraisRefacturablesParDefaut},
-    {k:'justif',l:'Justificatif détaillé joint dans Pleo (obligatoire pour les frais au réel)',type:'check'},
-    {k:'statut',l:'Décision',type:'select',opts:[['valide','Validé'],['ecarte','Écarté']],def:'valide'},{k:'motif',l:'Motif d\'écart',ph:'Si écarté'},
-    {k:'dejaFacture',l:'Déjà facturé par ailleurs (hôtel, location, billet)',type:'check'}
-  ],f,async o=>{if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const ok=await save('frais',f?f.id:uid('f'),Object.assign({projetId:pid,mois:(o.date||m).slice(0,7)},f||{},o,{mois:(o.date||m).slice(0,7)}));if(ok)toast('Dépense enregistrée');return ok},
-  f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'');
+  const v=Object.assign({date:m===curMonth()?today():m+'-01',ressourceId:opts[0]?opts[0][0]:'',categorie:CAT_FRAIS[0],refacturable:S.regles.fraisRefacturablesParDefaut,statut:'valide',joursAuto:true},f||{});
+  const sel=(k,o,val)=>'<select name="'+k+'">'+o.map(x=>'<option value="'+esc(x[0])+'"'+(String(x[0])===String(val)?' selected':'')+'>'+esc(x[1])+'</option>').join('')+'</select>';
+  const cb=(k,l,val)=>'<label class="row small" style="font-weight:600;grid-column:1/-1"><input type="checkbox" name="'+k+'"'+(val?' checked':'')+'> '+esc(l)+'</label>';
+  let h='<h2>'+(f?'Modifier la dépense':'Nouvelle dépense · '+moisLabel(m))+'</h2><form id="frm" class="formgrid" novalidate>'+
+    '<label class="f">Date<input type="date" name="date" value="'+esc(v.date||'')+'"></label>'+
+    '<label class="f">Ressource'+sel('ressourceId',opts,v.ressourceId)+'</label>'+
+    '<label class="f">Catégorie'+sel('categorie',CAT_FRAIS.map(c=>[c,c]),v.categorie)+'</label>'+
+    '<div id="pj" style="grid-column:1/-1;display:none;background:var(--bg);border-radius:12px;padding:12px 14px"><div class="formgrid">'+
+      '<label class="f">Prix par jour (€)<input type="number" step="0.01" min="0" name="prixJour" value="'+esc(v.prixJour!=null?v.prixJour:'')+'"></label>'+
+      '<label class="f">Jours<input type="number" step="0.5" min="0" name="jours" value="'+esc(v.jours!=null?v.jours:'')+'"></label></div>'+
+      '<label class="row small" style="font-weight:600;margin-top:8px"><input type="checkbox" name="joursAuto"'+(v.joursAuto!==false?' checked':'')+'> <span id="pjAuto"></span></label></div>'+
+    '<label class="f">Montant TTC (€)<input type="number" step="0.01" min="0" name="montant" value="'+esc(v.montant!=null?v.montant:'')+'"></label>'+
+    '<label class="f" style="grid-column:1/-1">Détail<input name="note" value="'+esc(v.note||'')+'" placeholder="Péage A7, hôtel Ibis Lyon…"></label>'+
+    cb('refacturable','Refacturable à Mecalux',v.refacturable!==false)+cb('justif','Justificatif détaillé joint dans Pleo (obligatoire pour les frais au réel)',v.justif)+
+    '<label class="f">Décision'+sel('statut',[['valide','Validé'],['ecarte','Écarté']],v.statut==='ecarte'?'ecarte':'valide')+'</label><label class="f">Motif d\'écart<input name="motif" value="'+esc(v.motif||'')+'" placeholder="Si écarté"></label>'+
+    cb('dejaFacture','Déjà facturé par ailleurs (hôtel, location, billet)',v.dejaFacture)+'</form>'+
+    '<p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
+  document.getElementById('dlgBody').innerHTML=h;const fm=document.getElementById('frm');const E=fm.elements;
+  const nCal=()=>joursTravCal(pid,E.ressourceId.value,(E.date.value||m).slice(0,7));
+  function maj(evtName){const parJour=CAT_JOUR.includes(E.categorie.value);document.getElementById('pj').style.display=parJour?'':'none';
+    if(!parJour){E.montant.readOnly=false;return}
+    if(evtName==='categorie'&&E.categorie.value==='Voiture Harington'&&!E.prixJour.value)E.prixJour.value=num(S.regles.voitureHarington)||45;
+    const n=nCal();document.getElementById('pjAuto').textContent='Reprendre les jours travaillés du calendrier : '+nf(n)+' j'+(n?'':' (rien de saisi ce mois-ci pour ce collaborateur sur ce projet)');
+    if(E.joursAuto.checked)E.jours.value=n;E.jours.readOnly=E.joursAuto.checked;
+    E.montant.readOnly=true;E.montant.value=Math.round(num(E.prixJour.value)*num(E.jours.value)*100)/100}
+  fm.addEventListener('input',e=>maj(e.target.name));fm.addEventListener('change',e=>maj(e.target.name));maj('categorie');
+  dlg._save=async()=>{const o={};['date','ressourceId','categorie','note','statut','motif'].forEach(k=>o[k]=E[k].value.trim());['refacturable','justif','dejaFacture'].forEach(k=>o[k]=E[k].checked);
+    o.parJour=CAT_JOUR.includes(o.categorie);
+    if(o.parJour){o.prixJour=num(E.prixJour.value);o.joursAuto=E.joursAuto.checked;o.jours=num(E.jours.value);o.montant=Math.round(o.prixJour*o.jours*100)/100;
+      if(!o.prixJour){document.getElementById('frmErr').textContent='Indiquez le prix par jour.';E.prixJour.focus();return}}
+    else{o.prixJour='';o.jours='';o.joursAuto=true;o.montant=E.montant.value===''?'':num(E.montant.value);if(o.montant===''){document.getElementById('frmErr').textContent='« Montant TTC » est obligatoire.';E.montant.focus();return}}
+    if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const mois=(o.date||m).slice(0,7);
+    const ok=await save('frais',f?f.id:uid('f'),Object.assign({projetId:pid},f||{},o,{mois}));if(ok){toast('Dépense enregistrée');dlg.close()}};
   dlg._del=f?()=>{dlg.close();del('frais',f.id)}:null;
+  dlg.showModal();E.date.focus();
 }
 
 /* ---------- exports ---------- */
