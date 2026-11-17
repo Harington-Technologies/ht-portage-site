@@ -1222,8 +1222,16 @@ function suggestion(cat,cp){
   if(cat==='Location voiture')return {d:'',aide:'À écarter si la location est déjà facturée'};
   if(cat==='Hôtel (au réel)')return {d:'',aide:'À écarter si le barème du jour couvre déjà l\'hébergement'};
   return {d:'',aide:'Catégorie à contrôler avant de décider'}}
-function projetPour(rid,iso){if(!rid||!iso)return {pid:'',via:''};const m=iso.slice(0,7);
-  const c=list('calendrier').find(x=>x.ressourceId===rid&&x.mois===m&&x.jours&&x.jours[iso]&&pj(x.jours[iso]).t!=='conge');if(c)return {pid:c.projetId,via:'calendrier'};
+// Jours de présence sur projet (développement, mise en service, pilotage, déplacement) d'une ressource, tous mois confondus
+function presencesDe(rid){const P=[];list('calendrier').filter(x=>x.ressourceId===rid&&x.jours).forEach(c=>Object.entries(c.jours).forEach(([d,v])=>{const x=pj(v);if(x&&['dev','mes','pil','depl'].includes(x.t))P.push({d,pid:c.projetId,t:x.t})}));return P}
+const ecartJours=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
+const MOIS_COURT=m=>moisLabel(m).split(' ')[0];
+function projetPour(rid,iso){if(!rid||!iso)return {pid:'',via:''};
+  // 1. présence le jour même, puis 2. présence la plus proche (3 jours avant ou après : veille d'arrivée, retour, week-end sur site)
+  const P=presencesDe(rid);
+  const jour=[...new Set(P.filter(x=>x.d===iso).map(x=>x.pid))];if(jour.length===1)return {pid:jour[0],via:'présent ce jour',mois:iso.slice(0,7)};
+  if(!jour.length&&P.length){let best=null;P.forEach(x=>{const e=ecartJours(iso,x.d);if(Math.abs(e)>3)return;const sc=Math.abs(e)*2+(e<0?1:0);if(!best||sc<best.sc)best={sc,x,e,l:[x.pid]};else if(sc===best.sc&&!best.l.includes(x.pid))best.l.push(x.pid)});
+    if(best&&best.l.length===1){const m=best.x.d.slice(0,7);return {pid:best.x.pid,mois:m,via:'présent le '+dateFr(best.x.d).slice(0,5)+(m!==iso.slice(0,7)?' → '+MOIS_COURT(m):'')}}}
   const aff=list('affectations').filter(a=>a.ressourceId===rid);const ps=[...new Set(aff.map(a=>a.projetId))].map(id=>byId('projets',id)).filter(Boolean);
   const dansPhase=ps.filter(p=>aff.some(a=>a.projetId===p.id&&(a.phase==='pil'?((p.devDebut||p.mesDebut)&&iso>=(p.devDebut||p.mesDebut)&&iso<=(p.mesFin||p.devFin||iso)):a.phase==='mes'?(p.mesDebut&&p.mesFin&&iso>=p.mesDebut&&iso<=p.mesFin):(p.devDebut&&p.devFin&&iso>=p.devDebut&&iso<=p.devFin))));
   if(dansPhase.length===1)return {pid:dansPhase[0].id,via:'dates de phase'};
@@ -1257,7 +1265,7 @@ async function lirePleo(file){
 }
 function preparerLignes(brutes){return brutes.map(b=>{const ex=list('frais').find(f=>f.pleoRef===b.key);const cat=categorieDe(b.cp,b.mar);const sg=suggestion(cat,b.cp);
   const rid=ex?ex.ressourceId:ressourceDe(b.owner);const pp=ex?{pid:ex.projetId,via:'déjà importée'}:projetPour(rid,b.iso);
-  return Object.assign(b,{rid,pid:pp.pid,via:pp.via,cat:ex?ex.categorie:cat,d:ex?(ex.statut==='ecarte'?'ecarte':'valide'):sg.d,motif:ex?(ex.motif||''):(sg.motif||''),refac:ex?ex.refacturable!==false:true,aide:sg.aide,ex:ex?ex.id:''})})}
+  return Object.assign(b,{rid,pid:pp.pid,via:pp.via,mois:ex?(ex.mois||b.iso.slice(0,7)):(pp.mois||b.iso.slice(0,7)),cat:ex?ex.categorie:cat,d:ex?(ex.statut==='ecarte'?'ecarte':'valide'):sg.d,motif:ex?(ex.motif||''):(sg.motif||''),refac:ex?ex.refacturable!==false:true,aide:sg.aide,ex:ex?ex.id:''})})}
 async function chargerFichierPleo(file){occupe('Lecture du fichier '+file.name+'…');try{const L=preparerLignes(await lirePleo(file));ui.pleo={fichier:file.name,lignes:L,f:{collab:'',cat:'',dec:'',proj:''}};location.hash='import-pleo';render()}catch(e){toast(e.message||'Import impossible.')}finally{libre()}}
 function analysePleo(items){const par=(k)=>{const o={};items.forEach(x=>{const kk=x[k]||'';o[kk]=o[kk]||{n:0,tot:0,valide:0,ecarte:0,trier:0};o[kk].n++;o[kk].tot+=x.mont;o[kk][x.d||'trier']+=x.mont});return o};return {collab:par('rid'),cat:par('cat'),proj:par('pid')}}
 function tableAnalyse(titre,o,lib){const ks=Object.keys(o).sort((a,b)=>o[b].tot-o[a].tot);
@@ -1341,7 +1349,7 @@ async function enregistrerPleo(){const P=ui.pleo;const dec=P.lignes.filter(l=>l.
     if(l.fichiers&&l.fichiers.length){chemins=[];for(const fch of l.fichiers){const path='pleo/'+l.recu+'/'+fch.nom;
       if(!envoyes[path]){const {error}=await sb.storage.from(BUCKET_J).upload(path,fch.blob,{upsert:true,contentType:fch.blob.type});envoyes[path]=error?'err':'ok';if(error){errJ++;console.error(error)}else nbJ++}
       if(envoyes[path]==='ok')chemins.push(path)}}
-    const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||l.note||'',refacturable:l.d==='valide'?l.refac:false,justif:chemins.length?true:l.justif!==false,importId:P.importId,justifs:chemins,pleoReceipt:l.recu||cur.pleoReceipt||'',dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));
+    const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.mois||l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||l.note||'',refacturable:l.d==='valide'?l.refac:false,justif:chemins.length?true:l.justif!==false,importId:P.importId,justifs:chemins,pleoReceipt:l.recu||cur.pleoReceipt||'',dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));
     if(r){ok++;l.ex=id;const k=l.pid+'|'+l.iso.slice(0,7);parMP[k]=(parMP[k]||0)+1}}
   }finally{libre()}
   ui.pleoMois=(P.lignes.map(l=>l.iso).sort()[0]||'').slice(0,7)||ui.pleoMois;
@@ -1568,7 +1576,7 @@ document.addEventListener('click',async e=>{
       let n=0;P.lignes.filter(match).forEach(l=>{l.d=b.dataset.v;if(l.d==='ecarte'&&!l.motif)l.motif=l.aide||'';n++});toast(n+' ligne'+(n>1?'s':'')+' mise'+(n>1?'s':'')+' à jour');render();break}
     case'pleoMasseProjet':{const P=ui.pleo,F=P.f;const v=(document.querySelector('[data-pmp]')||{}).value;if(!v){toast('Choisissez d\'abord un projet.');break}
       const match=l=>(!F.collab||(F.collab==='?'?!l.rid:l.rid===F.collab))&&(!F.cat||l.cat===F.cat)&&(!F.dec||(F.dec==='trier'?!l.d:l.d===F.dec))&&(!F.proj||(F.proj==='?'?!l.pid:l.pid===F.proj));
-      let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
+      let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';l.mois=l.iso.slice(0,7);n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
     case'agendaSave':await enregistrerAgenda();break;
     case'agendaFermer':ui.agenda=null;location.hash='saisie';render();break;
@@ -1686,8 +1694,8 @@ document.addEventListener('change',async e=>{
   if(t.dataset.pk&&ui.pleo){const tr=t.closest('tr[data-pi]');if(!tr)return;const l=ui.pleo.lignes[+tr.dataset.pi];const k=t.dataset.pk;
     if(k==='refac'){l.refac=t.checked;return}
     if(k==='motif'){l.motif=t.value;return}
-    if(k==='rid'){const cle=cleOwner(l.owner);ui.pleo.lignes.filter(x=>cleOwner(x.owner)===cle&&!x.ex).forEach(x=>{x.rid=t.value;if(!x.pid||x.via!=='manuel'){const pp=projetPour(x.rid,x.iso);x.pid=pp.pid;x.via=pp.via}});if(t.value)memoriserAlias(l.owner,t.value)}
-    else if(k==='pid'){l.pid=t.value;l.via=t.value?'manuel':''}
+    if(k==='rid'){const cle=cleOwner(l.owner);ui.pleo.lignes.filter(x=>cleOwner(x.owner)===cle&&!x.ex).forEach(x=>{x.rid=t.value;if(!x.pid||x.via!=='manuel'){const pp=projetPour(x.rid,x.iso);x.pid=pp.pid;x.via=pp.via;x.mois=pp.mois||x.iso.slice(0,7)}});if(t.value)memoriserAlias(l.owner,t.value)}
+    else if(k==='pid'){l.pid=t.value;l.via=t.value?'manuel':'';l.mois=l.iso.slice(0,7)}
     else l[k]=t.value;
     pending=false;render();return}
   if(t.dataset.jeff){const mm=t.dataset.jeff;const v=t.value===''?null:num(t.value);S.moisCfg[mm]=Object.assign({},S.moisCfg[mm],{joursEffectifs:v});
