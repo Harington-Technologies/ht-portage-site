@@ -179,19 +179,19 @@ p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
   function apres(form) { if (form._captcha) form._captcha.reinitialiser(); }
 
   // ---------- Double authentification (obligatoire pour tous) ----------
-  var enCours = false, facteur = null;
+  var enCours = false, etapeAffichee = false, facteur = null;
   async function apresConnexion() {
-    if (enCours) return; enCours = true;
+    if (enCours || etapeAffichee) return; enCours = true;
     try {
       var niv = await db.auth.mfa.getAuthenticatorAssuranceLevel();
       if (niv.data && niv.data.currentLevel === 'aal2') { location.replace('./'); return; }
       var lf = await db.auth.mfa.listFactors();
       var tous = (lf.data && lf.data.all) || [];
       var ok = tous.find(function (f) { return f.factor_type === 'totp' && f.status === 'verified'; });
-      if (ok) { facteur = ok.id; montrer('mfa'); return; }
+      if (ok) { facteur = ok.id; etapeAffichee = true; montrer('mfa'); return; }
       for (var i = 0; i < tous.length; i++) if (tous[i].status !== 'verified') await db.auth.mfa.unenroll({ factorId: tous[i].id });
-      var en = await db.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Pilotage Mecalux ' + new Date().toISOString().slice(0, 10), issuer: 'Pilotage Mecalux' });
-      montrer('enrol');
+      var en = await db.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Pilotage Mecalux ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' ' + Math.random().toString(36).slice(2, 6), issuer: 'Pilotage Mecalux' });
+      etapeAffichee = true; montrer('enrol');
       if (en.error) { st(document.getElementById('f-enrol'), 'Activation impossible : ' + errText(en.error), 'error'); return; }
       facteur = en.data.id; document.getElementById('qr').src = en.data.totp.qr_code; document.getElementById('cle').textContent = en.data.totp.secret;
     } finally { enCours = false; }
@@ -206,7 +206,11 @@ p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
     st(form, 'Validé.', 'ok'); location.replace('./');
   }
   ['f-mfa', 'f-enrol'].forEach(function (id) { var f = document.getElementById(id); f.addEventListener('submit', function (e) { e.preventDefault(); verifierCode(f); }); });
-  document.querySelectorAll('[data-act=sortir]').forEach(function (b) { b.addEventListener('click', async function () { await db.auth.signOut(); location.replace('connexion.html'); }); });
+  document.querySelectorAll('[data-act=sortir]').forEach(function (b) { b.addEventListener('click', async function () {
+    var r = null; try { r = await db.auth.signOut({ scope: 'local' }); } catch (e) { r = { error: e }; }
+    if (r && r.error) { try { Object.keys(localStorage).filter(function (k) { return k.indexOf('mecalux-pilotage') === 0; }).forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { /* rien */ } }
+    location.replace('connexion.html');
+  }); });
 
   // Session déjà ouverte (ou lien de confirmation) : étape de sécurité puis pilotage
   db.auth.onAuthStateChange(function (ev, s) {

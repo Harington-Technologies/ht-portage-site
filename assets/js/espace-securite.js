@@ -7,7 +7,8 @@
   if (!/^admin\.html([?#][\w=&%#.-]*)?$/.test(suite)) suite = 'admin.html';
 
   document.getElementById('deconnexion').addEventListener('click', async function () {
-    await db.auth.signOut(); location.replace('connexion.html');
+    if (E.deconnecter) return E.deconnecter('connexion.html');
+    await db.auth.signOut({ scope: 'local' }); location.replace('connexion.html');
   });
 
   var s = await db.auth.getSession();

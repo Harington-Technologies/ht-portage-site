@@ -469,7 +469,10 @@ async function initDb(){
 // Déconnexion automatique après 30 minutes sans activité (souris, clavier, toucher)
 function surveillerInactivite(){let t=Date.now();const MAX=30*60*1000;
   ['mousemove','keydown','click','touchstart','scroll'].forEach(e=>document.addEventListener(e,()=>{t=Date.now()},{passive:true,capture:true}));
-  setInterval(async()=>{if(Date.now()-t>MAX&&!occupeN){await sb.auth.signOut();location.replace('connexion.html?expire=1')}},30000)}
+  setInterval(async()=>{if(Date.now()-t>MAX&&!occupeN)deconnecter('connexion.html?expire=1')},30000)}
+// Déconnexion de ce navigateur uniquement (ne ferme pas les autres sites du même compte) ; nettoyage forcé si besoin
+async function deconnecter(cible){let r=null;try{r=await sb.auth.signOut({scope:'local'})}catch(e){r={error:e}}
+  if(r&&r.error){try{Object.keys(localStorage).filter(k=>k.indexOf('mecalux-pilotage')===0).forEach(k=>localStorage.removeItem(k))}catch(e){}}location.replace(cible||'connexion.html')}
 function formPwd(){
   openForm('Changer mon mot de passe',[{k:'pwd',l:'Nouveau mot de passe (8 caractères minimum)',type:'password',req:true,full:true}],{},async o=>{
     if(o.pwd.length<8){document.getElementById('frmErr').textContent='8 caractères minimum.';return false}
@@ -1350,7 +1353,7 @@ document.addEventListener('click',async e=>{
   if(a){if(a.dataset.pfmois)ui.pfMois=a.dataset.pfmois;if(a.dataset.calcproj){const p=byId('projets',a.dataset.calcproj);ui.calc.projetId=p.id;if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd;const af=list('affectations').find(x=>x.projetId===p.id&&x.phase==='mes');if(af){ui.calc.ressourceId=af.ressourceId;ui.calc.profil=profilOfRes(af.ressourceId);if(num(af.tjm))ui.calc.tjm=af.tjm}}if(a.dataset.saisieproj)ui.saisieProjet=a.dataset.saisieproj;if(a.dataset.saisiemois)ui.saisieMois=a.dataset.saisiemois}
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   const act=b.dataset.act,id=b.dataset.id;
-  if(act==='logout'){await sb.auth.signOut();location.replace('connexion.html');return}if(act==='pwd'){formPwd();return}if(act==='reload'){loadAll();return}
+  if(act==='logout'){await deconnecter();return}if(act==='pwd'){formPwd();return}if(act==='reload'){loadAll();return}
   switch(act){
     case'newProjet':formProjet();break;
     case'editProjet':formProjet(byId('projets',id));break;
