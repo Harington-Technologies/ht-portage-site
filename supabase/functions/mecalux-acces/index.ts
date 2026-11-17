@@ -2,7 +2,8 @@
 // Pilotage équipe Mecalux — comptes et demandes d'accès.
 //   POST { action: "inscription", prenom, nom, email, password }   → crée le compte et envoie le lien de confirmation (e-mail « Pilotage »)
 //   POST { action: "oubli", email }                                → envoie un lien pour choisir un nouveau mot de passe
-//   POST { action: "decider", d, decision }                        → valide ou refuse (administrateur connecté avec double authentification)
+//   POST { action: "decider", d, decision }                        → valide ou refuse (administrateur connecté avec double authentification) ;
+//                                                                      un refus supprime le compte s'il a été créé pour le pilotage (jamais un compte HT Portage)
 //   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
 // Secrets partagés du projet : RESEND_API_KEY, NOTIFY_FROM, WEBHOOK_SECRET. « Verify JWT » désactivé.
@@ -114,9 +115,22 @@ async function decider(req: Request, b) {
   if (valider) await envoyer([d.email], "Votre accès au pilotage Mecalux est ouvert", gabarit("Votre accès est ouvert",
     P(`Bonjour${d.prenom ? " " + esc(d.prenom) : ""},`) + P("Votre demande a été validée : vous pouvez vous connecter au pilotage de l'équipe Mecalux avec l'adresse et le mot de passe choisis lors de la création de votre compte."),
     { texte: "Accéder au pilotage", url: SITE + "connexion.html" }));
-  else await envoyer([d.email], "Votre demande d'accès au pilotage Mecalux", gabarit("Votre demande n'a pas été acceptée",
-    P(`Bonjour${d.prenom ? " " + esc(d.prenom) : ""},`) + P("Votre demande d'accès au pilotage de l'équipe Mecalux n'a pas été acceptée. Si vous pensez qu'il s'agit d'une erreur, contactez votre interlocuteur Harington.")));
-  return json(req, { ok: true, statut: valider ? "acceptee" : "refusee", email: d.email });
+  let supprime = false;
+  if (!valider) {
+    // Suppression du compte, uniquement s'il a été créé pour le pilotage et qu'il n'est pas dans l'équipe
+    const uid = d.user_id || (await admin.rpc("mecalux_id_compte", { p_email: d.email })).data;
+    if (uid) {
+      const { data: u } = await admin.auth.admin.getUserById(uid);
+      const { data: membre } = await admin.from("mecalux_equipe").select("email").ilike("email", d.email).maybeSingle();
+      if (u?.user && u.user.user_metadata?.app === "mecalux" && !membre) {
+        const { error } = await admin.auth.admin.deleteUser(uid);
+        if (error) console.error("Suppression du compte refusé", error); else { supprime = true; console.log("Compte refusé supprimé", d.email, "par", par); }
+      }
+    }
+    await envoyer([d.email], "Votre demande d'accès au pilotage Mecalux", gabarit("Votre demande n'a pas été acceptée",
+      P(`Bonjour${d.prenom ? " " + esc(d.prenom) : ""},`) + P("Votre demande d'accès au pilotage de l'équipe Mecalux n'a pas été acceptée" + (supprime ? " et le compte créé a été supprimé" : "") + ". Si vous pensez qu'il s'agit d'une erreur, contactez votre interlocuteur Harington.")));
+  }
+  return json(req, { ok: true, statut: valider ? "acceptee" : "refusee", email: d.email, supprime });
 }
 
 Deno.serve(async (req) => {
@@ -141,6 +155,8 @@ Deno.serve(async (req) => {
       if (!EMAIL_OK.test(email) || !prenom || !nom) return json(req, { erreur: "Merci de compléter tous les champs." }, 400);
       if (password.length < 10) return json(req, { erreur: "Le mot de passe doit faire au moins 10 caractères." }, 400);
       if (!(await autorise("mecalux-inscr-ip:" + ip, 5, 3600)) || !(await autorise("mecalux-inscr:" + email, 3, 86400))) return json(req, { erreur: "Trop de tentatives : réessayez plus tard." }, 429);
+      const { data: refus } = await admin.from("mecalux_demandes").select("id").ilike("email", email).eq("statut", "refusee").gt("traite_le", new Date(Date.now() - 7 * 86400000).toISOString()).limit(1).maybeSingle();
+      if (refus) return json(req, { erreur: "Une demande d'accès avec cette adresse a été refusée récemment. Contactez votre interlocuteur Harington." }, 403);
       const { data, error } = await admin.auth.admin.generateLink({ type: "signup", email, password, options: { data: { prenom, nom, app: "mecalux" }, redirectTo: SITE + "connexion.html" } });
       if (error) {
         if (/already|registered|exists/i.test(error.message)) return json(req, { erreur: "Un compte existe déjà avec cette adresse : connectez-vous, ou utilisez « Mot de passe oublié »." }, 409);
