@@ -310,3 +310,6 @@ revoke all on function public.mecalux_id_compte(text) from public, anon, authent
 grant execute on function public.mecalux_id_compte(text) to service_role;
 -- Téléphone perdu (sans administrateur disponible), dans l'éditeur SQL :
 --   delete from auth.mfa_factors where user_id = (select id from auth.users where email = '<adresse>');
+
+-- Compte connecté (double authentification validée) mais non autorisé : demande d'accès créée automatiquement
+-- (fonction public.mecalux_demander_acces(), appelée par la page ; une demande refusée bloque 7 jours).
