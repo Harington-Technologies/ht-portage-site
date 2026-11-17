@@ -231,3 +231,18 @@ drop policy if exists "mecalux_justifs_equipe" on storage.objects;
 create policy "mecalux_justifs_equipe" on storage.objects for all to authenticated
   using (bucket_id = 'mecalux-justifs' and public.mecalux_est_membre())
   with check (bucket_id = 'mecalux-justifs' and public.mecalux_est_membre());
+
+-- Imports Pleo nommés (liste, renommage, suppression d'un import et de ses dépenses)
+create table if not exists public.mecalux_imports (
+  id text primary key, nom text not null, fichier text, source text not null default 'pleo',
+  date_debut date, date_fin date, nb_lignes integer, total numeric(12,2),
+  cree_le timestamptz not null default now(), maj_le timestamptz not null default now()
+);
+alter table public.mecalux_imports enable row level security;
+drop policy if exists "equipe_tout" on public.mecalux_imports;
+create policy "equipe_tout" on public.mecalux_imports for all to authenticated
+  using (public.mecalux_est_membre()) with check (public.mecalux_est_membre());
+grant select, insert, update, delete on public.mecalux_imports to authenticated;
+alter table public.mecalux_frais add column if not exists import_id text references public.mecalux_imports(id) on delete set null;
+create index if not exists mecalux_frais_import_idx on public.mecalux_frais(import_id);
+alter publication supabase_realtime add table public.mecalux_imports;
