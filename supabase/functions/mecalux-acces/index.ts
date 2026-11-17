@@ -1,0 +1,171 @@
+// @ts-nocheck
+// Pilotage équipe Mecalux — comptes et demandes d'accès.
+//   POST { action: "inscription", prenom, nom, email, password }   → crée le compte et envoie le lien de confirmation (e-mail « Pilotage »)
+//   POST { action: "oubli", email }                                → envoie un lien pour choisir un nouveau mot de passe
+//   POST { action: "voir", d, t }                                  → détail d'une demande (page acces.html, lien reçu par e-mail)
+//   POST { action: "decider", d, t?, decision }                    → valide ou refuse ; jeton de l'e-mail, ou session d'un administrateur
+//   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
+// Secrets partagés du projet : RESEND_API_KEY, NOTIFY_FROM, WEBHOOK_SECRET. « Verify JWT » désactivé.
+
+import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
+const NOTIFY_FROM = Deno.env.get("NOTIFY_FROM") ?? "";
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET") ?? "";
+const SITE = "https://www.htportage.fr/mecalux/";
+const ORIGINES = ["https://www.htportage.fr", "https://htportage.fr"];
+
+function serverKey(): string {
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacy) return legacy;
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    const vals = Array.isArray(keys) ? keys : Object.values(keys);
+    return vals.map((v) => typeof v === "string" ? v : v?.key).find(Boolean) ?? "";
+  } catch { return ""; }
+}
+const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serverKey(), { auth: { persistSession: false } });
+
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+function gabarit(titre: string, corps: string, bouton?: { texte: string; url: string }, bouton2?: { texte: string; url: string }) {
+  const btn = (b, fond, couleur) => `<td style="background:${fond};border-radius:999px;padding:0"><a href="${esc(b.url)}" style="display:inline-block;padding:13px 26px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;color:${couleur};text-decoration:none">${esc(b.texte)}</a></td>`;
+  const boutons = bouton ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 8px"><tr>${btn(bouton, "#21324E", "#ffffff")}${bouton2 ? `<td style="width:12px"></td>${btn(bouton2, "#F3E6EC", "#784E61")}` : ""}</tr></table>` : "";
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(titre)}</title></head>
+<body style="margin:0;padding:0;background:#F1F4F7"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F4F7"><tr><td align="center" style="padding:32px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden">
+<tr><td style="background:#21324E;padding:22px 32px"><span style="font-family:Arial,sans-serif;font-size:17px;font-weight:bold;letter-spacing:2px;color:#ffffff">PILOTAGE ÉQUIPE MECALUX</span><div style="width:36px;height:3px;background:#C187A1;margin-top:8px;border-radius:2px"></div></td></tr>
+<tr><td style="padding:32px 32px 28px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1B1C1C"><h1 style="margin:0 0 18px;font-size:21px;line-height:1.3;color:#21324E">${esc(titre)}</h1>${corps}${boutons}</td></tr>
+<tr><td style="background:#F7F8FA;padding:16px 32px;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#6B7385">E-mail envoyé automatiquement par le pilotage de l'équipe Harington chez Mecalux.</td></tr>
+</table></td></tr></table></body></html>`;
+}
+const P = (t: string) => `<p style="margin:0 0 14px">${t}</p>`;
+const texte = (html: string) => html.replace(/<(style|title|head)[\s\S]*?<\/\1>/gi, "").replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, u, t) => t.replace(/<[^>]+>/g, "") + " : " + u)
+  .replace(/<\/(p|h1|tr|table)>|<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+  .split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
+
+async function envoyer(to: string[], sujet: string, html: string) {
+  const from = (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: `Pilotage Mecalux <${from}>`, to, subject: sujet, html, text: texte(html) }),
+  });
+  if (!r.ok) { console.error("Resend", r.status, await r.text()); return false; }
+  return true;
+}
+async function autorise(cle: string, max: number, fenetre: number) {
+  const { data, error } = await admin.rpc("limiter", { p_cle: cle, p_max: max, p_fenetre: fenetre });
+  return error ? true : data === true;
+}
+async function admins(): Promise<string[]> {
+  const { data } = await admin.from("mecalux_equipe").select("email").eq("admin", true);
+  return (data ?? []).map((x) => x.email).filter((e) => EMAIL_OK.test(e));
+}
+
+function cors(req: Request) {
+  const o = req.headers.get("origin") ?? "";
+  return { "Access-Control-Allow-Origin": ORIGINES.includes(o) ? o : ORIGINES[0], "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS", Vary: "Origin" };
+}
+const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors(req), "Content-Type": "application/json" } });
+
+// ---------- Demande créée (déclencheur) → e-mail aux administrateurs ----------
+async function nouvelleDemande(d) {
+  const dest = await admins();
+  if (!dest.length || d.statut !== "en_attente") return;
+  const nom = [d.prenom, d.nom].filter(Boolean).join(" ") || d.email;
+  const lien = (a: string) => `${SITE}acces.html?d=${d.id}&t=${d.jeton}&a=${a}`;
+  const html = gabarit("Nouvelle demande d'accès",
+    P(`<strong>${esc(nom)}</strong> (<a href="mailto:${esc(d.email)}" style="color:#784E61">${esc(d.email)}</a>) a créé son compte et demande l'accès au pilotage de l'équipe Mecalux.`) +
+    P("Une fois validé, il aura accès à l'ensemble du pilotage : projets, ressources, frais, justificatifs et préfactures.") +
+    P(`<span style="color:#6B7385;font-size:13px">Chaque bouton ouvre une page de confirmation : rien n'est décidé tant que vous n'avez pas confirmé.</span>`),
+    { texte: "Valider l'accès", url: lien("valider") }, { texte: "Refuser", url: lien("refuser") });
+  await envoyer(dest, `Demande d'accès au pilotage Mecalux — ${nom}`, html);
+}
+
+async function decider(req: Request, b) {
+  const { data: d } = await admin.from("mecalux_demandes").select("*").eq("id", b.d).maybeSingle();
+  if (!d) return json(req, { erreur: "Demande introuvable." }, 404);
+  let par = "";
+  if (b.t) {
+    if (b.t !== d.jeton) return json(req, { erreur: "Ce lien n'est pas valide." }, 403);
+    if (Date.now() - new Date(d.cree_le).getTime() > 30 * 86400000) return json(req, { erreur: "Ce lien a expiré : décidez depuis la page Accès du pilotage." }, 410);
+    par = "lien e-mail";
+  } else {
+    const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const { data: u } = await admin.auth.getUser(jwt);
+    const email = u?.user?.email ?? "";
+    const { data: ad } = email ? await admin.from("mecalux_equipe").select("email").ilike("email", email).eq("admin", true).maybeSingle() : { data: null };
+    if (!ad) return json(req, { erreur: "Action réservée aux administrateurs." }, 403);
+    par = email;
+  }
+  if (d.statut !== "en_attente") return json(req, { ok: true, deja: true, statut: d.statut, email: d.email });
+  const valider = b.decision === "valider";
+  const nom = [d.prenom, d.nom].filter(Boolean).join(" ");
+  if (valider) {
+    const { error } = await admin.from("mecalux_equipe").upsert({ email: d.email.toLowerCase(), nom: nom || null, admin: false }, { onConflict: "email", ignoreDuplicates: true });
+    if (error) { console.error(error); return json(req, { erreur: "Enregistrement impossible." }, 500); }
+  }
+  await admin.from("mecalux_demandes").update({ statut: valider ? "acceptee" : "refusee", traite_le: new Date().toISOString(), traite_par: par }).eq("id", d.id);
+  if (valider) await envoyer([d.email], "Votre accès au pilotage Mecalux est ouvert", gabarit("Votre accès est ouvert",
+    P(`Bonjour${d.prenom ? " " + esc(d.prenom) : ""},`) + P("Votre demande a été validée : vous pouvez vous connecter au pilotage de l'équipe Mecalux avec l'adresse et le mot de passe choisis lors de la création de votre compte."),
+    { texte: "Accéder au pilotage", url: SITE + "connexion.html" }));
+  else await envoyer([d.email], "Votre demande d'accès au pilotage Mecalux", gabarit("Votre demande n'a pas été acceptée",
+    P(`Bonjour${d.prenom ? " " + esc(d.prenom) : ""},`) + P("Votre demande d'accès au pilotage de l'équipe Mecalux n'a pas été acceptée. Si vous pensez qu'il s'agit d'une erreur, contactez votre interlocuteur Harington.")));
+  return json(req, { ok: true, statut: valider ? "acceptee" : "refusee", email: d.email });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors(req) });
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+
+  // Déclencheur base de données
+  if (req.headers.get("x-webhook-secret")) {
+    if (!WEBHOOK_SECRET || req.headers.get("x-webhook-secret") !== WEBHOOK_SECRET) return new Response("Unauthorized", { status: 401 });
+    const p = await req.json().catch(() => null);
+    if (p?.table === "mecalux_demandes" && p?.type === "INSERT" && p.record) {
+      try { await nouvelleDemande(p.record); } catch (e) { console.error(e); }
+    }
+    return new Response("OK");
+  }
+
+  const b = await req.json().catch(() => ({}));
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
+  try {
+    if (b.action === "inscription") {
+      const email = String(b.email ?? "").trim().toLowerCase(), prenom = String(b.prenom ?? "").trim().slice(0, 100), nom = String(b.nom ?? "").trim().slice(0, 100), password = String(b.password ?? "");
+      if (!EMAIL_OK.test(email) || !prenom || !nom) return json(req, { erreur: "Merci de compléter tous les champs." }, 400);
+      if (password.length < 10) return json(req, { erreur: "Le mot de passe doit faire au moins 10 caractères." }, 400);
+      if (!(await autorise("mecalux-inscr-ip:" + ip, 5, 3600)) || !(await autorise("mecalux-inscr:" + email, 3, 86400))) return json(req, { erreur: "Trop de tentatives : réessayez plus tard." }, 429);
+      const { data, error } = await admin.auth.admin.generateLink({ type: "signup", email, password, options: { data: { prenom, nom, app: "mecalux" }, redirectTo: SITE + "connexion.html" } });
+      if (error) {
+        if (/already|registered|exists/i.test(error.message)) return json(req, { erreur: "Un compte existe déjà avec cette adresse : connectez-vous, ou utilisez « Mot de passe oublié »." }, 409);
+        console.error(error); return json(req, { erreur: "Création du compte impossible. Réessayez." }, 500);
+      }
+      await envoyer([email], "Confirmez votre adresse — pilotage Mecalux", gabarit("Confirmez votre adresse e-mail",
+        P(`Bonjour ${esc(prenom)},`) + P("Vous avez demandé un accès au pilotage de l'équipe Harington chez Mecalux. Confirmez votre adresse en cliquant sur le bouton ci-dessous.") +
+        P("Votre demande sera ensuite transmise pour validation : vous recevrez un e-mail dès que votre accès sera ouvert."),
+        { texte: "Confirmer mon adresse", url: data.properties.action_link }));
+      return json(req, { ok: true });
+    }
+    if (b.action === "oubli") {
+      const email = String(b.email ?? "").trim().toLowerCase();
+      if (!EMAIL_OK.test(email)) return json(req, { erreur: "Indiquez votre e-mail." }, 400);
+      if (!(await autorise("mecalux-oubli-ip:" + ip, 10, 3600)) || !(await autorise("mecalux-oubli:" + email, 3, 3600))) return json(req, { erreur: "Trop de tentatives : réessayez plus tard." }, 429);
+      const { data, error } = await admin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo: SITE + "connexion.html?reset=1" } });
+      if (!error && data?.properties?.action_link) await envoyer([email], "Nouveau mot de passe — pilotage Mecalux", gabarit("Choisissez un nouveau mot de passe",
+        P("Bonjour,") + P("Vous avez demandé à changer le mot de passe de votre accès au pilotage de l'équipe Mecalux. Le lien ci-dessous est valable une heure.") +
+        P(`<span style="color:#6B7385;font-size:13px">Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet e-mail.</span>`),
+        { texte: "Choisir mon mot de passe", url: data.properties.action_link }));
+      return json(req, { ok: true });
+    }
+    if (b.action === "voir") {
+      const { data: d } = await admin.from("mecalux_demandes").select("id,email,prenom,nom,statut,cree_le,jeton").eq("id", b.d).maybeSingle();
+      if (!d || d.jeton !== b.t) return json(req, { erreur: "Ce lien n'est pas valide." }, 404);
+      delete d.jeton; return json(req, d);
+    }
+    if (b.action === "decider") return await decider(req, b);
+  } catch (e) { console.error(e); return json(req, { erreur: "Erreur inattendue. Réessayez." }, 500); }
+  return json(req, { erreur: "Action inconnue." }, 400);
+});

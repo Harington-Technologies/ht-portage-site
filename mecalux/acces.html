@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Demande d'accès · Pilotage équipe Mecalux</title>
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#21324E;--rose:#C187A1;--plum:#784E61;--bg:#F1F4F7;--line:#D7DDE5;--ink:#1B1C1C;--muted:#4A5468;--ok:#2E6B4F;--bad:#A3312F}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:'Open Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;align-items:center;justify-content:center;padding:32px 16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:32px 34px;width:100%;max-width:460px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:12px}.brand .logo{width:44px;height:44px;border-radius:13px;background:var(--navy);display:flex;align-items:center;justify-content:center}
+.brand b{color:var(--navy)}
+h1{font-size:21px;color:var(--navy);margin:0}p{margin:0;line-height:1.55}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:15px}dt{color:var(--muted)}dd{margin:0;font-weight:600;word-break:break-all}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border:0;border-radius:999px;padding:13px 20px;font:700 15px 'Open Sans',sans-serif;cursor:pointer;color:#fff;background:var(--navy)}
+.btn.d{background:var(--bad)}.btn.o{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+.btn:disabled{opacity:.6;cursor:wait}.btn:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+.st{font-size:15px}.st.ok{color:var(--ok);font-weight:600}.st.err{color:var(--bad);font-weight:600}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand"><span class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" aria-hidden="true"><path d="M3 21V9l6-4v4l6-4v4l6-4v16z"/><path d="M7 21v-4h3v4M14 21v-4h3v4"/></svg></span><b>Pilotage équipe Mecalux</b></div>
+  <h1 id="titre">Demande d'accès</h1>
+  <div id="corps"><p class="st" role="status">Chargement de la demande…</p></div>
+</main>
+<script src="../assets/js/config.js?v=20261117"></script>
+<script>
+(function () {
+  'use strict';
+  var cfg = window.HTP_CONFIG || {};
+  var q = new URLSearchParams(location.search), d = q.get('d') || '', t = q.get('t') || '', a = q.get('a') === 'refuser' ? 'refuser' : 'valider';
+  var corps = document.getElementById('corps');
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function appel(o) {
+    return fetch(cfg.supabaseUrl + '/functions/v1/mecalux-acces', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: cfg.supabaseAnonKey }, body: JSON.stringify(o) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.erreur) throw new Error(j.erreur || 'Service indisponible.'); return j; }); });
+  }
+  function message(txt, type) { corps.innerHTML = '<p class="st ' + (type || '') + '" role="status">' + esc(txt) + '</p>'; }
+  var LIB = { acceptee: 'acceptée', refusee: 'refusée' };
+  if (!d || !t) { message('Ce lien est incomplet.', 'err'); return; }
+  appel({ action: 'voir', d: d, t: t }).then(function (x) {
+    var nom = [x.prenom, x.nom].filter(Boolean).join(' ') || x.email;
+    var info = '<dl><dt>Nom</dt><dd>' + esc(nom) + '</dd><dt>E-mail</dt><dd>' + esc(x.email) + '</dd><dt>Demandé le</dt><dd>' + new Date(x.cree_le).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' }) + '</dd></dl>';
+    if (x.statut !== 'en_attente') { corps.innerHTML = info + '<p class="st" style="margin-top:16px">Cette demande a déjà été ' + LIB[x.statut] + '.</p>'; return; }
+    var principal = a === 'valider' ? '<button class="btn" data-dec="valider">Valider l\'accès</button>' : '<button class="btn d" data-dec="refuser">Refuser la demande</button>';
+    var autre = a === 'valider' ? '<button class="btn o" data-dec="refuser">Refuser plutôt</button>' : '<button class="btn o" data-dec="valider">Valider plutôt</button>';
+    corps.innerHTML = info + '<p style="margin:16px 0">' + (a === 'valider' ? 'Une fois validé, ' + esc(x.prenom || 'il') + ' aura accès à tout le pilotage : projets, ressources, frais, justificatifs et préfactures.' : esc(x.prenom || 'La personne') + ' recevra un e-mail lui indiquant que sa demande n\'a pas été acceptée.') + '</p><div class="row">' + principal + autre + '</div><p class="st" id="st" role="status" aria-live="polite" style="margin-top:12px"></p>';
+    corps.querySelectorAll('[data-dec]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        corps.querySelectorAll('[data-dec]').forEach(function (x) { x.disabled = true; });
+        var dec = b.dataset.dec, st = document.getElementById('st'); st.textContent = 'Enregistrement…'; st.className = 'st';
+        appel({ action: 'decider', d: d, t: t, decision: dec }).then(function (r) {
+          if (r.deja) { message('Cette demande avait déjà été ' + LIB[r.statut] + '.', ''); return; }
+          message(r.statut === 'acceptee' ? 'Accès validé : ' + r.email + ' vient de recevoir un e-mail pour se connecter.' : 'Demande refusée : ' + r.email + ' en a été informé par e-mail.', 'ok');
+        }).catch(function (e) { st.textContent = e.message; st.className = 'st err'; corps.querySelectorAll('[data-dec]').forEach(function (x) { x.disabled = false; }); });
+      });
+    });
+  }).catch(function (e) { message(e.message, 'err'); });
+})();
+</script>
+</body>
+</html>
