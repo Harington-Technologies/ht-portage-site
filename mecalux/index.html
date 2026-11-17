@@ -982,13 +982,60 @@ function vRestitutions(){
     B.map(b=>'<tr style="background:var(--bg)"><td colspan="4" style="font-weight:800;color:var(--navy)">'+esc(b.titre)+'</td><td class="n" style="font-weight:800;color:var(--navy)">'+nf(b.total)+'</td></tr>'+b.lignes.map(l=>'<tr><td>'+esc(l.nom)+'</td><td class="small">'+esc(l.service)+'</td><td class="n">'+v(l.dev||'')+'</td><td class="n">'+v(l.mes||'')+'</td><td class="n" style="font-weight:600">'+nf(l.total)+'</td></tr>').join('')).join('')+
     '</tbody></table></div><p class="small muted" style="margin:0">Source : saisie mensuelle (jours Développement et Mise en service, demi-journées comprises). R&D et congés comptés une fois par jour et par personne.</p></section>';
   return h}
+// Classeur Excel de la restitution (même disposition que le suivi Harington : titre, en-tête ligne 4, un bloc par projet)
+function classeurRestitution(EX,B,m){
+  const ML=moisLabel(m).replace(/^./,c=>c.toUpperCase());
+  const NAVY='FF21324E',PLUM='FF784E61',ROSE='FFF3E6EC',GRIS='FFF1F4F7',LIGNE='FFD7DDE5',MUTED='FF4A5468';
+  const wb=new EX.Workbook();wb.creator='Pilotage équipe Mecalux';wb.created=new Date();wb.title='Suivi des prestations Harington - '+ML;
+  const F=o=>Object.assign({name:'Calibri',size:10},o||{});
+  const fin={style:'thin',color:{argb:LIGNE}};const cadre={top:fin,left:fin,bottom:fin,right:fin};
+  const ws=wb.addWorksheet(ML.slice(0,31),{views:[{state:'frozen',ySplit:4,showGridLines:false}],
+    pageSetup:{paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'4:4',margins:{left:0.5,right:0.5,top:0.6,bottom:0.6,header:0.3,footer:0.3}},
+    headerFooter:{oddFooter:'&L&8Pilotage équipe Mecalux&C&8Suivi des prestations — '+ML+'&R&8Page &P / &N'}});
+  ws.columns=[{key:'a',width:36},{key:'b',width:20},{key:'c',width:13},{key:'d',width:13},{key:'e',width:19}];
+  ws.mergeCells('A1:E1');const t=ws.getCell('A1');t.value='Suivi des prestations — Harington Tech (classé par projet) — '+ML;t.font=F({name:'Calibri',size:14,bold:true,color:{argb:NAVY}});t.alignment={vertical:'middle'};ws.getRow(1).height=26;
+  ws.mergeCells('A2:E2');const st=ws.getCell('A2');st.value='Jours effectués saisis dans la saisie mensuelle · édité le '+new Date().toLocaleDateString('fr-FR');st.font=F({size:9,italic:true,color:{argb:MUTED}});
+  const h=ws.getRow(4);h.values=['Intervenant','Service','Jours DEV','Jours MES','Nb jours effectués'];h.height=22;
+  h.eachCell((c,i)=>{c.font=F({bold:true,color:{argb:'FFFFFFFF'}});c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.alignment={vertical:'middle',horizontal:i>2?'center':'left',indent:i>2?0:1};c.border=cadre});
+  const FMT='General';const FMT_E='General';
+  const ligne=(vals,style)=>{const r=ws.addRow(vals);r.height=18;r.eachCell({includeEmpty:true},(c,i)=>{if(i>5)return;c.font=F();c.border=cadre;c.alignment={vertical:'middle',horizontal:i>2?'right':'left',indent:i===1&&!style?2:i<=2?1:0};if(i>2)c.numFmt=i===5?FMT_E:FMT;if(style)style(c,i)});return r};
+  const projets=B.filter(b=>!b.autre),autres=B.filter(b=>b.autre);const lignesProjet=[];
+  projets.forEach(b=>{
+    const r0=ws.rowCount+1,r1=r0+1,r2=r0+b.lignes.length;
+    const sd=b.lignes.reduce((t,l)=>t+(l.dev||0),0),sm=b.lignes.reduce((t,l)=>t+(l.mes||0),0);
+    ligne([b.titre,'',{formula:'SUM(C'+r1+':C'+r2+')',result:sd},{formula:'SUM(D'+r1+':D'+r2+')',result:sm},{formula:'SUM(E'+r1+':E'+r2+')',result:b.total}],
+      c=>{c.font=F({bold:true,color:{argb:NAVY}});c.fill={type:'pattern',pattern:'solid',fgColor:{argb:GRIS}}});lignesProjet.push(r0);
+    b.lignes.forEach(l=>{const n=ws.rowCount+1;ligne([l.nom,l.service,l.dev||null,l.mes||null,{formula:'C'+n+'+D'+n,result:l.total}],(c,i)=>{if(i===2)c.font=F({color:{argb:MUTED}});if(i===5)c.font=F({bold:true})})});
+  });
+  if(projets.length){const ref=col=>lignesProjet.map(r=>col+r).join('+');
+    const tot=k=>projets.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(k==='e'?l.total:(l[k]||0)),0),0);
+    ligne(['Total facturable','',{formula:ref('C'),result:tot('dev')},{formula:ref('D'),result:tot('mes')},{formula:ref('E'),result:tot('e')}],
+      c=>{c.font=F({bold:true,color:{argb:'FFFFFFFF'}});c.fill={type:'pattern',pattern:'solid',fgColor:{argb:PLUM}}}).height=22}
+  if(autres.length){ws.addRow([]);const x=ws.addRow(['Hors facturation']);x.getCell(1).font=F({bold:true,size:9,color:{argb:MUTED}});
+    autres.forEach(b=>{const r1=ws.rowCount+2,r2=r1+b.lignes.length-1;
+      ligne([b.titre,'',null,null,{formula:'SUM(E'+r1+':E'+r2+')',result:b.total}],c=>{c.font=F({bold:true,color:{argb:PLUM}});c.fill={type:'pattern',pattern:'solid',fgColor:{argb:ROSE}}});
+      b.lignes.forEach(l=>ligne([l.nom,l.service,null,null,l.total],(c,i)=>{if(i===2)c.font=F({color:{argb:MUTED}})}))})}
+  // Synthèse
+  const sy=wb.addWorksheet('Synthèse',{views:[{showGridLines:false}],pageSetup:{paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  sy.columns=[{width:36},{width:20},{width:13},{width:13},{width:15},{width:13}];
+  sy.mergeCells('A1:F1');sy.getCell('A1').value='Synthèse — '+ML;sy.getCell('A1').font=F({size:14,bold:true,color:{argb:NAVY}});sy.getRow(1).height=26;
+  const entete=(r,vals)=>{const row=sy.getRow(r);row.values=vals;row.height=20;row.eachCell((c,i)=>{c.font=F({bold:true,color:{argb:'FFFFFFFF'}});c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.border=cadre;c.alignment={vertical:'middle',horizontal:i>2?'center':'left',indent:i>2?0:1}})};
+  const lsy=(vals,fort)=>{const r=sy.addRow(vals);r.eachCell({includeEmpty:true},(c,i)=>{if(i>vals.length)return;c.font=F();c.border=cadre;c.alignment={vertical:'middle',horizontal:i>2?'right':'left',indent:i<=2?1:0};if(i>2)c.numFmt=i===6?'0%':FMT;if(fort){c.font=F({bold:true,color:{argb:'FFFFFFFF'}});c.fill={type:'pattern',pattern:'solid',fgColor:{argb:PLUM}}}});return r};
+  sy.getCell('A3').value='Par projet';sy.getCell('A3').font=F({bold:true,color:{argb:PLUM}});entete(4,['Projet','Intervenants','Jours DEV','Jours MES','Total','Part']);
+  const totG=projets.reduce((t,b)=>t+b.total,0)||1;
+  projets.forEach(b=>lsy([b.titre,b.lignes.length,b.lignes.reduce((t,l)=>t+(l.dev||0),0),b.lignes.reduce((t,l)=>t+(l.mes||0),0),b.total,b.total/totG]));
+  if(projets.length)lsy(['Total facturable','',projets.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(l.dev||0),0),0),projets.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(l.mes||0),0),0),projets.reduce((t,b)=>t+b.total,0),1],true);
+  sy.addRow([]);const rI=sy.rowCount+1;sy.getCell('A'+rI).value='Par intervenant';sy.getCell('A'+rI).font=F({bold:true,color:{argb:PLUM}});entete(rI+1,['Intervenant','Service','Jours DEV','Jours MES','Total facturable','Congés / R&D']);
+  const P={};projets.forEach(b=>b.lignes.forEach(l=>{const x=P[l.nom]=P[l.nom]||{s:l.service,d:0,m:0,h:0};x.d+=l.dev||0;x.m+=l.mes||0}));autres.forEach(b=>b.lignes.forEach(l=>{const x=P[l.nom]=P[l.nom]||{s:l.service,d:0,m:0,h:0};x.h+=l.total}));
+  Object.keys(P).sort((a,b)=>a.localeCompare(b)).forEach(n=>{const x=P[n];const r=lsy([n,x.s,x.d,x.m,x.d+x.m,x.h]);r.getCell(6).numFmt=FMT});
+  return wb}
 async function restExport(type){
   const m=ui.restMois||moisPrecedent();const B=restitution(m,peutPleo?ui.restVisibles!==false:false);if(!B.length)return;
   const ML=moisLabel(m).replace(/^./,c=>c.toUpperCase());const titre='Suivi des prestations — Harington Tech (classé par projet) — '+ML;const nomF='Suivi des prestations Harington - '+ML;
   const lignes=[];B.forEach(b=>{lignes.push({g:true,c:[b.titre,'','','',b.total]});b.lignes.forEach(l=>lignes.push({c:[l.nom,l.service,l.dev||'',l.mes||'',l.total]}))});
-  if(type==='xlsx'){let X;try{X=await chargerXLSX()}catch(e){toast(e.message);return}
-    const aoa=[[titre],[],['Intervenant','Service','Jours DEV','Jours MES','Nb jours effectués'],...lignes.map(l=>l.c)];const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:34},{wch:18},{wch:11},{wch:11},{wch:18}];
-    const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,ML.slice(0,31));X.writeFile(wb,nomF+'.xlsx');return}
+  if(type==='xlsx'){let EX;try{toast('Préparation du fichier Excel…');if(!window.ExcelJS)await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');EX=window.ExcelJS}catch(e){toast('Export Excel indisponible : '+e.message);return}
+    const wb=classeurRestitution(EX,B,m);const buf=await wb.xlsx.writeBuffer();
+    const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const lien=document.createElement('a');lien.href=url;lien.download=nomF+'.xlsx';document.body.appendChild(lien);lien.click();lien.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);return}
   let JS;try{toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){toast(e.message);return}
   const t=x=>String(x==null?'':x).replace(/[\u202f\u00a0]/g,' ');const n=x=>x===''?'':t(nf(x));
   const doc=new JS({unit:'mm',format:'a4'});const W=210,M=14;const NAVY=[33,50,78];
