@@ -429,7 +429,7 @@ async function loadAll(){
     const {data:cfgs,error:e1}=await sb.from(TBL('config')).select('id,data');if(e1)throw e1;
     const cfg=(cfgs||[]).find(c=>c.id==='regles');
     S.regles=cfg&&cfg.data?Object.assign(clone(DEFAULT_REGLES),cfg.data):clone(DEFAULT_REGLES);
-    S.moisCfg={};(cfgs||[]).forEach(c=>{if(/^mois_/.test(c.id))S.moisCfg[c.id.slice(5)]=c.data||{};if(c.id==='pleo_alias')S.pleoAlias=c.data||{}});
+    S.moisCfg={};(cfgs||[]).forEach(c=>{if(/^mois_/.test(c.id))S.moisCfg[c.id.slice(5)]=c.data||{};if(c.id==='pleo_alias')S.pleoAlias=c.data||{};if(c.id==='agenda_alias')S.agendaAlias=c.data||{}});
     dbState='ok';
   }catch(e){console.error(e);dbState='erreur';authMsg=(e&&e.message)||''}
   render();
@@ -441,7 +441,7 @@ function subscribe(){
     const t=String(p.table||'').replace(/^mecalux_/,'');
     if(t==='config'){if(p.new&&p.new.id==='regles'&&p.new.data){S.regles=Object.assign(clone(DEFAULT_REGLES),p.new.data);scheduleRender()}
       else if(p.new&&/^mois_/.test(p.new.id||'')){S.moisCfg[p.new.id.slice(5)]=p.new.data||{};scheduleRender()}
-      else if(p.new&&p.new.id==='pleo_alias'){S.pleoAlias=p.new.data||{}}return}
+      else if(p.new&&p.new.id==='pleo_alias'){S.pleoAlias=p.new.data||{}}else if(p.new&&p.new.id==='agenda_alias'){S.agendaAlias=p.new.data||{}}return}
     if(!S[t])return;
     if(p.eventType==='DELETE'){if(p.old&&p.old.id)delete S[t][p.old.id]}
     else if(p.new&&p.new.id){S[t][p.new.id]=fromRow(p.new)}
@@ -517,7 +517,7 @@ function render(){
   try{
     if(r.startsWith('projet-'))html=vProjet(r.slice(7));
     else if(r.startsWith('prefacture-'))html=vPrefacture(r.slice(11));
-    else html=({'tableau-de-bord':vDash,projets:vProjets,ressources:vRessources,planning:vPlanning,calculateur:vCalc,saisie:vSaisie,'import-pleo':vImportPleo,prefactures:vPrefactures,restitutions:vRestitutions,regles:vRegles,acces:vAcces}[r]||vDash)();
+    else html=({'tableau-de-bord':vDash,projets:vProjets,ressources:vRessources,planning:vPlanning,calculateur:vCalc,saisie:vSaisie,'import-pleo':vImportPleo,prefactures:vPrefactures,restitutions:vRestitutions,'import-agenda':vImportAgenda,regles:vRegles,acces:vAcces}[r]||vDash)();
   }catch(e){console.error(e);html='<div class="card">Erreur d\'affichage : '+esc(e.message)+'</div>'}
   if(dbState==='login'){location.replace('connexion.html');return}
   if(dbState==='config'){m.innerHTML='<section class="card"><h1>Configuration manquante</h1><p style="margin:0">La configuration Supabase du site (assets/js/config.js) est introuvable.</p></section>';return}
@@ -886,6 +886,7 @@ function vSaisie(){
   const resIds=[...new Set(aff.map(a=>a.ressourceId).concat(list('temps').filter(t=>t.projetId===pid&&t.mois===m).map(t=>t.ressourceId)))];
   const tv=(rid,ph)=>{const t=byId('temps',[pid,rid,m,ph].join('_'));return t?t.jours:''};
   resIds.push(...list('calendrier').filter(c=>c.projetId===pid&&c.mois===m&&!resIds.includes(c.ressourceId)).map(c=>c.ressourceId));
+  h+='<div class="row" style="justify-content:flex-end"><label class="btn o sm" style="cursor:pointer" title="PDF de Google Agenda (vue semaine) : préremplit les jours de toute l\'équipe">Préremplir depuis Google Agenda (PDF)<input type="file" accept=".pdf" data-agenda="1" hidden></label></div>';
   h+=vCalendrier(pid,m,resIds);
   const tous=list('frais').filter(f=>f.projetId===pid&&f.mois===m).sort((a,b)=>(a.date||'')>(b.date||'')?1:-1);const fr=tous.filter(f=>f.statut!=='ecarte'),ec=tous.filter(f=>f.statut==='ecarte');
   h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><div class="row">'+(peutPleo?'<a class="btn o sm" href="#import-pleo">Import Pleo de l\'équipe</a>':'')+'<button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div></div>';
@@ -954,6 +955,90 @@ function vAcces(){
   if(estAdmin&&faites.length)h+='<details><summary style="cursor:pointer;font-weight:700;color:var(--navy)">Demandes traitées ('+faites.length+')</summary><div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Nom</th><th>E-mail</th><th>Décision</th><th>Le</th><th>Par</th></tr></thead><tbody>'+faites.map(x=>'<tr><td>'+esc([x.prenom,x.nom].filter(Boolean).join(' ')||'—')+'</td><td>'+esc(x.email)+'</td><td>'+(x.statut==='acceptee'?'<span class="pill ok">Validée</span>':'<span class="pill">Refusée</span>')+'</td><td class="small">'+(x.traite_le?new Date(x.traite_le).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'}):'')+'</td><td class="small">'+esc(x.traite_par||'')+'</td></tr>').join('')+'</tbody></table></div></details>';
   return h;
 }
+/* ---------- import Google Agenda (PDF « vue semaine ») → préremplissage du calendrier ---------- */
+async function chargerPdfJs(){if(!window.pdfjsLib){await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');window.pdfjsLib=window['pdfjs-dist/build/pdf']||window.pdfjsLib}
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';return window.pdfjsLib}
+// Événements « journée entière » : barres tracées sous la ligne des dates ; le texte n'apparaît qu'au début de la barre
+async function lireAgendaPdf(pdfjsLib,data){
+  const doc=await pdfjsLib.getDocument({data,isEvalSupported:false}).promise;const OPS=pdfjsLib.OPS;const evts=[];
+  for(let n=1;n<=doc.numPages;n++){const page=await doc.getPage(n);const tc=await page.getTextContent();
+    const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width}));
+    const an=+((items.map(i=>i.s).join(' ').match(/\b(20\d\d)\b/)||[])[1]||new Date().getFullYear());
+    const tetes=items.filter(i=>/(?:^|\s)(\d{1,2})\/(\d{1,2})\s*$/.test(i.s.trim()));if(!tetes.length)continue;
+    const yT=Math.max(...tetes.map(t=>t.y));const cols=tetes.filter(t=>Math.abs(t.y-yT)<3).map(t=>{const mm=t.s.trim().match(/(\d{1,2})\/(\d{1,2})\s*$/);return{c:t.x+t.w/2,mo:+mm[1],j:+mm[2]}}).sort((a,b)=>a.c-b.c);
+    const m0=cols[0].mo;cols.forEach(c=>{const a=c.mo<m0?an+1:an;c.iso=a+'-'+String(c.mo).padStart(2,'0')+'-'+String(c.j).padStart(2,'0')});
+    const ol=await page.getOperatorList();let ctm=[1,0,0,1,0,0];const pile=[];const boites=[];
+    const mul=(m,q)=>[m[0]*q[0]+m[2]*q[1],m[1]*q[0]+m[3]*q[1],m[0]*q[2]+m[2]*q[3],m[1]*q[2]+m[3]*q[3],m[0]*q[4]+m[2]*q[5]+m[4],m[1]*q[4]+m[3]*q[5]+m[5]];
+    const pt=(x,y)=>[ctm[0]*x+ctm[2]*y+ctm[4],ctm[1]*x+ctm[3]*y+ctm[5]];
+    for(let k=0;k<ol.fnArray.length;k++){const f=ol.fnArray[k],a=ol.argsArray[k];
+      if(f===OPS.save)pile.push(ctm.slice());else if(f===OPS.restore)ctm=pile.pop()||[1,0,0,1,0,0];else if(f===OPS.transform)ctm=mul(ctm,a);
+      else if(f===OPS.paintFormXObjectBegin){pile.push(ctm.slice());if(a&&a[0])ctm=mul(ctm,a[0])}else if(f===OPS.paintFormXObjectEnd)ctm=pile.pop()||[1,0,0,1,0,0];
+      else if(f===OPS.constructPath&&a[2]){const [x0,x1,y0,y1]=a[2];const p=[pt(x0,y0),pt(x1,y1)];const bx={x0:Math.min(p[0][0],p[1][0]),x1:Math.max(p[0][0],p[1][0]),y0:Math.min(p[0][1],p[1][1]),y1:Math.max(p[0][1],p[1][1])};
+        const h=bx.y1-bx.y0,w=bx.x1-bx.x0;if(h>5&&h<16&&w>15&&bx.y1<yT)boites.push(bx)}}
+    const vues=new Set();
+    boites.forEach(b=>{const cle=[b.x0,b.x1,b.y0].map(v=>Math.round(v)).join(',');if(vues.has(cle))return;vues.add(cle);
+      const txt=items.filter(i=>i.x>=b.x0-1&&i.x<b.x1&&i.y>=b.y0-1&&i.y<=b.y1+1).sort((p,q)=>p.x-q.x).map(i=>i.s).join(' ').replace(/\s+/g,' ').trim();if(!txt.startsWith('#'))return;
+      const jours=cols.filter(c=>c.c>b.x0&&c.c<b.x1).map(c=>c.iso);if(jours.length)evts.push({txt,jours})})}
+  return evts}
+const tokA=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().split(' ').filter(Boolean);
+const TAGS_CONGE=['HOLIDAYS','HOLIDAY','CONGE','CONGES','CP','VACANCES','ABSENCE'];
+// « #CDS_LIMAGRAIN M. F. Karoui » → tag, phase, initiales, nom
+function analyseEvenement(txt){const mots=txt.replace(/\?/g,' ').trim().split(/\s+/);const tag=mots.shift().replace(/^#/,'');
+  const iInit=mots.findIndex(w=>/^[A-Za-zÀ-ÿ]{1,3}\.([A-Za-zÀ-ÿ]\.?)*$/.test(w));
+  const avant=iInit<0?mots:mots.slice(0,iInit);let k=iInit<0?mots.length:iInit;const initiales=[];
+  while(k<mots.length&&/^[A-Za-zÀ-ÿ]{1,3}\.([A-Za-zÀ-ÿ]\.?)*$/.test(mots[k])){initiales.push(...mots[k].replace(/\./g,' ').trim().split(/\s+/).map(x=>x.length>1?x.split(''):[x]).flat().map(c=>c.toUpperCase()));k++}
+  const nom=iInit<0?[]:mots.slice(k);const tagComplet=[tag,...(iInit<0?[]:avant)].join(' ');
+  const t0=tokA(tag)[0]||'';const conge=TAGS_CONGE.includes(t0);const cds=/^CDS(_|$)/i.test(tag);
+  const cleProjet=tokA(cds&&tag.length>4?tagComplet.slice(4):tagComplet).join(' ');
+  return {tag:tagComplet,cleProjet,phase:conge?'conge':cds?'dev':'mes',initiales,nom:tokA(nom.join(' ')),personne:(iInit<0?'':mots.slice(iInit).join(' '))}}
+function agendaRessource(a){const cle=(a.initiales.join('')+' '+a.nom.join(' ')).trim();const al=(S.agendaAlias||{}).res||{};if(al[cle]&&byId('ressources',al[cle]))return al[cle];
+  if(!a.initiales.length&&!a.nom.length)return '';
+  const c=list('ressources').filter(r=>{const n=tokA(r.nom);const pris=new Set();
+    for(const t of a.nom){const i=n.findIndex((v,j)=>!pris.has(j)&&(v===t||v.startsWith(t)||tokProche(t,v)));if(i<0)return false;pris.add(i)}
+    const reste=n.filter((v,j)=>!pris.has(j));return a.initiales.every((l,j)=>reste[j]&&reste[j][0]===l)});
+  const actifs=c.filter(r=>estActif(r));return (actifs.length===1?actifs[0]:c.length===1?c[0]:{id:''}).id}
+function agendaProjet(cle){const al=(S.agendaAlias||{}).tags||{};if(al.hasOwnProperty(cle))return byId('projets',al[cle])?al[cle]:'';
+  const T=cle.split(' ');let best='',lg=0;
+  list('projets').filter(p=>!p.cloture).forEach(p=>{[tokA(p.client),tokA(p.nom),tokA((p.client||'')+' '+(p.nom||'')),tokA(p.refMecalux)].forEach(K=>{if(K.length&&K.length<=T.length&&K.every((k,i)=>T[i]===k)&&K.length>lg){lg=K.length;best=p.id}})});return best}
+function preparerAgenda(evts){const L={};
+  evts.forEach(e=>{const a=analyseEvenement(e.txt);const k=a.tag+'|'+a.personne;const l=L[k]=L[k]||Object.assign(a,{id:hashTxt(k),jours:new Set()});
+    const ouvres=e.jours.filter(iso=>{const d=new Date(iso+'T12:00').getDay();return d!==0&&d!==6});(ouvres.length?ouvres:e.jours).forEach(j=>l.jours.add(j))});
+  const lignes=Object.values(L).map(l=>Object.assign(l,{jours:[...l.jours].sort(),rid:agendaRessource(l),pid:l.phase==='conge'?'':agendaProjet(l.cleProjet)}));
+  lignes.filter(l=>l.phase==='conge').forEach(l=>{const m=l.jours[0]&&l.jours[0].slice(0,7);const autre=lignes.find(x=>x.rid===l.rid&&x.pid&&x.phase!=='conge');
+    const cal=list('calendrier').find(c=>c.ressourceId===l.rid&&c.mois===m);const aff=list('affectations').find(a=>a.ressourceId===l.rid);l.pid=autre?autre.pid:cal?cal.projetId:aff?aff.projetId:''});
+  return lignes.sort((a,b)=>a.tag.localeCompare(b.tag)||a.personne.localeCompare(b.personne))}
+async function memoAgenda(type,cle,val){S.agendaAlias=S.agendaAlias||{tags:{},res:{}};S.agendaAlias[type]=Object.assign({},S.agendaAlias[type],{[cle]:val});
+  const {error}=await sb.from(TBL('config')).upsert({id:'agenda_alias',data:S.agendaAlias,maj_le:new Date().toISOString()});if(error)handleErr(error)}
+async function chargerAgenda(file){occupe('Lecture du calendrier '+file.name+'…');
+  try{const lib=await chargerPdfJs();const buf=await new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>ko(new Error('Lecture du fichier impossible.'));fr.readAsArrayBuffer(file)});
+    const ev=await lireAgendaPdf(lib,new Uint8Array(buf));if(!ev.length){toast('Aucun événement « #PROJET Nom » trouvé dans ce PDF. Imprimez Google Agenda en vue semaine.');return}
+    ui.agenda={fichier:file.name,lignes:preparerAgenda(ev),remplacer:false,filtre:''};location.hash='import-agenda';render()}
+  catch(e){toast('Import impossible : '+(e.message||e))}finally{libre()}}
+function etatAgenda(l){return !l.pid&&l.phase!=='conge'?['Projet introuvable','']:!l.pid?['Projet à choisir','']:!l.rid?['Ressource à choisir','']:['À préremplir','ok']}
+function vImportAgenda(){const A=ui.agenda;
+  let h=head('Saisie mensuelle','Import Google Agenda','<label class="btn p" style="cursor:pointer">Importer un PDF Google Agenda<input type="file" accept=".pdf" data-agenda="1" hidden></label>');
+  if(!A)return h+'<section class="card"><p style="margin:0">Dans Google Agenda, affichez la <b>vue semaine</b> (ou plusieurs semaines) avec les calendriers de l\'équipe, puis <b>Imprimer → Enregistrer en PDF</b>. Chaque événement « #PROJET Initiale. Nom » préremplit les jours de la personne : <b>#CDS_PROJET</b> = développement, <b>#PROJET</b> = mise en service, <b>#HOLIDAYS</b> = congé. Les week-ends d\'un événement sur plusieurs jours ne sont pas remplis.</p></section>';
+  const L=A.lignes;const ok=L.filter(l=>etatAgenda(l)[1]==='ok');const nbJ=ok.reduce((t,l)=>t+l.jours.length,0);
+  const ds=L.flatMap(l=>l.jours).sort();
+  h+='<div class="row small muted"><b>'+esc(A.fichier)+'</b> · '+L.length+' lignes · du '+dateFr(ds[0])+' au '+dateFr(ds[ds.length-1])+'<span class="sp"></span><button class="btn g sm" data-act="agendaFermer">Fermer sans enregistrer</button></div>';
+  h+='<section class="kpis">'+kpi('À préremplir',nf(nbJ)+' j',ok.length+' ligne'+(ok.length>1?'s':''))+kpi('Ignorées',String(L.length-ok.length),'projet ou ressource introuvable')+'</section>';
+  const tags=[...new Set(L.map(l=>l.cleProjet+'|'+l.phase))];
+  const optP=(v,vide)=>'<option value="">'+vide+'</option>'+list('projets').filter(p=>!p.cloture||p.id===v).sort((a,b)=>libProjet(a).localeCompare(libProjet(b))).map(p=>'<option value="'+p.id+'"'+(p.id===v?' selected':'')+'>'+esc(libProjet(p))+'</option>').join('');
+  const optR=v=>'<option value="">— choisir —</option>'+list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.id+'"'+(r.id===v?' selected':'')+'>'+esc(r.nom)+'</option>').join('');
+  const TYP={dev:'Développement',mes:'Mise en service',conge:'Congé'};
+  const vis=L.filter(l=>!A.filtre||(A.filtre==='ok')===(etatAgenda(l)[1]==='ok'));
+  h+='<section class="card"><div class="filters"><label class="f">Afficher<select data-agendafiltre="1"><option value="">Toutes les lignes</option><option value="ok"'+(A.filtre==='ok'?' selected':'')+'>À préremplir</option><option value="ko"'+(A.filtre==='ko'?' selected':'')+'>Ignorées</option></select></label><span class="small muted" style="align-self:end;padding-bottom:10px">Choisir un projet pour un tag l\'applique à toutes ses lignes et s\'en souvient pour les prochains imports.</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Événement</th><th>Personne</th><th>Ressource</th><th>Projet</th><th>Type</th><th class="n">Jours</th><th>État</th></tr></thead><tbody>'+
+    vis.map(l=>{const e=etatAgenda(l);return '<tr data-ag="'+l.id+'"><td style="font-weight:700">#'+esc(l.tag)+'</td><td class="small">'+esc(l.personne||'—')+'</td><td><select data-agr="1" aria-label="Ressource">'+optR(l.rid)+'</select></td><td><select data-agp="1" aria-label="Projet">'+optP(l.pid,l.phase==='conge'?'— projet du congé —':'— ne pas importer —')+'</select></td><td><select data-agt="1" aria-label="Type">'+Object.entries(TYP).map(([k,v])=>'<option value="'+k+'"'+(k===l.phase?' selected':'')+'>'+v+'</option>').join('')+'</select></td><td class="n"><b>'+l.jours.length+'</b><div class="small muted">'+dateFr(l.jours[0])+(l.jours.length>1?' → '+dateFr(l.jours[l.jours.length-1]):'')+'</div></td><td><span class="pill'+(e[1]?' ok':'')+'">'+e[0]+'</span></td></tr>'}).join('')+'</tbody></table></div>'+
+    '<div class="row"><label class="row small" style="font-weight:600"><input type="checkbox" data-agrempl="1"'+(A.remplacer?' checked':'')+'> Remplacer les jours déjà saisis (sinon seuls les jours vides sont remplis)</label><span class="sp"></span><button class="btn p" data-act="agendaSave"'+(ok.length?'':' disabled')+'>Préremplir '+nf(nbJ)+' jours dans la saisie</button></div></section>';
+  return h}
+async function enregistrerAgenda(){const A=ui.agenda;if(!A)return;const ok=A.lignes.filter(l=>etatAgenda(l)[1]==='ok');if(!ok.length)return;
+  const G={};ok.forEach(l=>l.jours.forEach(iso=>{const k=[l.pid,l.rid,iso.slice(0,7)].join('|');(G[k]=G[k]||{})[iso]=l.phase}));
+  const cles=Object.keys(G);let n=0,remplis=0,gardes=0;occupe('Préremplissage : 0 / '+cles.length+'…');
+  try{for(const k of cles){occupeMsg('Préremplissage : '+(++n)+' / '+cles.length+'…');const [pid,rid,m]=k.split('|');const cur=calOf(pid,rid,m);const jours=Object.assign({},(cur&&cur.jours)||{});
+      Object.entries(G[k]).forEach(([iso,t])=>{if(jours[iso]&&!A.remplacer){if(jours[iso]!==t)gardes++;return}if(jours[iso]!==t){jours[iso]=t;remplis++}});
+      await saveCal(pid,rid,m,jours)}}finally{libre()}
+  toast(remplis+' jour'+(remplis>1?'s':'')+' prérempli'+(remplis>1?'s':'')+(gardes?' · '+gardes+' déjà saisi'+(gardes>1?'s':'')+' conservé'+(gardes>1?'s':''):''));
+  const m=ok[0].jours[0].slice(0,7);ui.agenda=null;ui.saisieMois=m;location.hash='saisie';render()}
 /* ---------- restitutions : suivi des prestations par projet ---------- */
 function moisPrecedent(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7)}
 function libProjet(p){return String(p.client||'').toUpperCase()+(p.nom?' · '+p.nom:'')}
@@ -1484,6 +1569,8 @@ document.addEventListener('click',async e=>{
       const match=l=>(!F.collab||(F.collab==='?'?!l.rid:l.rid===F.collab))&&(!F.cat||l.cat===F.cat)&&(!F.dec||(F.dec==='trier'?!l.d:l.d===F.dec))&&(!F.proj||(F.proj==='?'?!l.pid:l.pid===F.proj));
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
+    case'agendaSave':await enregistrerAgenda();break;
+    case'agendaFermer':ui.agenda=null;location.hash='saisie';render();break;
     case'restXlsx':await restExport('xlsx');break;
     case'restPdf':await restExport('pdf');break;
     case'basculerVisibilite':{const p=byId('projets',id);if(!p||!peutPleo)break;const v=!p.visibleMecalux;
@@ -1583,6 +1670,14 @@ document.addEventListener('change',async e=>{
     if(k==='ressourceId'){ui.calc.tjm=''}
     if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
   if(t.dataset.roleEmail){const em=t.dataset.roleEmail,ro=t.value;const {error}=await sb.from('mecalux_equipe').update({role:ro}).eq('email',em);if(error){handleErr(error);chargerAcces();return}toast(em+' : '+ROLES[ro]);chargerAcces();return}
+  if(t.dataset.agenda&&t.files&&t.files[0]){const f=t.files[0];t.value='';await chargerAgenda(f);return}
+  if(ui.agenda&&(t.dataset.agr||t.dataset.agp||t.dataset.agt)){const l=ui.agenda.lignes.find(x=>x.id===t.closest('tr[data-ag]').dataset.ag);if(!l)return;
+    if(t.dataset.agr){l.rid=t.value;if(t.value)await memoAgenda('res',(l.initiales.join('')+' '+l.nom.join(' ')).trim(),t.value)}
+    if(t.dataset.agt){l.phase=t.value}
+    if(t.dataset.agp){if(l.phase==='conge')l.pid=t.value;else{ui.agenda.lignes.filter(x=>x.cleProjet===l.cleProjet&&x.phase!=='conge').forEach(x=>x.pid=t.value);await memoAgenda('tags',l.cleProjet,t.value)}}
+    render();return}
+  if(t.dataset.agendafiltre!==undefined&&ui.agenda){ui.agenda.filtre=t.value;render();return}
+  if(t.dataset.agrempl&&ui.agenda){ui.agenda.remplacer=t.checked;render();return}
   if(t.dataset.restvis){ui.restVisibles=t.checked;render();return}
   if(t.dataset.pnom&&ui.pleo){ui.pleo.nom=t.value;return}
   if(t.dataset.pleo){const f=t.files&&t.files[0];t.value='';if(f)chargerFichierPleo(f);return}
