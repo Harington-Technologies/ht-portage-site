@@ -4,6 +4,7 @@
 //   POST { action: "oubli", email }                                → envoie un lien pour choisir un nouveau mot de passe
 //   POST { action: "decider", d, decision }                        → valide ou refuse (administrateur connecté avec double authentification) ;
 //                                                                      un refus supprime le compte s'il a été créé pour le pilotage (jamais un compte HT Portage)
+//   POST { action: "retirer", email }                              → retire l'accès et supprime le compte s'il a été créé pour le pilotage (administrateur)
 //   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
 // Secrets partagés du projet : RESEND_API_KEY, NOTIFY_FROM, WEBHOOK_SECRET. « Verify JWT » désactivé.
@@ -195,6 +196,25 @@ Deno.serve(async (req) => {
       for (const f of lf?.factors ?? []) await admin.auth.admin.mfa.deleteFactor({ userId: uid, id: f.id });
       console.log("Double authentification réinitialisée", email, "par", par);
       return json(req, { ok: true, n: (lf?.factors ?? []).length });
+    }
+    if (b.action === "retirer") {
+      const par = await adminConnecte(req);
+      if (!par) return json(req, { erreur: "Action réservée aux administrateurs connectés avec la double authentification." }, 403);
+      const email = String(b.email ?? "").trim().toLowerCase();
+      if (email === par.toLowerCase()) return json(req, { erreur: "Vous ne pouvez pas retirer votre propre accès." }, 400);
+      const { error: e1 } = await admin.from("mecalux_equipe").delete().ilike("email", email);
+      if (e1) { console.error(e1); return json(req, { erreur: "Retrait impossible." }, 500); }
+      let supprime = false;
+      const { data: uid } = await admin.rpc("mecalux_id_compte", { p_email: email });
+      if (uid) {
+        const { data: u } = await admin.auth.admin.getUserById(uid);
+        if (u?.user?.user_metadata?.app === "mecalux") {
+          const { error } = await admin.auth.admin.deleteUser(uid);
+          if (error) console.error("Suppression du compte", error); else supprime = true;
+        }
+      }
+      console.log("Accès retiré", email, supprime ? "(compte supprimé)" : "", "par", par);
+      return json(req, { ok: true, supprime });
     }
     if (b.action === "decider") return await decider(req, b);
   } catch (e) { console.error(e); return json(req, { erreur: "Erreur inattendue. Réessayez." }, 500); }
