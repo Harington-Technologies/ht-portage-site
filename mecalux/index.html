@@ -366,7 +366,7 @@ function calcFrais(c){
 /* ---------- persistance : Supabase ---------- */
 const TABLES={
   ressources:['id','code','nom','pays','actif','date_fin','role','ville','profil','tjm_vente','tjm_cout','email','maj_le'],
-  projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','notes','maj_le'],
+  projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','visible_mecalux','notes','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
   frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','par_jour','prix_jour','jours','jours_auto','justifs','pleo_receipt','import_id','source','statut','motif','pleo_ref','marchand','categorie_pleo','maj_le'],
@@ -582,10 +582,11 @@ function addDays(d,k){const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+k);r
 function delai(p){if(!p.mesFin||p.cloture)return'';const d=Math.round((new Date(p.mesFin)-new Date(today()))/864e5);if(d<0)return'<div class="small" style="color:var(--bad);font-weight:700">+'+(-d)+' j de retard</div>';return'<div class="small muted">dans '+d+' j</div>'}
 function kpi(l,v,s){return '<div class="kpi"><span class="l">'+esc(l)+'</span><span class="v">'+v+'</span><span class="s">'+esc(s)+'</span></div>'}
 
+function pillVisibilite(p){if(!peutPleo)return '';return p.visibleMecalux?'<span class="pill ok" title="Les utilisateurs Mecalux voient ce projet">Visible Mecalux</span>':'<span class="pill" title="Projet interne : invisible pour les utilisateurs Mecalux">Interne Harington</span>'}
 function vProjets(){
   const ps=list('projets').sort((a,b)=>(a.client+a.nom).localeCompare(b.client+b.nom));
   let h=head('Clients et sites industriels','Projets','<button class="btn p" data-act="newProjet">+ Nouveau projet</button>');
-  h+='<section class="card">'+(ps.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Client</th><th>Projet · site</th><th>Développement</th><th>Mise en service</th><th>Phase</th><th class="n">Budget prévu</th><th></th></tr></thead><tbody>'+ps.map(p=>{const s=projStats(p.id);return '<tr><td style="font-weight:700">'+esc(p.client)+'</td><td><a href="#projet-'+p.id+'" style="font-weight:600">'+esc(p.nom)+'</a><div class="small muted">'+esc(p.site||'')+'</div></td><td class="small">'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</td><td class="small">'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</td><td>'+phasePill(p)+'</td><td class="n">'+eur(s.totalPrev)+'</td><td class="n"><a class="btn g sm" href="#projet-'+p.id+'">Ouvrir</a></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucun projet. Ajoutez par exemple « IKEA · entrepôt automatisé ».</div>')+'</section>';
+  h+='<section class="card">'+(ps.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Client</th><th>Projet · site</th><th>Développement</th><th>Mise en service</th><th>Phase</th><th class="n">Budget prévu</th><th></th></tr></thead><tbody>'+ps.map(p=>{const s=projStats(p.id);return '<tr><td style="font-weight:700">'+esc(p.client)+'</td><td><a href="#projet-'+p.id+'" style="font-weight:600">'+esc(p.nom)+'</a><div class="small muted">'+esc(p.site||'')+'</div>'+(peutPleo?'<div style="margin-top:4px">'+pillVisibilite(p)+'</div>':'')+'</td><td class="small">'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</td><td class="small">'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</td><td>'+phasePill(p)+'</td><td class="n">'+eur(s.totalPrev)+'</td><td class="n"><a class="btn g sm" href="#projet-'+p.id+'">Ouvrir</a></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucun projet. Ajoutez par exemple « IKEA · entrepôt automatisé ».</div>')+'</section>';
   return h;
 }
 
@@ -595,7 +596,7 @@ function vProjet(id){
   const aff=list('affectations').filter(a=>a.projetId===id);
   const est=list('estimations').filter(e=>e.projetId===id);
   let h='<a href="#projets" class="small" style="font-weight:600">← Projets</a>'+head(p.client,p.nom,'<button class="btn o" data-act="editProjet" data-id="'+id+'">Modifier</button><a class="btn p" href="#calculateur" data-calcproj="'+id+'">Estimer des frais</a>');
-  h+='<section class="card"><div class="card-h"><div class="row">'+phasePill(p)+(p.refMecalux?'<span class="pill">Réf. Mecalux '+esc(p.refMecalux)+'</span>':'')+'</div>'+delai(p)+'</div><dl class="dl"><div><dt>Site</dt><dd>'+esc(p.site||'—')+'</dd></div><div><dt>Distance (aller)</dt><dd>'+(p.distanceKm?nf(p.distanceKm)+' km':'—')+'</dd></div><div><dt>Développement</dt><dd>'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</dd></div><div><dt>Mise en service</dt><dd>'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</dd></div><div><dt>Jours ouvrés sur site</dt><dd>'+(workdays(p.mesDebut,p.mesFin)||'—')+'</dd></div></dl>'+(p.notes?'<div class="note i">'+esc(p.notes)+'</div>':'')+'</section>';
+  h+='<section class="card"><div class="card-h"><div class="row">'+phasePill(p)+pillVisibilite(p)+(peutPleo?'<button class="btn o sm" data-act="basculerVisibilite" data-id="'+id+'">'+(p.visibleMecalux?'Rendre interne':'Rendre visible par Mecalux')+'</button>':'')+(p.refMecalux?'<span class="pill">Réf. Mecalux '+esc(p.refMecalux)+'</span>':'')+'</div>'+delai(p)+'</div><dl class="dl"><div><dt>Site</dt><dd>'+esc(p.site||'—')+'</dd></div><div><dt>Distance (aller)</dt><dd>'+(p.distanceKm?nf(p.distanceKm)+' km':'—')+'</dd></div><div><dt>Développement</dt><dd>'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</dd></div><div><dt>Mise en service</dt><dd>'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</dd></div><div><dt>Jours ouvrés sur site</dt><dd>'+(workdays(p.mesDebut,p.mesFin)||'—')+'</dd></div></dl>'+(p.notes?'<div class="note i">'+esc(p.notes)+'</div>':'')+'</section>';
   h+='<section class="kpis">'+kpi('Prestations prévues',eur(s.montPrev),nf(s.joursPrev)+' jours')+kpi('Frais estimés',eur(s.fraisPrev),est.length+' estimation'+(est.length>1?'s':''))+kpi('Total prévu',eur(s.totalPrev),p.budgetMontant?'budget client '+eur(num(p.budgetMontant)):'prestations + frais')+kpi('Réalisé',eur(s.totalReal),nf(s.joursReal)+' j · '+eur(s.fraisReal)+' de frais')+'</section>';
   // affectations
   h+='<section class="card"><div class="card-h"><h2>Ressources affectées</h2><button class="btn o sm" data-act="newAff" data-id="'+id+'">+ Affecter une ressource</button></div>';
@@ -1207,6 +1208,7 @@ async function pdfEstimation(c,libelle){
 
 function formProjet(p){
   openForm(p?'Modifier le projet':'Nouveau projet',[
+    ...(peutPleo?[{k:'visibleMecalux',l:'Visible par Mecalux (les utilisateurs Mecalux voient ce projet, son équipe, ses frais et ses préfactures)',type:'check',full:true}]:[]),
     {k:'client',l:'Client',req:true,ph:'IKEA, Limagrain, PepsiCo…'},{k:'nom',l:'Projet',req:true,ph:'Entrepôt automatisé'},
     {k:'site',l:'Site (ville, pays)',ph:'Lyon, France'},
     {k:'distanceKm',l:'Distance aller depuis la base (km)',type:'number'},{k:'refMecalux',l:'Référence Mecalux'},
@@ -1216,6 +1218,7 @@ function formProjet(p){
     {k:'cloture',l:'Projet terminé et clôturé',type:'check'},
     {k:'notes',l:'Notes',type:'textarea'}
   ],p,async o=>{if(o.devDebut&&o.devFin&&o.devFin<o.devDebut){document.getElementById('frmErr').textContent='La fin du développement est avant son début.';return false}if(o.mesDebut&&o.mesFin&&o.mesFin<o.mesDebut){document.getElementById('frmErr').textContent='La fin de la mise en service est avant son début.';return false}
+    if(!peutPleo)o.visibleMecalux=true;else o.visibleMecalux=!!o.visibleMecalux;
     const id=p?p.id:uid('p');const ok=await save('projets',id,Object.assign({},p||{},o));if(ok){toast('Projet enregistré');if(!p)location.hash='projet-'+id}return ok});
 }
 function formRes(r){
@@ -1388,6 +1391,9 @@ document.addEventListener('click',async e=>{
       const match=l=>(!F.collab||(F.collab==='?'?!l.rid:l.rid===F.collab))&&(!F.cat||l.cat===F.cat)&&(!F.dec||(F.dec==='trier'?!l.d:l.d===F.dec))&&(!F.proj||(F.proj==='?'?!l.pid:l.pid===F.proj));
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
+    case'basculerVisibilite':{const p=byId('projets',id);if(!p||!peutPleo)break;const v=!p.visibleMecalux;
+      document.getElementById('dlgBody').innerHTML='<h2>'+(v?'Rendre visible par Mecalux':'Rendre le projet interne')+'</h2><p style="margin:0">'+(v?'Les utilisateurs Mecalux verront « '+esc(p.client+' · '+p.nom)+' » : son équipe, son calendrier, ses frais, ses justificatifs et ses préfactures.':'Les utilisateurs Mecalux ne verront plus « '+esc(p.client+' · '+p.nom)+' » ni rien de ce qui s\'y rattache.')+'</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn p" id="cfYes">Confirmer</button></div>';dlg.showModal();
+      document.getElementById('cfYes').onclick=async()=>{dlg.close();const ok=await save('projets',id,Object.assign({},p,{visibleMecalux:v}));if(ok)toast(v?'Projet visible par Mecalux':'Projet interne : masqué pour Mecalux')};break}
     case'accesDecider':{const dec=b.dataset.v;const x=ui.acces.demandes.find(y=>y.id===id);if(!x)break;let roleChoisi=/@harington\.fr$/i.test(x.email)?'harington':'mecalux';
       const go=async()=>{occupe(dec==='valider'?'Validation de l\'accès…':'Refus de la demande…');try{const cfg=window.HTP_CONFIG;
         const r=await fetch(cfg.supabaseUrl+'/functions/v1/mecalux-acces',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'decider',d:id,decision:dec,role:roleChoisi})});
