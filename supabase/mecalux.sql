@@ -313,3 +313,7 @@ grant execute on function public.mecalux_id_compte(text) to service_role;
 
 -- Compte connecté (double authentification validée) mais non autorisé : demande d'accès créée automatiquement
 -- (fonction public.mecalux_demander_acces(), appelée par la page ; une demande refusée bloque 7 jours).
+
+-- Refus d'une demande : le compte créé pour le pilotage est supprimé (fonction mecalux-acces) ; la demande est conservée
+alter table public.mecalux_demandes drop constraint if exists mecalux_demandes_user_id_fkey;
+alter table public.mecalux_demandes add constraint mecalux_demandes_user_id_fkey foreign key (user_id) references auth.users(id) on delete set null;
