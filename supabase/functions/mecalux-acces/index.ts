@@ -2,8 +2,8 @@
 // Pilotage équipe Mecalux — comptes et demandes d'accès.
 //   POST { action: "inscription", prenom, nom, email, password }   → crée le compte et envoie le lien de confirmation (e-mail « Pilotage »)
 //   POST { action: "oubli", email }                                → envoie un lien pour choisir un nouveau mot de passe
-//   POST { action: "voir", d, t }                                  → détail d'une demande (page acces.html, lien reçu par e-mail)
-//   POST { action: "decider", d, t?, decision }                    → valide ou refuse ; jeton de l'e-mail, ou session d'un administrateur
+//   POST { action: "decider", d, decision }                        → valide ou refuse (administrateur connecté avec double authentification)
+//   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
 // Secrets partagés du projet : RESEND_API_KEY, NOTIFY_FROM, WEBHOOK_SECRET. « Verify JWT » désactivé.
 
@@ -75,31 +75,34 @@ async function nouvelleDemande(d) {
   const dest = await admins();
   if (!dest.length || d.statut !== "en_attente") return;
   const nom = [d.prenom, d.nom].filter(Boolean).join(" ") || d.email;
-  const lien = (a: string) => `${SITE}acces.html?d=${d.id}&t=${d.jeton}&a=${a}`;
+  const lien = SITE + "#acces";
   const html = gabarit("Nouvelle demande d'accès",
     P(`<strong>${esc(nom)}</strong> (<a href="mailto:${esc(d.email)}" style="color:#784E61">${esc(d.email)}</a>) a créé son compte et demande l'accès au pilotage de l'équipe Mecalux.`) +
     P("Une fois validé, il aura accès à l'ensemble du pilotage : projets, ressources, frais, justificatifs et préfactures.") +
-    P(`<span style="color:#6B7385;font-size:13px">Chaque bouton ouvre une page de confirmation : rien n'est décidé tant que vous n'avez pas confirmé.</span>`),
-    { texte: "Valider l'accès", url: lien("valider") }, { texte: "Refuser", url: lien("refuser") });
+    P(`<span style="color:#6B7385;font-size:13px">Par sécurité, la décision se prend dans le pilotage, après connexion avec votre code de double authentification.</span>`),
+    { texte: "Valider ou refuser", url: lien });
   await envoyer(dest, `Demande d'accès au pilotage Mecalux — ${nom}`, html);
+}
+
+// Administrateur du pilotage, session validée par la double authentification (aal2)
+async function adminConnecte(req: Request): Promise<string> {
+  const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return "";
+  const { data: u, error } = await admin.auth.getUser(jwt);
+  if (error || !u?.user?.email) return "";
+  let aal = "";
+  try { aal = JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).aal ?? ""; } catch { aal = ""; }
+  if (aal !== "aal2") return "";
+  const { data: ad } = await admin.from("mecalux_equipe").select("email").ilike("email", u.user.email).eq("admin", true).maybeSingle();
+  return ad ? u.user.email : "";
 }
 
 async function decider(req: Request, b) {
   const { data: d } = await admin.from("mecalux_demandes").select("*").eq("id", b.d).maybeSingle();
   if (!d) return json(req, { erreur: "Demande introuvable." }, 404);
-  let par = "";
-  if (b.t) {
-    if (b.t !== d.jeton) return json(req, { erreur: "Ce lien n'est pas valide." }, 403);
-    if (Date.now() - new Date(d.cree_le).getTime() > 30 * 86400000) return json(req, { erreur: "Ce lien a expiré : décidez depuis la page Accès du pilotage." }, 410);
-    par = "lien e-mail";
-  } else {
-    const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-    const { data: u } = await admin.auth.getUser(jwt);
-    const email = u?.user?.email ?? "";
-    const { data: ad } = email ? await admin.from("mecalux_equipe").select("email").ilike("email", email).eq("admin", true).maybeSingle() : { data: null };
-    if (!ad) return json(req, { erreur: "Action réservée aux administrateurs." }, 403);
-    par = email;
-  }
+  const ad = await adminConnecte(req);
+  if (!ad) return json(req, { erreur: "Action réservée aux administrateurs connectés avec la double authentification." }, 403);
+  const par = ad;
   if (d.statut !== "en_attente") return json(req, { ok: true, deja: true, statut: d.statut, email: d.email });
   const valider = b.decision === "valider";
   const nom = [d.prenom, d.nom].filter(Boolean).join(" ");
@@ -153,6 +156,10 @@ Deno.serve(async (req) => {
       const email = String(b.email ?? "").trim().toLowerCase();
       if (!EMAIL_OK.test(email)) return json(req, { erreur: "Indiquez votre e-mail." }, 400);
       if (!(await autorise("mecalux-oubli-ip:" + ip, 10, 3600)) || !(await autorise("mecalux-oubli:" + email, 3, 3600))) return json(req, { erreur: "Trop de tentatives : réessayez plus tard." }, 429);
+      // Uniquement pour les comptes du pilotage (équipe autorisée ou demande en cours)
+      const { data: eq } = await admin.from("mecalux_equipe").select("email").ilike("email", email).maybeSingle();
+      const { data: dm } = eq ? { data: null } : await admin.from("mecalux_demandes").select("id").ilike("email", email).limit(1).maybeSingle();
+      if (!eq && !dm) return json(req, { ok: true });
       const { data, error } = await admin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo: SITE + "connexion.html?reset=1" } });
       if (!error && data?.properties?.action_link) await envoyer([email], "Nouveau mot de passe — pilotage Mecalux", gabarit("Choisissez un nouveau mot de passe",
         P("Bonjour,") + P("Vous avez demandé à changer le mot de passe de votre accès au pilotage de l'équipe Mecalux. Le lien ci-dessous est valable une heure.") +
@@ -160,10 +167,18 @@ Deno.serve(async (req) => {
         { texte: "Choisir mon mot de passe", url: data.properties.action_link }));
       return json(req, { ok: true });
     }
-    if (b.action === "voir") {
-      const { data: d } = await admin.from("mecalux_demandes").select("id,email,prenom,nom,statut,cree_le,jeton").eq("id", b.d).maybeSingle();
-      if (!d || d.jeton !== b.t) return json(req, { erreur: "Ce lien n'est pas valide." }, 404);
-      delete d.jeton; return json(req, d);
+    if (b.action === "reinit_mfa") {
+      const par = await adminConnecte(req);
+      if (!par) return json(req, { erreur: "Action réservée aux administrateurs connectés avec la double authentification." }, 403);
+      const email = String(b.email ?? "").trim().toLowerCase();
+      const { data: m } = await admin.from("mecalux_equipe").select("email").ilike("email", email).maybeSingle();
+      if (!m) return json(req, { erreur: "Cette adresse n'est pas dans l'équipe." }, 404);
+      const { data: uid } = await admin.rpc("mecalux_id_compte", { p_email: email });
+      if (!uid) return json(req, { erreur: "Aucun compte créé avec cette adresse." }, 404);
+      const { data: lf } = await admin.auth.admin.mfa.listFactors({ userId: uid });
+      for (const f of lf?.factors ?? []) await admin.auth.admin.mfa.deleteFactor({ userId: uid, id: f.id });
+      console.log("Double authentification réinitialisée", email, "par", par);
+      return json(req, { ok: true, n: (lf?.factors ?? []).length });
     }
     if (b.action === "decider") return await decider(req, b);
   } catch (e) { console.error(e); return json(req, { erreur: "Erreur inattendue. Réessayez." }, 500); }

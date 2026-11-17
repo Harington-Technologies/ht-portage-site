@@ -32,6 +32,9 @@ input:focus{outline:2px solid var(--navy2);outline-offset:0;border-color:var(--n
 .btn.rose{background:var(--rose);color:var(--ink)}
 .btn:disabled{opacity:.6;cursor:wait}
 .lien{background:none;border:0;padding:0;color:var(--plum);font:600 14px 'Open Sans',sans-serif;text-decoration:underline;cursor:pointer;align-self:flex-start}
+.qr{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.qr img{width:170px;height:170px;border:1px solid var(--line);border-radius:12px;padding:6px;background:#fff}
+code.cle{font-size:13px;word-break:break-all;background:#F1F4F7;border-radius:8px;padding:6px 8px;display:inline-block}
+input.code{font-size:22px!important;letter-spacing:.35em;text-align:center}
 .st{margin:0;font-size:14px;min-height:1px}.st.err{color:var(--bad)}.st.ok{color:var(--ok)}
 p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
 [hidden]{display:none!important}
@@ -85,6 +88,30 @@ p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
     </form>
   </section>
 
+  <section id="p-mfa" hidden>
+    <form id="f-mfa" novalidate>
+      <h1>Code de sécurité</h1>
+      <p class="aide">Ouvrez votre application d'authentification (Google Authenticator, Microsoft Authenticator…) et saisissez le code à 6 chiffres affiché pour « Pilotage Mecalux ».</p>
+      <label class="f">Code à 6 chiffres<input class="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required></label>
+      <button class="btn" type="submit">Valider</button>
+      <button class="lien" type="button" data-act="sortir">Se déconnecter</button>
+      <p class="aide" style="font-size:13px">Téléphone perdu ou changé ? Demandez à un administrateur de réinitialiser votre double authentification.</p>
+      <p class="st" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section id="p-enrol" hidden>
+    <form id="f-enrol" novalidate>
+      <h1>Activez la double authentification</h1>
+      <p class="aide">Par sécurité, l'accès au pilotage demande un code à usage unique en plus du mot de passe. Installez une application d'authentification sur votre téléphone (Google Authenticator, Microsoft Authenticator…), puis scannez ce QR code.</p>
+      <div class="qr"><img id="qr" alt="QR code à scanner avec l'application d'authentification"><p class="aide" style="flex:1;min-width:160px;font-size:13px">Impossible de scanner ? Saisissez cette clé dans l'application :<br><code class="cle" id="cle"></code></p></div>
+      <label class="f">Code affiché par l'application<input class="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required></label>
+      <button class="btn" type="submit">Activer et continuer</button>
+      <button class="lien" type="button" data-act="sortir">Se déconnecter</button>
+      <p class="st" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
   <section id="p-nouveau" hidden>
     <form id="f-nouveau" novalidate>
       <h1>Nouveau mot de passe</h1>
@@ -119,10 +146,10 @@ p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
     return m || 'Une erreur est survenue. Réessayez.';
   }
 
-  var vues = { connexion: 'p-connexion', inscription: 'p-inscription', oubli: 'p-oubli', nouveau: 'p-nouveau' };
+  var vues = { connexion: 'p-connexion', inscription: 'p-inscription', oubli: 'p-oubli', nouveau: 'p-nouveau', mfa: 'p-mfa', enrol: 'p-enrol' };
   function montrer(v) {
     Object.keys(vues).forEach(function (k) { document.getElementById(vues[k]).hidden = k !== v; });
-    document.getElementById('tabs').hidden = v === 'oubli' || v === 'nouveau';
+    document.getElementById('tabs').hidden = v !== 'connexion' && v !== 'inscription';
     document.getElementById('tab-connexion').setAttribute('aria-selected', v === 'connexion' ? 'true' : 'false');
     document.getElementById('tab-inscription').setAttribute('aria-selected', v === 'inscription' ? 'true' : 'false');
     var i = document.querySelector('#' + vues[v] + ' input'); if (i) i.focus();
@@ -150,15 +177,46 @@ p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
   function occuper(form, oui) { var b = form.querySelector('[type=submit]'); if (b) b.disabled = oui; }
   function apres(form) { if (form._captcha) form._captcha.reinitialiser(); }
 
-  // Session déjà ouverte (ou lien de confirmation) : direction le pilotage
+  // ---------- Double authentification (obligatoire pour tous) ----------
+  var enCours = false, facteur = null;
+  async function apresConnexion() {
+    if (enCours) return; enCours = true;
+    try {
+      var niv = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (niv.data && niv.data.currentLevel === 'aal2') { location.replace('./'); return; }
+      var lf = await db.auth.mfa.listFactors();
+      var tous = (lf.data && lf.data.all) || [];
+      var ok = tous.find(function (f) { return f.factor_type === 'totp' && f.status === 'verified'; });
+      if (ok) { facteur = ok.id; montrer('mfa'); return; }
+      for (var i = 0; i < tous.length; i++) if (tous[i].status !== 'verified') await db.auth.mfa.unenroll({ factorId: tous[i].id });
+      var en = await db.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Pilotage Mecalux ' + new Date().toISOString().slice(0, 10), issuer: 'Pilotage Mecalux' });
+      montrer('enrol');
+      if (en.error) { st(document.getElementById('f-enrol'), 'Activation impossible : ' + errText(en.error), 'error'); return; }
+      facteur = en.data.id; document.getElementById('qr').src = en.data.totp.qr_code; document.getElementById('cle').textContent = en.data.totp.secret;
+    } finally { enCours = false; }
+  }
+  async function verifierCode(form) {
+    var code = (form.elements.code.value || '').replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) { st(form, 'Le code comporte 6 chiffres.', 'error'); form.elements.code.focus(); return; }
+    occuper(form, true); st(form, 'Vérification…');
+    var r = await db.auth.mfa.challengeAndVerify({ factorId: facteur, code: code });
+    occuper(form, false);
+    if (r.error) { st(form, /invalid|expired/i.test(r.error.message || '') ? 'Code incorrect ou expiré : saisissez le code actuellement affiché.' : errText(r.error), 'error'); form.elements.code.value = ''; form.elements.code.focus(); return; }
+    st(form, 'Validé.', 'ok'); location.replace('./');
+  }
+  ['f-mfa', 'f-enrol'].forEach(function (id) { var f = document.getElementById(id); f.addEventListener('submit', function (e) { e.preventDefault(); verifierCode(f); }); });
+  document.querySelectorAll('[data-act=sortir]').forEach(function (b) { b.addEventListener('click', async function () { await db.auth.signOut(); location.replace('connexion.html'); }); });
+
+  // Session déjà ouverte (ou lien de confirmation) : étape de sécurité puis pilotage
   db.auth.onAuthStateChange(function (ev, s) {
     if (ev === 'PASSWORD_RECOVERY') { enReset = true; montrer('nouveau'); return; }
-    if (s && !enReset && ev === 'SIGNED_IN') location.replace('./');
+    if (s && !enReset && ev === 'SIGNED_IN') setTimeout(apresConnexion, 0);
   });
   db.auth.getSession().then(function (r) {
     var s = r.data && r.data.session;
     if (enReset) { if (s) montrer('nouveau'); else { montrer('oubli'); st(document.getElementById('f-oubli'), 'Ce lien a expiré : demandez-en un nouveau.', 'error'); } return; }
-    if (s) location.replace('./');
+    if (s) apresConnexion();
+    else if (params.get('expire') === '1') st(document.getElementById('f-connexion'), 'Vous avez été déconnecté après 30 minutes d\'inactivité.', '');
   });
 
   var fc = document.getElementById('f-connexion');
@@ -170,7 +228,7 @@ p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
     catch (err) { r = { error: err }; }
     occuper(fc, false); apres(fc);
     if (r.error) { st(fc, errText(r.error), 'error'); return; }
-    location.replace('./');
+    fc.elements.password.value = ''; st(fc, ''); apresConnexion();
   });
 
   var fi = document.getElementById('f-inscription');
@@ -204,7 +262,7 @@ p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
     var r = await db.auth.updateUser({ password: fn.elements.password.value });
     occuper(fn, false);
     if (r.error) { st(fn, errText(r.error), 'error'); return; }
-    st(fn, 'Mot de passe enregistré.', 'ok'); location.replace('./');
+    st(fn, 'Mot de passe enregistré.', 'ok'); enReset = false; apresConnexion();
   });
 
   if (params.get('inscription') === '1') montrer('inscription');
