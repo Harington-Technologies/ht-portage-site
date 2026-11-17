@@ -340,3 +340,15 @@ create policy "imports_lecture" on public.mecalux_imports for select to authenti
 create policy "imports_harington" on public.mecalux_imports for all to authenticated using (public.mecalux_est_harington()) with check (public.mecalux_est_harington());
 create policy "mecalux_justifs_pleo_harington" on storage.objects as restrictive for insert to authenticated
   with check (bucket_id <> 'mecalux-justifs' or name not like 'pleo/%' or public.mecalux_est_harington());
+
+-- ============ Visibilité des projets pour Mecalux ============
+alter table public.mecalux_projets add column if not exists visible_mecalux boolean not null default false;
+create or replace function public.mecalux_voit_projet(p text) returns boolean language sql stable security definer set search_path = public as $$
+  select public.mecalux_est_harington()
+      or (public.mecalux_est_membre() and (p is null or exists (select 1 from public.mecalux_projets where id = p and visible_mecalux)));
+$$;
+drop policy if exists "equipe_tout" on public.mecalux_projets;
+create policy "projets_harington" on public.mecalux_projets for all to authenticated using (public.mecalux_est_harington()) with check (public.mecalux_est_harington());
+create policy "projets_mecalux" on public.mecalux_projets for all to authenticated using (public.mecalux_est_membre() and visible_mecalux) with check (public.mecalux_est_membre() and visible_mecalux);
+-- affectations, temps, frais, calendrier, préfactures, estimations : policy "equipe_projet_visible" = mecalux_voit_projet(projet_id)
+-- justificatifs : policy restrictive "mecalux_justifs_lecture_projet" (lecture limitée aux dépenses des projets visibles)
