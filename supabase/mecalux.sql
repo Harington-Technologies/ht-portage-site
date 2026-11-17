@@ -292,3 +292,21 @@ create trigger mecalux_demande_acces after insert or update of email_confirmed_a
 --   supabase_functions.http_request('https://krcsbskmttgmzzqjfudo.supabase.co/functions/v1/mecalux-acces', 'POST',
 --   '{"Content-type":"application/json","x-webhook-secret":"<WEBHOOK_SECRET>"}', '{}', '5000');
 -- creer_profil() ignore aussi les comptes dont raw_user_meta_data->>'app' = 'mecalux' (pas de fiche consultant HT Portage).
+
+-- ============ Double authentification obligatoire (comme l'administration HT Portage) ============
+-- Les données ne sont accessibles qu'à une session validée par le code TOTP (niveau aal2).
+create or replace function public.mecalux_est_membre() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.mecalux_equipe where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')))
+     and coalesce(auth.jwt() ->> 'aal', '') = 'aal2';
+$$;
+create or replace function public.mecalux_est_admin() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.mecalux_equipe where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and admin)
+     and coalesce(auth.jwt() ->> 'aal', '') = 'aal2';
+$$;
+create or replace function public.mecalux_id_compte(p_email text) returns uuid language sql stable security definer set search_path = public, auth as $$
+  select id from auth.users where lower(email) = lower(p_email) limit 1;
+$$;
+revoke all on function public.mecalux_id_compte(text) from public, anon, authenticated;
+grant execute on function public.mecalux_id_compte(text) to service_role;
+-- Téléphone perdu (sans administrateur disponible), dans l'éditeur SQL :
+--   delete from auth.mfa_factors where user_id = (select id from auth.users where email = '<adresse>');

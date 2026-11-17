@@ -36,3 +36,5 @@ end $$;
 -- Justificatifs (bucket privé mecalux-justifs) : accès anonyme temporaire, supprimé par le bloc ci-dessus
 -- create policy "mecalux_justifs_dev_anon" on storage.objects for all to anon
 --   using (bucket_id = 'mecalux-justifs') with check (bucket_id = 'mecalux-justifs');
+
+-- 17/11/2026 : mode développement terminé (politiques anonymes supprimées, accès anonyme révoqué).

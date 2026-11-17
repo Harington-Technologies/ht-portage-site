@@ -460,8 +460,16 @@ async function initDb(){
   sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'mecalux-pilotage'}});
   const {data}=await sb.auth.getSession();session=data.session;
   sb.auth.onAuthStateChange((ev,s)=>{const was=!!session;session=s;if(s&&!was)loadAll();if(!s){membre=null;COLLS.forEach(c=>S[c]={});if(channel){sb.removeChannel(channel);channel=null}location.replace('connexion.html')}});
-  if(session)loadAll();else location.replace('connexion.html')
+  if(!session){location.replace('connexion.html');return}
+  // Double authentification obligatoire : sans code validé, retour à la page de connexion
+  const niv=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(!niv.data||niv.data.currentLevel!=='aal2'){location.replace('connexion.html?mfa=1');return}
+  surveillerInactivite();loadAll();
 }
+// Déconnexion automatique après 30 minutes sans activité (souris, clavier, toucher)
+function surveillerInactivite(){let t=Date.now();const MAX=30*60*1000;
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(e=>document.addEventListener(e,()=>{t=Date.now()},{passive:true,capture:true}));
+  setInterval(async()=>{if(Date.now()-t>MAX&&!occupeN){await sb.auth.signOut();location.replace('connexion.html?expire=1')}},30000)}
 function formPwd(){
   openForm('Changer mon mot de passe',[{k:'pwd',l:'Nouveau mot de passe (8 caractères minimum)',type:'password',req:true,full:true}],{},async o=>{
     if(o.pwd.length<8){document.getElementById('frmErr').textContent='8 caractères minimum.';return false}
@@ -929,8 +937,8 @@ function vAcces(){
   }
   h+='<section class="card"><div class="card-h"><h2 style="margin:0">Personnes autorisées</h2>'+(estAdmin?'<button class="btn o sm" data-act="accesAjouter">Autoriser une adresse</button>':'')+'</div><div class="scroll"><table class="tbl"><thead><tr><th>E-mail</th><th>Nom</th><th>Rôle</th><th>Depuis le</th>'+(estAdmin?'<th></th>':'')+'</tr></thead><tbody>'+
     A.equipe.map(x=>{const lui=x.email.toLowerCase()===moi;return '<tr><td style="font-weight:600">'+esc(x.email)+(lui?' <span class="pill">vous</span>':'')+'</td><td>'+esc(x.nom||'—')+'</td><td>'+(x.admin?'<span class="pill ok">Administrateur</span>':'Utilisateur')+'</td><td class="small">'+(x.ajoute_le?dateFr(String(x.ajoute_le).slice(0,10)):'—')+'</td>'+
-      (estAdmin?'<td style="text-align:right;white-space:nowrap">'+(lui?'':'<button class="btn o sm" data-act="accesRole" data-id="'+esc(x.email)+'">'+(x.admin?'Retirer admin':'Rendre admin')+'</button> <button class="btn d sm" data-act="accesRetirer" data-id="'+esc(x.email)+'">Retirer l\'accès</button>')+'</td>':'')+'</tr>'}).join('')+
-    '</tbody></table></div><p class="small muted" style="margin:0">Tous les utilisateurs voient l\'ensemble du pilotage. Les administrateurs reçoivent les demandes d\'accès par e-mail et gèrent cette liste. Une adresse autorisée à l\'avance accède au pilotage dès la confirmation de son compte, sans demande.</p></section>';
+      (estAdmin?'<td style="text-align:right;white-space:nowrap">'+(lui?'':'<button class="btn o sm" data-act="accesMfa" data-id="'+esc(x.email)+'" title="Téléphone perdu ou changé">Réinit. double auth.</button> <button class="btn o sm" data-act="accesRole" data-id="'+esc(x.email)+'">'+(x.admin?'Retirer admin':'Rendre admin')+'</button> <button class="btn d sm" data-act="accesRetirer" data-id="'+esc(x.email)+'">Retirer l\'accès</button>')+'</td>':'')+'</tr>'}).join('')+
+    '</tbody></table></div><p class="small muted" style="margin:0">Tous les utilisateurs voient l\'ensemble du pilotage, avec mot de passe et code de double authentification obligatoires. Les administrateurs reçoivent les demandes d\'accès par e-mail et gèrent cette liste. Une adresse autorisée à l\'avance accède au pilotage dès la confirmation de son compte, sans demande.</p></section>';
   const faites=A.demandes.filter(x=>x.statut!=='en_attente').slice(0,15);
   if(estAdmin&&faites.length)h+='<details><summary style="cursor:pointer;font-weight:700;color:var(--navy)">Demandes traitées ('+faites.length+')</summary><div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Nom</th><th>E-mail</th><th>Décision</th><th>Le</th><th>Par</th></tr></thead><tbody>'+faites.map(x=>'<tr><td>'+esc([x.prenom,x.nom].filter(Boolean).join(' ')||'—')+'</td><td>'+esc(x.email)+'</td><td>'+(x.statut==='acceptee'?'<span class="pill ok">Validée</span>':'<span class="pill">Refusée</span>')+'</td><td class="small">'+(x.traite_le?new Date(x.traite_le).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'}):'')+'</td><td class="small">'+esc(x.traite_par||'')+'</td></tr>').join('')+'</tbody></table></div></details>';
   return h;
@@ -1381,6 +1389,9 @@ document.addEventListener('click',async e=>{
       const em=o.email.trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){document.getElementById('frmErr').textContent='Adresse e-mail invalide.';return false}
       const {error}=await sb.from('mecalux_equipe').upsert({email:em,nom:o.nom||null,admin:!!o.admin});if(error){handleErr(error);return false}
       toast(em+' est autorisé : la personne peut créer son compte depuis la page de connexion');chargerAcces();return true});break;
+    case'accesMfa':{document.getElementById('dlgBody').innerHTML='<h2>Réinitialiser la double authentification</h2><p style="margin:0">À utiliser si '+esc(id)+' a perdu ou changé de téléphone. À sa prochaine connexion, un nouveau QR code lui sera proposé. Vérifiez son identité avant de le faire (par téléphone par exemple).</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Réinitialiser</button></div>';dlg.showModal();
+      document.getElementById('cfYes').onclick=async()=>{dlg.close();occupe('Réinitialisation…');try{const cfg=window.HTP_CONFIG;const r=await fetch(cfg.supabaseUrl+'/functions/v1/mecalux-acces',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'reinit_mfa',email:id})});
+        const j=await r.json().catch(()=>({}));toast(!r.ok||j.erreur?(j.erreur||'Action impossible.'):'Double authentification réinitialisée pour '+id)}finally{libre()}};break}
     case'accesRole':{const x=ui.acces.equipe.find(y=>y.email===id);if(!x)break;const {error}=await sb.from('mecalux_equipe').update({admin:!x.admin}).eq('email',id);if(error)handleErr(error);else toast(id+(x.admin?' n\'est plus administrateur':' est administrateur'));chargerAcces();break}
     case'accesRetirer':{document.getElementById('dlgBody').innerHTML='<h2>Retirer l\'accès</h2><p style="margin:0">'+esc(id)+' ne pourra plus ouvrir le pilotage. Son compte reste créé : vous pourrez lui redonner l\'accès plus tard.</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Retirer l\'accès</button></div>';dlg.showModal();
       document.getElementById('cfYes').onclick=async()=>{dlg.close();const {error}=await sb.from('mecalux_equipe').delete().eq('email',id);if(error)handleErr(error);else toast('Accès retiré à '+id);chargerAcces()};break}
