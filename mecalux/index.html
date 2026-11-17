@@ -978,7 +978,7 @@ function vRestitutions(){
   if(!B.length)return h+'<div class="empty">Aucun jour saisi pour '+moisLabel(m)+(seul?' sur les projets visibles par Mecalux':'')+'. Les jours viennent de la saisie mensuelle.</div>';
   const tp=B.filter(b=>!b.autre);
   h+='<section class="kpis">'+kpi('Jours DEV',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.dev,0),0)),'développement')+kpi('Jours MES',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.mes,0),0)),'mise en service')+kpi('Total facturable',nf(tp.reduce((t,b)=>t+b.total,0))+' j',tp.length+' projet'+(tp.length>1?'s':''))+'</section>';
-  h+='<section class="card"><p class="small muted" style="margin:0">Suivi des prestations — Harington Tech (classé par projet) — '+moisLabel(m)+'</p><div class="scroll"><table class="tbl"><thead><tr><th>Intervenant</th><th>Service</th><th class="n">Jours DEV</th><th class="n">Jours MES</th><th class="n">Nb jours</th></tr></thead><tbody>'+
+  h+='<section class="card"><p class="small muted" style="margin:0">Suivi des prestations — Harington Tech (classé par projet) — '+moisLabel(m)+'</p><div class="scroll"><table class="tbl"><thead><tr><th>Intervenant</th><th>Service</th><th class="n">Jours DEV</th><th class="n">Jours MES</th><th class="n">Nb jours effectués</th></tr></thead><tbody>'+
     B.map(b=>'<tr style="background:var(--bg)"><td colspan="4" style="font-weight:800;color:var(--navy)">'+esc(b.titre)+'</td><td class="n" style="font-weight:800;color:var(--navy)">'+nf(b.total)+'</td></tr>'+b.lignes.map(l=>'<tr><td>'+esc(l.nom)+'</td><td class="small">'+esc(l.service)+'</td><td class="n">'+v(l.dev||'')+'</td><td class="n">'+v(l.mes||'')+'</td><td class="n" style="font-weight:600">'+nf(l.total)+'</td></tr>').join('')).join('')+
     '</tbody></table></div><p class="small muted" style="margin:0">Source : saisie mensuelle (jours Développement et Mise en service, demi-journées comprises). R&D et congés comptés une fois par jour et par personne.</p></section>';
   return h}
@@ -987,14 +987,14 @@ async function restExport(type){
   const ML=moisLabel(m).replace(/^./,c=>c.toUpperCase());const titre='Suivi des prestations — Harington Tech (classé par projet) — '+ML;const nomF='Suivi des prestations Harington - '+ML;
   const lignes=[];B.forEach(b=>{lignes.push({g:true,c:[b.titre,'','','',b.total]});b.lignes.forEach(l=>lignes.push({c:[l.nom,l.service,l.dev||'',l.mes||'',l.total]}))});
   if(type==='xlsx'){let X;try{X=await chargerXLSX()}catch(e){toast(e.message);return}
-    const aoa=[[titre],[],['Intervenant','Service','Jours DEV','Jours MES','Nb jours'],...lignes.map(l=>l.c)];const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:34},{wch:18},{wch:11},{wch:11},{wch:10}];
+    const aoa=[[titre],[],['Intervenant','Service','Jours DEV','Jours MES','Nb jours effectués'],...lignes.map(l=>l.c)];const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:34},{wch:18},{wch:11},{wch:11},{wch:18}];
     const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,ML.slice(0,31));X.writeFile(wb,nomF+'.xlsx');return}
   let JS;try{toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){toast(e.message);return}
   const t=x=>String(x==null?'':x).replace(/[\u202f\u00a0]/g,' ');const n=x=>x===''?'':t(nf(x));
   const doc=new JS({unit:'mm',format:'a4'});const W=210,M=14;const NAVY=[33,50,78];
   doc.setFillColor(...NAVY);doc.rect(0,0,W,26,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text('Suivi des prestations',M,12);
   doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(t('Harington Tech · classé par projet · '+ML+' · édité le '+new Date().toLocaleDateString('fr-FR')),M,20);
-  doc.autoTable({startY:33,head:[['Intervenant','Service',...['Jours DEV','Jours MES','Nb jours'].map(x=>({content:x,styles:{halign:'right'}}))]],body:lignes.map(l=>l.g?[{content:t(l.c[0]),colSpan:4,styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247]}},{content:n(l.c[4]),styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247],halign:'right'}}]:[t(l.c[0]),t(l.c[1]),n(l.c[2]),n(l.c[3]),n(l.c[4])]),
+  doc.autoTable({startY:33,head:[['Intervenant','Service',...['Jours DEV','Jours MES','Nb jours effectués'].map(x=>({content:x,styles:{halign:'right'}}))]],body:lignes.map(l=>l.g?[{content:t(l.c[0]),colSpan:4,styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247]}},{content:n(l.c[4]),styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247],halign:'right'}}]:[t(l.c[0]),t(l.c[1]),n(l.c[2]),n(l.c[3]),n(l.c[4])]),
     styles:{fontSize:9,cellPadding:2,textColor:[27,28,28]},headStyles:{fillColor:NAVY,textColor:255},columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right',fontStyle:'bold'}},margin:{left:M,right:M}});
   doc.save(nomF+'.pdf')}
 function vRegles(){
