@@ -31,3 +31,8 @@ end $$;
 --     execute format('revoke insert, update, delete on public.%I from anon', t);
 --   end loop;
 -- end $$;
+-- drop policy if exists "mecalux_justifs_dev_anon" on storage.objects;
+
+-- Justificatifs (bucket privé mecalux-justifs) : accès anonyme temporaire, supprimé par le bloc ci-dessus
+-- create policy "mecalux_justifs_dev_anon" on storage.objects for all to anon
+--   using (bucket_id = 'mecalux-justifs') with check (bucket_id = 'mecalux-justifs');
