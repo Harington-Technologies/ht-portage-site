@@ -658,8 +658,8 @@ function vRessources(){
   const rs=list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom));
   let h=head('Équipe chez Mecalux','Ressources','<button class="btn p" data-act="newRes">+ Nouvelle ressource</button>');
   const roles=[...new Set(rs.map(r=>r.role).filter(Boolean))].sort();
-  h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Rôle</th><th class="n">TJM vente</th><th>Fin de mission</th><th>Statut</th><th></th></tr>'+
-    filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Rôle',o:roles},{t:'texte',l:'TJM',ph:'ex. >400'},{t:'texte',l:'Fin de mission'},{t:'liste',l:'Statut',o:['Actif','Inactif']},null])+'</thead><tbody>'+rs.map(r=>{
+  h+='<section class="card">'+(rs.length?'<div class="card-h"><span class="small muted" id="tblRes-compte">'+rs.length+' ressources</span><button class="btn g sm" data-act="razFiltres" data-t="tblRes">Effacer les filtres</button></div><div class="scroll"><table class="tbl filtrable" id="tblRes"><thead><tr><th>Code</th><th>Nom</th><th>Type de profil</th><th class="n">TJM vente</th><th>Fin de mission</th><th>Statut</th><th></th></tr>'+
+    filtreLigne('tblRes',[{t:'texte',l:'Code'},{t:'texte',l:'Nom'},{t:'liste',l:'Type de profil',o:roles},{t:'texte',l:'TJM',ph:'ex. >400'},{t:'texte',l:'Fin de mission'},{t:'liste',l:'Statut',o:['Actif','Inactif']},null])+'</thead><tbody>'+rs.map(r=>{
     return '<tr'+(estActif(r)?'':' style="opacity:.6"')+'><td><span class="pill">'+esc(r.code||'—')+'</span></td><td style="font-weight:700">'+esc(r.nom)+'</td><td>'+esc(r.role||'')+'</td><td class="n">'+eur(r.tjmVente)+'</td><td class="small">'+(r.dateFin?dateFr(r.dateFin):'—')+'</td><td>'+(estActif(r)?'<span class="pill ok">Actif</span>':'<span class="pill">Inactif</span>')+'</td><td class="n"><button class="btn g sm" data-act="editRes" data-id="'+r.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune ressource. Ajoutez les consultants qui interviennent chez Mecalux.</div>')+'</section>';
   return h;
 }
@@ -1266,9 +1266,10 @@ function formProjet(p){
     if(!peutPleo)o.visibleMecalux=true;else o.visibleMecalux=!!o.visibleMecalux;
     const id=p?p.id:uid('p');const ok=await save('projets',id,Object.assign({},p||{},o));if(ok){toast('Projet enregistré');if(!p)location.hash='projet-'+id}return ok});
 }
+const PROFILS_RES=['Tech lead','Automaticien CDS','Automaticien FR'];
 function formRes(r){
   openForm(r?'Modifier la ressource':'Nouvelle ressource',[
-    {k:'nom',l:'Nom',req:true},{k:'code',l:'Trigramme',ph:'SBO'},{k:'role',l:'Rôle',ph:'Automaticien, développeur WMS…'},
+    {k:'nom',l:'Nom',req:true},{k:'code',l:'Trigramme',ph:'SBO'},{k:'role',l:'Type de profil',type:'select',req:true,opts:[['','Choisir…'],...PROFILS_RES.map(x=>[x,x]),...(r&&r.role&&!PROFILS_RES.includes(r.role)?[[r.role,r.role+' (ancien)']]:[])]},
     {k:'tjmVente',l:'TJM de vente (€ HT)',type:'number',req:true},
     {k:'tjmCout',l:'Coût journalier (€, facultatif)',type:'number'},{k:'email',l:'E-mail',type:'email'},
     {k:'dateFin',l:'Fin de mission ou date de départ',type:'date'},
