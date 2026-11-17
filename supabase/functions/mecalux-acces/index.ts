@@ -2,7 +2,7 @@
 // Pilotage équipe Mecalux — comptes et demandes d'accès.
 //   POST { action: "inscription", prenom, nom, email, password }   → crée le compte et envoie le lien de confirmation (e-mail « Pilotage »)
 //   POST { action: "oubli", email }                                → envoie un lien pour choisir un nouveau mot de passe
-//   POST { action: "decider", d, decision }                        → valide ou refuse (administrateur connecté avec double authentification) ;
+//   POST { action: "decider", d, decision, role? }                        → valide ou refuse (administrateur connecté avec double authentification) ;
 //                                                                      un refus supprime le compte s'il a été créé pour le pilotage (jamais un compte HT Portage)
 //   POST { action: "retirer", email }                              → retire l'accès et supprime le compte s'il a été créé pour le pilotage (administrateur)
 //   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
@@ -109,7 +109,9 @@ async function decider(req: Request, b) {
   const valider = b.decision === "valider";
   const nom = [d.prenom, d.nom].filter(Boolean).join(" ");
   if (valider) {
-    const { error } = await admin.from("mecalux_equipe").upsert({ email: d.email.toLowerCase(), nom: nom || null, admin: false }, { onConflict: "email", ignoreDuplicates: true });
+    // Rôle choisi par l'administrateur ; à défaut : Harington pour une adresse @harington.fr, sinon Mecalux
+    const role = ["admin", "harington", "mecalux"].includes(b.role) ? b.role : (/@harington\.fr$/i.test(d.email) ? "harington" : "mecalux");
+    const { error } = await admin.from("mecalux_equipe").upsert({ email: d.email.toLowerCase(), nom: nom || null, role }, { onConflict: "email", ignoreDuplicates: true });
     if (error) { console.error(error); return json(req, { erreur: "Enregistrement impossible." }, 500); }
   }
   await admin.from("mecalux_demandes").update({ statut: valider ? "acceptee" : "refusee", traite_le: new Date().toISOString(), traite_par: par }).eq("id", d.id);

@@ -317,3 +317,26 @@ grant execute on function public.mecalux_id_compte(text) to service_role;
 -- Refus d'une demande : le compte créé pour le pilotage est supprimé (fonction mecalux-acces) ; la demande est conservée
 alter table public.mecalux_demandes drop constraint if exists mecalux_demandes_user_id_fkey;
 alter table public.mecalux_demandes add constraint mecalux_demandes_user_id_fkey foreign key (user_id) references auth.users(id) on delete set null;
+
+-- ============ Rôles ============
+-- admin : Admin Harington, tous les droits (reçoit et traite les demandes, gère les accès)
+-- harington : Utilisateur Harington, tout sauf la gestion des accès
+-- mecalux : Utilisateur Mecalux, tout sauf la gestion des accès et les imports Pleo
+alter table public.mecalux_equipe add column if not exists role text;
+update public.mecalux_equipe set role = case when admin then 'admin' when email ilike '%@harington.fr' then 'harington' else 'mecalux' end where role is null;
+alter table public.mecalux_equipe alter column role set default 'mecalux', alter column role set not null;
+alter table public.mecalux_equipe add constraint mecalux_equipe_role_check check (role in ('admin','harington','mecalux'));
+alter table public.mecalux_equipe drop column admin;
+alter table public.mecalux_equipe add column admin boolean generated always as (role = 'admin') stored;
+create or replace function public.mecalux_role() returns text language sql stable security definer set search_path = public as $$
+  select case when coalesce(auth.jwt() ->> 'aal', '') = 'aal2'
+    then (select role from public.mecalux_equipe where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) limit 1) end;
+$$;
+create or replace function public.mecalux_est_harington() returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(public.mecalux_role() in ('admin','harington'), false);
+$$;
+drop policy if exists "equipe_tout" on public.mecalux_imports;
+create policy "imports_lecture" on public.mecalux_imports for select to authenticated using (public.mecalux_est_membre());
+create policy "imports_harington" on public.mecalux_imports for all to authenticated using (public.mecalux_est_harington()) with check (public.mecalux_est_harington());
+create policy "mecalux_justifs_pleo_harington" on storage.objects as restrictive for insert to authenticated
+  with check (bucket_id <> 'mecalux-justifs' or name not like 'pleo/%' or public.mecalux_est_harington());

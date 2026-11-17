@@ -384,7 +384,7 @@ const toCamel=k=>k.replace(/_([a-z])/g,(m,c)=>c.toUpperCase());
 function toRow(c,id,obj){const row={id};const cols=TABLES[c];Object.keys(obj).forEach(k=>{const sk=toSnake(k);if(sk==='id'||!cols.includes(sk))return;let v=obj[k];if(v===''||v===undefined)v=null;row[sk]=v});return row}
 const NUMS=['nb_lignes','total','tjm_vente','tjm_cout','distance_km','budget_montant','jours_prevus','tjm','jours','montant','total_frais','trajet','refac'];
 function fromRow(r){const o={};Object.keys(r).forEach(k=>{let v=r[k];if(v!=null&&typeof v!=='object'&&NUMS.includes(k))v=Number(v);if(v===null)v='';o[toCamel(k)]=v});return o}
-let sb=null,session=null,membre=null,estAdmin=false,etatDemande='',authMsg='',channel=null;
+let sb=null,session=null,membre=null,estAdmin=false,monRole='',peutPleo=false,etatDemande='',authMsg='',channel=null;
 async function save(c,id,obj){
   obj=Object.assign({},obj);delete obj.id;obj.majLe=new Date().toISOString();
   const prev=S[c][id];S[c][id]=Object.assign({id},obj);scheduleRender();
@@ -421,7 +421,7 @@ async function loadAll(){
     const {data:ok,error:e0}=await sb.rpc('mecalux_est_membre');
     if(e0)throw e0;
     membre=!!ok;
-    if(membre){const {data:ad}=await sb.rpc('mecalux_est_admin');estAdmin=!!ad;if(estAdmin)setTimeout(chargerAcces,0)}}
+    if(membre){const {data:ro}=await sb.rpc('mecalux_role');monRole=ro||'';estAdmin=monRole==='admin';peutPleo=monRole==='admin'||monRole==='harington';if(estAdmin)setTimeout(chargerAcces,0)}}
     if(!membre){const {data:etat}=await sb.rpc('mecalux_demander_acces');etatDemande=etat||'';dbState='refuse';render();return}
     const res=await Promise.all(COLLS.map(c=>sb.from(TBL(c)).select('*')));
     res.forEach((r,i)=>{if(r.error)throw r.error;const o={};r.data.forEach(row=>{o[row.id]=fromRow(row)});S[COLLS[i]]=o});
@@ -480,6 +480,9 @@ function formPwd(){
 }
 
 /* ---------- routage ---------- */
+// Rôles : admin (tous les droits), harington (sauf gestion des accès), mecalux (sauf gestion des accès et imports Pleo)
+const ROLES={admin:'Admin Harington',harington:'Utilisateur Harington',mecalux:'Utilisateur Mecalux'};
+function routeAutorisee(k){return !((k==='import-pleo'&&!peutPleo)||(k==='acces'&&!estAdmin))}
 const ROUTES=[
   ['tableau-de-bord','Tableau de bord','dash'],
   ['projets','Projets','proj'],
@@ -498,15 +501,16 @@ window.addEventListener('hashchange',()=>{render();document.getElementById('main
 function renderMenu(){
   const r=route();const base=r.startsWith('projet-')?'projets':r.startsWith('prefacture-')?'prefactures':r;
   const pfAttente=list('prefactures').filter(p=>p.statut&&p.statut!=='Facturée'&&p.statut!=='Brouillon').length;
-  document.getElementById('menu').innerHTML=ROUTES.map(([k,l,i])=>'<a href="#'+k+'"'+(base===k?' class="on" aria-current="page"':'')+'>'+ic(i)+l+(k==='prefactures'&&pfAttente?'<span class="badge">'+pfAttente+'</span>':'')+(k==='acces'&&ui.acces&&ui.acces.demandes.filter(x=>x.statut==='en_attente').length?'<span class="badge">'+ui.acces.demandes.filter(x=>x.statut==='en_attente').length+'</span>':'')+'</a>').join('');
+  document.getElementById('menu').innerHTML=ROUTES.filter(([k])=>routeAutorisee(k)).map(([k,l,i])=>'<a href="#'+k+'"'+(base===k?' class="on" aria-current="page"':'')+'>'+ic(i)+l+(k==='prefactures'&&pfAttente?'<span class="badge">'+pfAttente+'</span>':'')+(k==='acces'&&ui.acces&&ui.acces.demandes.filter(x=>x.statut==='en_attente').length?'<span class="badge">'+ui.acces.demandes.filter(x=>x.statut==='en_attente').length+'</span>':'')+'</a>').join('');
   const st={init:'Connexion…',loading:'Chargement des données…',ok:MODE_DEV?'Mode développement · sans connexion':'Données à jour',login:'Non connecté',refuse:'Accès non autorisé',erreur:'Erreur de connexion',config:'Configuration manquante'}[dbState]||'';
   const who=MODE_DEV?'':(session&&session.user?session.user.email:'');
-  document.getElementById('sidebox').innerHTML='<span class="k">'+(who?'Connecté':'État')+'</span><span style="word-break:break-all">'+esc(who||st)+'</span>'+(who?'<span class="small">'+esc(st)+'</span><div class="row" style="margin-top:4px"><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="pwd">Mot de passe</button><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="logout">Déconnexion</button></div>':'')+'<span class="k" style="margin-top:6px">Circuit de facturation</span><span>Préfacture → Zakia → validation Mecalux → BDC</span>';
+  document.getElementById('sidebox').innerHTML='<span class="k">'+(who?'Connecté':'État')+'</span><span style="word-break:break-all">'+esc(who||st)+'</span>'+(who?'<span class="small">'+esc((ROLES[monRole]?ROLES[monRole]+' · ':'')+st)+'</span><div class="row" style="margin-top:4px"><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="pwd">Mot de passe</button><button class="btn sm" style="background:transparent;color:#F3E6EC;border:1px solid #6B7FA3" data-act="logout">Déconnexion</button></div>':'')+'<span class="k" style="margin-top:6px">Circuit de facturation</span><span>Préfacture → Zakia → validation Mecalux → BDC</span>';
   document.getElementById('menu').style.display=(dbState==='ok'||dbState==='loading')?'':'none';
 }
 function render(){
   renderMenu();
   const r=route(),m=document.getElementById('main');
+  if(dbState==='ok'&&!routeAutorisee(r)){location.replace('#tableau-de-bord');return}
   let html='';
   try{
     if(r.startsWith('projet-'))html=vProjet(r.slice(7));
@@ -881,7 +885,7 @@ function vSaisie(){
   resIds.push(...list('calendrier').filter(c=>c.projetId===pid&&c.mois===m&&!resIds.includes(c.ressourceId)).map(c=>c.ressourceId));
   h+=vCalendrier(pid,m,resIds);
   const tous=list('frais').filter(f=>f.projetId===pid&&f.mois===m).sort((a,b)=>(a.date||'')>(b.date||'')?1:-1);const fr=tous.filter(f=>f.statut!=='ecarte'),ec=tous.filter(f=>f.statut==='ecarte');
-  h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><div class="row"><a class="btn o sm" href="#import-pleo">Import Pleo de l\'équipe</a><button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div></div>';
+  h+='<section class="card"><div class="card-h"><h2>Frais réels du mois</h2><div class="row">'+(peutPleo?'<a class="btn o sm" href="#import-pleo">Import Pleo de l\'équipe</a>':'')+'<button class="btn o sm" data-act="newFrais"'+(readOnly?' disabled':'')+'>+ Ajouter une dépense</button></div></div>';
   const nomR=f=>(byId('ressources',f.ressourceId)||{}).nom||'—';
   h+=fr.length?'<div class="card-h"><span class="small muted" id="tblFrais-compte">'+fr.length+' dépenses</span><div class="row"><button class="btn g sm" data-act="razFiltres" data-t="tblFrais">Effacer les filtres</button><button class="btn d sm" data-act="delFraisAffiches">Supprimer les dépenses affichées</button></div></div><div class="scroll"><table class="tbl filtrable triable" id="tblFrais"><thead><tr>'+
     [['Date','date'],['Ressource','txt'],['Catégorie','txt'],['Détail','txt'],['Refacturable','txt'],['Montant TTC','num']].map(([t,k],ci)=>'<th'+(k==='num'?' class="n"':'')+'><button type="button" class="tri" data-tri="'+ci+'" data-t="tblFrais">'+t+'<span class="fl" aria-hidden="true"></span></button></th>').join('')+'<th></th></tr>'+
@@ -940,9 +944,9 @@ function vAcces(){
       (att.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Nom</th><th>E-mail</th><th>Demandé le</th><th></th></tr></thead><tbody>'+att.map(x=>'<tr><td style="font-weight:700">'+esc([x.prenom,x.nom].filter(Boolean).join(' ')||'—')+'</td><td>'+esc(x.email)+'</td><td class="small">'+new Date(x.cree_le).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'})+'</td><td style="text-align:right;white-space:nowrap"><button class="btn p sm" data-act="accesDecider" data-v="valider" data-id="'+x.id+'">Valider</button> <button class="btn d sm" data-act="accesDecider" data-v="refuser" data-id="'+x.id+'">Refuser</button></td></tr>').join('')+'</tbody></table></div>':'<p class="muted" style="margin:0">Aucune demande en attente. Vous recevez un e-mail à chaque nouvelle demande.</p>')+'</section>';
   }
   h+='<section class="card"><div class="card-h"><h2 style="margin:0">Personnes autorisées</h2>'+(estAdmin?'<button class="btn o sm" data-act="accesAjouter">Autoriser une adresse</button>':'')+'</div><div class="scroll"><table class="tbl"><thead><tr><th>E-mail</th><th>Nom</th><th>Rôle</th><th>Depuis le</th>'+(estAdmin?'<th></th>':'')+'</tr></thead><tbody>'+
-    A.equipe.map(x=>{const lui=x.email.toLowerCase()===moi;return '<tr><td style="font-weight:600">'+esc(x.email)+(lui?' <span class="pill">vous</span>':'')+'</td><td>'+esc(x.nom||'—')+'</td><td>'+(x.admin?'<span class="pill ok">Administrateur</span>':'Utilisateur')+'</td><td class="small">'+(x.ajoute_le?dateFr(String(x.ajoute_le).slice(0,10)):'—')+'</td>'+
-      (estAdmin?'<td style="text-align:right;white-space:nowrap">'+(lui?'':'<button class="btn o sm" data-act="accesMfa" data-id="'+esc(x.email)+'" title="Téléphone perdu ou changé">Réinit. double auth.</button> <button class="btn o sm" data-act="accesRole" data-id="'+esc(x.email)+'">'+(x.admin?'Retirer admin':'Rendre admin')+'</button> <button class="btn d sm" data-act="accesRetirer" data-id="'+esc(x.email)+'">Retirer l\'accès</button>')+'</td>':'')+'</tr>'}).join('')+
-    '</tbody></table></div><p class="small muted" style="margin:0">Tous les utilisateurs voient l\'ensemble du pilotage, avec mot de passe et code de double authentification obligatoires. Les administrateurs reçoivent les demandes d\'accès par e-mail et gèrent cette liste. Une adresse autorisée à l\'avance accède au pilotage dès la confirmation de son compte, sans demande.</p></section>';
+    A.equipe.map(x=>{const lui=x.email.toLowerCase()===moi;return '<tr><td style="font-weight:600">'+esc(x.email)+(lui?' <span class="pill">vous</span>':'')+'</td><td>'+esc(x.nom||'—')+'</td><td>'+(estAdmin&&!lui?'<select data-role-email="'+esc(x.email)+'" aria-label="Rôle de '+esc(x.email)+'">'+Object.entries(ROLES).map(([v,l])=>'<option value="'+v+'"'+(x.role===v?' selected':'')+'>'+l+'</option>').join('')+'</select>':(x.role==='admin'?'<span class="pill ok">'+ROLES.admin+'</span>':esc(ROLES[x.role]||x.role)))+'</td><td class="small">'+(x.ajoute_le?dateFr(String(x.ajoute_le).slice(0,10)):'—')+'</td>'+
+      (estAdmin?'<td style="text-align:right;white-space:nowrap">'+(lui?'':'<button class="btn o sm" data-act="accesMfa" data-id="'+esc(x.email)+'" title="Téléphone perdu ou changé">Réinit. double auth.</button> <button class="btn d sm" data-act="accesRetirer" data-id="'+esc(x.email)+'">Retirer l\'accès</button>')+'</td>':'')+'</tr>'}).join('')+
+    '</tbody></table></div><p class="small muted" style="margin:0"><b>Admin Harington</b> : tous les droits, reçoit les demandes d\'accès et gère cette liste. <b>Utilisateur Harington</b> : tout sauf la gestion des accès. <b>Utilisateur Mecalux</b> : tout sauf la gestion des accès et les imports Pleo. Mot de passe et code de double authentification obligatoires pour tous. Une adresse autorisée à l\'avance accède au pilotage dès la confirmation de son compte, sans demande.</p></section>';
   const faites=A.demandes.filter(x=>x.statut!=='en_attente').slice(0,15);
   if(estAdmin&&faites.length)h+='<details><summary style="cursor:pointer;font-weight:700;color:var(--navy)">Demandes traitées ('+faites.length+')</summary><div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Nom</th><th>E-mail</th><th>Décision</th><th>Le</th><th>Par</th></tr></thead><tbody>'+faites.map(x=>'<tr><td>'+esc([x.prenom,x.nom].filter(Boolean).join(' ')||'—')+'</td><td>'+esc(x.email)+'</td><td>'+(x.statut==='acceptee'?'<span class="pill ok">Validée</span>':'<span class="pill">Refusée</span>')+'</td><td class="small">'+(x.traite_le?new Date(x.traite_le).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'}):'')+'</td><td class="small">'+esc(x.traite_par||'')+'</td></tr>').join('')+'</tbody></table></div></details>';
   return h;
@@ -1384,19 +1388,18 @@ document.addEventListener('click',async e=>{
       const match=l=>(!F.collab||(F.collab==='?'?!l.rid:l.rid===F.collab))&&(!F.cat||l.cat===F.cat)&&(!F.dec||(F.dec==='trier'?!l.d:l.d===F.dec))&&(!F.proj||(F.proj==='?'?!l.pid:l.pid===F.proj));
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
-    case'accesDecider':{const dec=b.dataset.v;const x=ui.acces.demandes.find(y=>y.id===id);if(!x)break;
+    case'accesDecider':{const dec=b.dataset.v;const x=ui.acces.demandes.find(y=>y.id===id);if(!x)break;let roleChoisi=/@harington\.fr$/i.test(x.email)?'harington':'mecalux';
       const go=async()=>{occupe(dec==='valider'?'Validation de l\'accès…':'Refus de la demande…');try{const cfg=window.HTP_CONFIG;
-        const r=await fetch(cfg.supabaseUrl+'/functions/v1/mecalux-acces',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'decider',d:id,decision:dec})});
+        const r=await fetch(cfg.supabaseUrl+'/functions/v1/mecalux-acces',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'decider',d:id,decision:dec,role:roleChoisi})});
         const j=await r.json().catch(()=>({}));if(!r.ok||j.erreur)toast(j.erreur||'Action impossible.');else toast(j.statut==='acceptee'?'Accès validé : '+x.email+' est prévenu par e-mail':(j.supprime?'Demande refusée et compte supprimé : ':'Demande refusée : ')+x.email+' est prévenu par e-mail')}finally{libre()}await chargerAcces()};
-      if(dec==='refuser'){document.getElementById('dlgBody').innerHTML='<h2>Refuser la demande</h2><p style="margin:0">Le compte de '+esc(x.email)+' sera <b>supprimé définitivement</b> et la personne en sera informée par e-mail. Elle ne pourra pas refaire de demande pendant 7 jours.</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Refuser et supprimer le compte</button></div>';dlg.showModal();document.getElementById('cfYes').onclick=()=>{dlg.close();go()}}else go();break}
-    case'accesAjouter':openForm('Autoriser une adresse',[{k:'email',l:'E-mail',type:'email',req:true,full:true},{k:'nom',l:'Nom',full:true},{k:'admin',l:'Administrateur (reçoit les demandes d\'accès et gère cette liste)',type:'check'}],{},async o=>{
+      if(dec==='refuser'){document.getElementById('dlgBody').innerHTML='<h2>Refuser la demande</h2><p style="margin:0">Le compte de '+esc(x.email)+' sera <b>supprimé définitivement</b> et la personne en sera informée par e-mail. Elle ne pourra pas refaire de demande pendant 7 jours.</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Refuser et supprimer le compte</button></div>';dlg.showModal();document.getElementById('cfYes').onclick=()=>{dlg.close();go()}}else{document.getElementById('dlgBody').innerHTML='<h2>Valider l\'accès</h2><p style="margin:0">'+esc([x.prenom,x.nom].filter(Boolean).join(' ')||x.email)+' ('+esc(x.email)+') pourra se connecter au pilotage avec le rôle choisi.</p><label class="f">Rôle<select id="roleDem">'+Object.entries(ROLES).map(([v,l])=>'<option value="'+v+'"'+(v===roleChoisi?' selected':'')+'>'+l+'</option>').join('')+'</select></label><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn p" id="cfYes">Valider l\'accès</button></div>';dlg.showModal();document.getElementById('cfYes').onclick=()=>{roleChoisi=document.getElementById('roleDem').value;dlg.close();go()}}break}
+    case'accesAjouter':openForm('Autoriser une adresse',[{k:'email',l:'E-mail',type:'email',req:true,full:true},{k:'nom',l:'Nom',full:true},{k:'role',l:'Rôle',type:'select',opts:Object.entries(ROLES),full:true}],{role:'mecalux'},async o=>{
       const em=o.email.trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){document.getElementById('frmErr').textContent='Adresse e-mail invalide.';return false}
-      const {error}=await sb.from('mecalux_equipe').upsert({email:em,nom:o.nom||null,admin:!!o.admin});if(error){handleErr(error);return false}
+      const {error}=await sb.from('mecalux_equipe').upsert({email:em,nom:o.nom||null,role:ROLES[o.role]?o.role:'mecalux'});if(error){handleErr(error);return false}
       toast(em+' est autorisé : la personne peut créer son compte depuis la page de connexion');chargerAcces();return true});break;
     case'accesMfa':{document.getElementById('dlgBody').innerHTML='<h2>Réinitialiser la double authentification</h2><p style="margin:0">À utiliser si '+esc(id)+' a perdu ou changé de téléphone. À sa prochaine connexion, un nouveau QR code lui sera proposé. Vérifiez son identité avant de le faire (par téléphone par exemple).</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Réinitialiser</button></div>';dlg.showModal();
       document.getElementById('cfYes').onclick=async()=>{dlg.close();occupe('Réinitialisation…');try{const cfg=window.HTP_CONFIG;const r=await fetch(cfg.supabaseUrl+'/functions/v1/mecalux-acces',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'reinit_mfa',email:id})});
         const j=await r.json().catch(()=>({}));toast(!r.ok||j.erreur?(j.erreur||'Action impossible.'):'Double authentification réinitialisée pour '+id)}finally{libre()}};break}
-    case'accesRole':{const x=ui.acces.equipe.find(y=>y.email===id);if(!x)break;const {error}=await sb.from('mecalux_equipe').update({admin:!x.admin}).eq('email',id);if(error)handleErr(error);else toast(id+(x.admin?' n\'est plus administrateur':' est administrateur'));chargerAcces();break}
     case'accesRetirer':{document.getElementById('dlgBody').innerHTML='<h2>Retirer l\'accès</h2><p style="margin:0">'+esc(id)+' ne pourra plus ouvrir le pilotage. S\'il a créé son compte depuis la page du pilotage, ce compte sera <b>supprimé définitivement</b> : il faudra qu\'il refasse une demande pour revenir.</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Retirer l\'accès</button></div>';dlg.showModal();
       document.getElementById('cfYes').onclick=async()=>{dlg.close();occupe('Retrait de l\'accès…');try{const cfg=window.HTP_CONFIG;const r=await fetch(cfg.supabaseUrl+'/functions/v1/mecalux-acces',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'retirer',email:id})});
         const j=await r.json().catch(()=>({}));toast(!r.ok||j.erreur?(j.erreur||'Action impossible.'):'Accès retiré à '+id+(j.supprime?' · compte supprimé':''))}finally{libre()}chargerAcces()};break}
@@ -1478,6 +1481,7 @@ document.addEventListener('change',async e=>{
     if(k==='projetId'&&t.value){const p=byId('projets',t.value);if(p){if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd}}
     if(k==='ressourceId'){ui.calc.tjm=''}
     if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
+  if(t.dataset.roleEmail){const em=t.dataset.roleEmail,ro=t.value;const {error}=await sb.from('mecalux_equipe').update({role:ro}).eq('email',em);if(error){handleErr(error);chargerAcces();return}toast(em+' : '+ROLES[ro]);chargerAcces();return}
   if(t.dataset.pnom&&ui.pleo){ui.pleo.nom=t.value;return}
   if(t.dataset.pleo){const f=t.files&&t.files[0];t.value='';if(f)chargerFichierPleo(f);return}
   if(t.dataset.pf&&ui.pleo){ui.pleo.f[t.dataset.pf]=t.value;pending=false;render();return}
