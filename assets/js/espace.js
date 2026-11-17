@@ -180,10 +180,7 @@
       toggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
     });
     if (state.apercu) el.querySelector('[data-fin-apercu]').addEventListener('click', function () { try { sessionStorage.removeItem('htp-apercu'); } catch (e) { /* rien */ } });
-    else el.querySelector('[data-logout]').addEventListener('click', async function () {
-      await db.auth.signOut();
-      location.replace('connexion.html');
-    });
+    else el.querySelector('[data-logout]').addEventListener('click', function () { deconnecter(); });
     document.querySelectorAll('[data-avatar]').forEach(function (a) { a.textContent = initiales(state.profil, state.user.email); });
     if (state.isAdmin) {
       window.addEventListener('hashchange', function () {
@@ -311,6 +308,17 @@
     try { localStorage.removeItem('htp-simulation'); } catch (e) { /* rien */ }
   }
 
+  // Déconnexion de ce navigateur uniquement (le même compte peut être ouvert sur un autre site du projet, ex. pilotage Mecalux).
+  // Si la session a déjà été fermée côté serveur, on efface quand même la session locale pour ne pas rester bloqué.
+  async function deconnecter(cible) {
+    var r = null;
+    try { r = await db.auth.signOut({ scope: 'local' }); } catch (e) { r = { error: e }; }
+    if (r && r.error) {
+      try { Object.keys(localStorage).filter(function (k) { return k.indexOf('htp-espace') === 0; }).forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { /* rien */ }
+    }
+    location.replace(cible || 'connexion.html');
+  }
+
   db.auth.onAuthStateChange(function (event) {
     var page = document.body.dataset.page;
     if (event === 'SIGNED_OUT' && page && page !== 'connexion' && page !== 'reset') {
@@ -361,7 +369,7 @@
     sectionAdmin: sectionAdmin, badge: badge, PAGES_ADMIN: PAGES_ADMIN,
     esc: esc, num: num, eur: eur, n0: n0, date: date, parseDate: parseDate,
     moisCourt: moisCourt, moisLong: moisLong, cap: cap, initiales: initiales,
-    setStatus: setStatus, errText: errText, urlSignee: urlSignee, brancherTelechargements: brancherTelechargements
+    setStatus: setStatus, deconnecter: deconnecter, errText: errText, urlSignee: urlSignee, brancherTelechargements: brancherTelechargements
   };
   window.ESPACE = ESPACE;
 })();
