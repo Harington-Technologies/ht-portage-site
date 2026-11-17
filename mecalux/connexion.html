@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Connexion · Pilotage équipe Mecalux</title>
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#21324E;--navy2:#304870;--rose:#C187A1;--plum:#784E61;--bg:#F1F4F7;--line:#D7DDE5;--ink:#1B1C1C;--muted:#4A5468;--ok:#2E6B4F;--bad:#A3312F}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:'Open Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;align-items:center;justify-content:center;padding:32px 16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:32px 34px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:22px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .logo{width:44px;height:44px;border-radius:13px;background:var(--navy);display:flex;align-items:center;justify-content:center;flex:none}
+.brand b{display:block;color:var(--navy);font-size:16px}.brand small{color:var(--muted);font-size:13px}
+.tabs{display:flex;background:#E4E9F0;border-radius:999px;padding:5px}
+.tabs button{flex:1;border:0;background:none;border-radius:999px;padding:11px 10px;font:600 14px 'Open Sans',sans-serif;color:var(--navy);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--navy);color:#fff}
+.tabs button:focus-visible,.btn:focus-visible,.lien:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+form{display:flex;flex-direction:column;gap:16px}
+h1{font-size:21px;color:var(--navy);margin:0}
+label.f{display:flex;flex-direction:column;gap:7px;font-weight:600;font-size:14px}
+label.f .hint{font-weight:400;font-size:12px;color:var(--muted)}
+input[type=email],input[type=password],input[type=text]{font:inherit;font-weight:400;font-size:15px;border:1px solid #BFC7D2;border-radius:12px;padding:11px 13px;min-height:46px}
+input:focus{outline:2px solid var(--navy2);outline-offset:0;border-color:var(--navy2)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--muted);line-height:1.5}
+.check input{margin-top:3px;width:17px;height:17px;flex:none}
+.btn{border:0;border-radius:999px;padding:14px 18px;font:700 15px 'Open Sans',sans-serif;cursor:pointer;color:#fff;background:var(--navy)}
+.btn.rose{background:var(--rose);color:var(--ink)}
+.btn:disabled{opacity:.6;cursor:wait}
+.lien{background:none;border:0;padding:0;color:var(--plum);font:600 14px 'Open Sans',sans-serif;text-decoration:underline;cursor:pointer;align-self:flex-start}
+.st{margin:0;font-size:14px;min-height:1px}.st.err{color:var(--bad)}.st.ok{color:var(--ok)}
+p.aide{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
+[hidden]{display:none!important}
+@media (max-width:420px){.row2{grid-template-columns:1fr}.card{padding:26px 22px}}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand"><span class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" aria-hidden="true"><path d="M3 21V9l6-4v4l6-4v4l6-4v16z"/><path d="M7 21v-4h3v4M14 21v-4h3v4"/></svg></span><span><b>Pilotage équipe Mecalux</b><small>Projets, frais et préfactures</small></span></div>
+
+  <div class="tabs" role="tablist" aria-label="Connexion ou création d'accès" id="tabs">
+    <button type="button" role="tab" id="tab-connexion" aria-controls="p-connexion" aria-selected="true">Se connecter</button>
+    <button type="button" role="tab" id="tab-inscription" aria-controls="p-inscription" aria-selected="false">Créer mon accès</button>
+  </div>
+
+  <section id="p-connexion" role="tabpanel" aria-labelledby="tab-connexion">
+    <form id="f-connexion" novalidate>
+      <h1>Connexion</h1>
+      <label class="f">E-mail<input name="email" type="email" autocomplete="email" required></label>
+      <label class="f">Mot de passe<input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn" type="submit">Se connecter</button>
+      <button class="lien" type="button" data-vue="oubli">Mot de passe oublié ?</button>
+      <p class="st" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section id="p-inscription" role="tabpanel" aria-labelledby="tab-inscription" hidden>
+    <form id="f-inscription" novalidate>
+      <h1>Créer mon accès</h1>
+      <p class="aide">Utilisez votre adresse professionnelle. L'accès est ouvert dès que votre adresse a été autorisée par l'équipe Harington.</p>
+      <div class="row2">
+        <label class="f">Prénom<input name="prenom" type="text" autocomplete="given-name" required maxlength="100"></label>
+        <label class="f">Nom<input name="nom" type="text" autocomplete="family-name" required maxlength="100"></label>
+      </div>
+      <label class="f">E-mail<input name="email" type="email" autocomplete="email" required></label>
+      <label class="f"><span>Mot de passe <span class="hint">(10 caractères minimum)</span></span><input name="password" type="password" autocomplete="new-password" required minlength="10"></label>
+      <label class="check"><input type="checkbox" name="consentement" required><span>J'accepte que mes nom, prénom et e-mail soient conservés pour gérer mon accès au pilotage.</span></label>
+      <button class="btn rose" type="submit">Créer mon accès</button>
+      <p class="st" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section id="p-oubli" hidden>
+    <form id="f-oubli" novalidate>
+      <h1>Mot de passe oublié</h1>
+      <p class="aide">Indiquez votre e-mail : vous recevrez un lien pour choisir un nouveau mot de passe.</p>
+      <label class="f">E-mail<input name="email" type="email" autocomplete="email" required></label>
+      <button class="btn" type="submit">Recevoir le lien</button>
+      <button class="lien" type="button" data-vue="connexion">Retour à la connexion</button>
+      <p class="st" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section id="p-nouveau" hidden>
+    <form id="f-nouveau" novalidate>
+      <h1>Nouveau mot de passe</h1>
+      <label class="f"><span>Mot de passe <span class="hint">(10 caractères minimum)</span></span><input name="password" type="password" autocomplete="new-password" required minlength="10"></label>
+      <button class="btn" type="submit">Enregistrer et accéder au pilotage</button>
+      <p class="st" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../assets/js/config.js?v=20261117"></script>
+<script src="../assets/js/captcha.js?v=20261117"></script>
+<script>
+(function () {
+  'use strict';
+  var cfg = window.HTP_CONFIG || {};
+  var db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'mecalux-pilotage' } });
+  var ici = location.href.split(/[?#]/)[0];
+  var params = new URLSearchParams(location.search);
+  var enReset = params.get('reset') === '1' || /type=recovery/.test(location.hash);
+
+  function st(form, msg, type) { var p = form.querySelector('.st'); p.textContent = msg || ''; p.className = 'st' + (type === 'error' ? ' err' : type === 'ok' ? ' ok' : ''); }
+  function errText(err) {
+    var m = (err && (err.message || err.error_description)) || '';
+    if (/Invalid login credentials/i.test(m)) return 'E-mail ou mot de passe incorrect.';
+    if (/Email not confirmed/i.test(m)) return "Votre adresse n'est pas encore confirmée : cliquez sur le lien reçu par e-mail.";
+    if (/already registered|already been registered/i.test(m)) return 'Un compte existe déjà avec cette adresse : connectez-vous.';
+    if (/Password should be at least|weak password/i.test(m)) return 'Le mot de passe est trop court ou trop simple.';
+    if (/same.*password|different from the old/i.test(m)) return "Choisissez un mot de passe différent de l'ancien.";
+    if (/rate limit|too many/i.test(m)) return 'Trop de tentatives : réessayez dans quelques minutes.';
+    if (/captcha/i.test(m)) return 'La vérification anti-robot a échoué : rechargez la page et réessayez.';
+    return m || 'Une erreur est survenue. Réessayez.';
+  }
+
+  var vues = { connexion: 'p-connexion', inscription: 'p-inscription', oubli: 'p-oubli', nouveau: 'p-nouveau' };
+  function montrer(v) {
+    Object.keys(vues).forEach(function (k) { document.getElementById(vues[k]).hidden = k !== v; });
+    document.getElementById('tabs').hidden = v === 'oubli' || v === 'nouveau';
+    document.getElementById('tab-connexion').setAttribute('aria-selected', v === 'connexion' ? 'true' : 'false');
+    document.getElementById('tab-inscription').setAttribute('aria-selected', v === 'inscription' ? 'true' : 'false');
+    var i = document.querySelector('#' + vues[v] + ' input'); if (i) i.focus();
+  }
+  document.getElementById('tab-connexion').addEventListener('click', function () { montrer('connexion'); });
+  document.getElementById('tab-inscription').addEventListener('click', function () { montrer('inscription'); });
+  document.querySelectorAll('[data-vue]').forEach(function (b) { b.addEventListener('click', function () { montrer(b.dataset.vue); }); });
+
+  // Anti-robot Cloudflare Turnstile : un seul widget par formulaire, monté une fois
+  var C = window.HTP_CAPTCHA || { monter: function () { return { actif: false, jeton: function () { return Promise.resolve(''); }, reinitialiser: function () {} }; } };
+  document.getElementById('f-connexion')._captcha = C.monter(document.getElementById('f-connexion'));
+  async function fonction(corps) {
+    var r = await fetch(cfg.supabaseUrl + '/functions/v1/mecalux-acces', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: cfg.supabaseAnonKey }, body: JSON.stringify(corps) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.erreur) throw new Error(d.erreur || 'Service indisponible. Réessayez dans un instant.');
+    return d;
+  }
+  async function avecCaptcha(form, opts) {
+    var c = form._captcha; if (!c || !c.actif) return opts;
+    st(form, 'Vérification anti-robot…');
+    var j = await c.jeton();
+    if (!j) throw new Error('La vérification anti-robot n’a pas abouti. Réessayez dans un instant.');
+    opts.captchaToken = j; return opts;
+  }
+  function occuper(form, oui) { var b = form.querySelector('[type=submit]'); if (b) b.disabled = oui; }
+  function apres(form) { if (form._captcha) form._captcha.reinitialiser(); }
+
+  // Session déjà ouverte (ou lien de confirmation) : direction le pilotage
+  db.auth.onAuthStateChange(function (ev, s) {
+    if (ev === 'PASSWORD_RECOVERY') { enReset = true; montrer('nouveau'); return; }
+    if (s && !enReset && ev === 'SIGNED_IN') location.replace('./');
+  });
+  db.auth.getSession().then(function (r) {
+    var s = r.data && r.data.session;
+    if (enReset) { if (s) montrer('nouveau'); else { montrer('oubli'); st(document.getElementById('f-oubli'), 'Ce lien a expiré : demandez-en un nouveau.', 'error'); } return; }
+    if (s) location.replace('./');
+  });
+
+  var fc = document.getElementById('f-connexion');
+  fc.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!fc.checkValidity()) { st(fc, 'Indiquez votre e-mail et votre mot de passe.', 'error'); return; }
+    occuper(fc, true); var r;
+    try { var o = await avecCaptcha(fc, {}); st(fc, 'Connexion…'); r = await db.auth.signInWithPassword({ email: fc.elements.email.value.trim(), password: fc.elements.password.value, options: o }); }
+    catch (err) { r = { error: err }; }
+    occuper(fc, false); apres(fc);
+    if (r.error) { st(fc, errText(r.error), 'error'); return; }
+    location.replace('./');
+  });
+
+  var fi = document.getElementById('f-inscription');
+  fi.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!fi.checkValidity()) { st(fi, fi.elements.password.value && fi.elements.password.value.length < 10 ? 'Le mot de passe doit faire au moins 10 caractères.' : 'Merci de compléter tous les champs et de cocher la case.', 'error'); return; }
+    occuper(fi, true); var email = fi.elements.email.value.trim();
+    st(fi, 'Création de votre accès…');
+    try { await fonction({ action: 'inscription', prenom: fi.elements.prenom.value.trim(), nom: fi.elements.nom.value.trim(), email: email, password: fi.elements.password.value }); }
+    catch (err) { occuper(fi, false); st(fi, err.message, 'error'); return; }
+    occuper(fi, false); fi.reset();
+    st(fi, 'Presque fini : cliquez sur le lien envoyé à ' + email + ' pour confirmer votre adresse. Votre demande sera ensuite transmise pour validation.', 'ok');
+  });
+
+  var fo = document.getElementById('f-oubli');
+  fo.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!fo.checkValidity()) { st(fo, 'Indiquez votre e-mail.', 'error'); return; }
+    occuper(fo, true); st(fo, 'Envoi…');
+    try { await fonction({ action: 'oubli', email: fo.elements.email.value.trim() }); }
+    catch (err) { occuper(fo, false); st(fo, err.message, 'error'); return; }
+    occuper(fo, false);
+    st(fo, 'Si un compte existe pour cette adresse, un lien vient de vous être envoyé.', 'ok');
+  });
+
+  var fn = document.getElementById('f-nouveau');
+  fn.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!fn.checkValidity()) { st(fn, 'Le mot de passe doit faire au moins 10 caractères.', 'error'); return; }
+    occuper(fn, true); st(fn, 'Enregistrement…');
+    var r = await db.auth.updateUser({ password: fn.elements.password.value });
+    occuper(fn, false);
+    if (r.error) { st(fn, errText(r.error), 'error'); return; }
+    st(fn, 'Mot de passe enregistré.', 'ok'); location.replace('./');
+  });
+
+  if (params.get('inscription') === '1') montrer('inscription');
+})();
+</script>
+</body>
+</html>

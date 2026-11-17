@@ -246,3 +246,49 @@ grant select, insert, update, delete on public.mecalux_imports to authenticated;
 alter table public.mecalux_frais add column if not exists import_id text references public.mecalux_imports(id) on delete set null;
 create index if not exists mecalux_frais_import_idx on public.mecalux_frais(import_id);
 alter publication supabase_realtime add table public.mecalux_imports;
+
+-- ============ Authentification (pilotage ouvert à Mecalux) ============
+-- Comptes créés depuis mecalux/connexion.html via la fonction mecalux-acces (e-mails « Pilotage Mecalux »).
+-- Chaque compte confirmé crée une demande d'accès ; les administrateurs la valident ou la refusent (e-mail ou page Accès).
+alter table public.mecalux_equipe add column if not exists admin boolean not null default false;
+create or replace function public.mecalux_est_admin() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.mecalux_equipe where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and admin);
+$$;
+revoke execute on function public.mecalux_est_admin() from anon;
+drop policy if exists "equipe_admin_ecriture" on public.mecalux_equipe;
+create policy "equipe_admin_ecriture" on public.mecalux_equipe for all to authenticated
+  using (public.mecalux_est_admin()) with check (public.mecalux_est_admin());
+grant insert, update, delete on public.mecalux_equipe to authenticated;
+
+create table if not exists public.mecalux_demandes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  email text not null, prenom text, nom text,
+  statut text not null default 'en_attente' check (statut in ('en_attente','acceptee','refusee')),
+  jeton text not null default encode(gen_random_bytes(24), 'hex'),
+  cree_le timestamptz not null default now(), traite_le timestamptz, traite_par text
+);
+create unique index if not exists mecalux_demandes_attente on public.mecalux_demandes (lower(email)) where statut = 'en_attente';
+alter table public.mecalux_demandes enable row level security;
+drop policy if exists "demandes_admin" on public.mecalux_demandes;
+create policy "demandes_admin" on public.mecalux_demandes for select to authenticated using (public.mecalux_est_admin());
+grant select on public.mecalux_demandes to authenticated;
+
+create or replace function public.mecalux_nouvelle_demande() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(new.raw_user_meta_data ->> 'app', '') <> 'mecalux' or new.email_confirmed_at is null then return new; end if;
+  if tg_op = 'UPDATE' and old.email_confirmed_at is not null then return new; end if;
+  if exists (select 1 from public.mecalux_equipe where lower(email) = lower(new.email)) then return new; end if;
+  insert into public.mecalux_demandes (user_id, email, prenom, nom)
+  values (new.id, new.email, nullif(left(new.raw_user_meta_data ->> 'prenom', 100), ''), nullif(left(new.raw_user_meta_data ->> 'nom', 100), ''))
+  on conflict do nothing;
+  return new;
+end; $$;
+drop trigger if exists mecalux_demande_acces on auth.users;
+create trigger mecalux_demande_acces after insert or update of email_confirmed_at on auth.users
+  for each row execute function public.mecalux_nouvelle_demande();
+-- Déclencheur e-mail (remplacer <WEBHOOK_SECRET> par le secret des fonctions) :
+-- create trigger notify_mecalux_demandes after insert on public.mecalux_demandes for each row execute function
+--   supabase_functions.http_request('https://krcsbskmttgmzzqjfudo.supabase.co/functions/v1/mecalux-acces', 'POST',
+--   '{"Content-type":"application/json","x-webhook-secret":"<WEBHOOK_SECRET>"}', '{}', '5000');
+-- creer_profil() ignore aussi les comptes dont raw_user_meta_data->>'app' = 'mecalux' (pas de fiche consultant HT Portage).
