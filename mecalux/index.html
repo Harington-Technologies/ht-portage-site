@@ -259,6 +259,9 @@ function prestationLignes(pid,rid,mois){const out=[];const R=S.regles;const kS=n
     return out}
   list('temps').filter(t=>t.projetId===pid&&t.ressourceId===rid&&t.mois===mois&&num(t.jours)>0).sort((a,b)=>a.phase>b.phase?1:-1).forEach(t=>{const tj=tjmFor(pid,rid,t.phase);out.push({type:'prestation',libelle:lib(t.phase),qte:num(t.jours),unite:'j',pu:tj,montant:num(t.jours)*tj})});
   return out}
+/* nom lisible du marchand : Pleo met parfois un identifiant technique à la place */
+const estIdTech=v=>/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(v||''));
+function libMarchand(f){return (f.marchand&&!estIdTech(f.marchand))?f.marchand:(f.note||f.categoriePleo||'')}
 const RUBRIQUES=[['prestation','Jours d\'intervention'],['bareme','Frais au barème'],['frais','Frais réels']];
 function pfLines(pid,mois){
   const lines=[];const m=1+num(S.regles.margeFrais)/100;const marge=m!==1?' (+'+nf(S.regles.margeFrais)+' %)':'';
@@ -275,7 +278,7 @@ function pfLines(pid,mois){
     // frais réels détaillés : par jour (jours × prix) ou une ligne par dépense (date, marchand ou note)
     fr.filter(f=>(f.ressourceId||'')===rid).sort((a,b)=>((a.categorie||'')+(a.date||''))>((b.categorie||'')+(b.date||''))?1:-1).forEach(f=>{const cat=f.categorie||'Divers';
       if(f.parJour&&num(f.jours))lines.push({type:'frais',collab,libelle:cat+marge,qte:num(f.jours),unite:'j',pu:num(f.prixJour)*m,montant:num(f.montant)*m});
-      else{const det=[f.date?dateFr(f.date).replace(/ \d{4}$/,''):'',f.marchand||f.note||''].filter(Boolean).join(' · ');lines.push({type:'frais',collab,libelle:cat+(det?' · '+det:'')+marge,qte:1,unite:'',pu:num(f.montant)*m,montant:num(f.montant)*m})}});
+      else{const det=[f.date?dateFr(f.date).replace(/ \d{4}$/,''):'',libMarchand(f)].filter(Boolean).join(' · ');lines.push({type:'frais',collab,libelle:cat+(det?' · '+det:'')+marge,qte:1,unite:'',pu:num(f.montant)*m,montant:num(f.montant)*m})}});
   });
   return lines;
 }
@@ -876,7 +879,7 @@ function vSaisie(){
   h+=fr.length?'<div class="card-h"><span class="small muted" id="tblFrais-compte">'+fr.length+' dépenses</span><div class="row"><button class="btn g sm" data-act="razFiltres" data-t="tblFrais">Effacer les filtres</button><button class="btn d sm" data-act="delFraisAffiches">Supprimer les dépenses affichées</button></div></div><div class="scroll"><table class="tbl filtrable triable" id="tblFrais"><thead><tr>'+
     [['Date','date'],['Ressource','txt'],['Catégorie','txt'],['Détail','txt'],['Refacturable','txt'],['Montant TTC','num']].map(([t,k],ci)=>'<th'+(k==='num'?' class="n"':'')+'><button type="button" class="tri" data-tri="'+ci+'" data-t="tblFrais">'+t+'<span class="fl" aria-hidden="true"></span></button></th>').join('')+'<th></th></tr>'+
     filtreLigne('tblFrais',[{t:'texte',l:'Date',ph:'ex. 03/11'},{t:'liste',l:'Ressource',o:[...new Set(fr.map(nomR))].sort()},{t:'liste',l:'Catégorie',o:[...new Set(fr.map(f=>f.categorie||''))].filter(Boolean).sort()},{t:'texte',l:'Détail',ph:'Marchand, note…'},{t:'liste',l:'Refacturable',o:['Oui','Non']},{t:'texte',l:'Montant',ph:'ex. >50'},null])+'</thead><tbody>'+
-    fr.map(f=>'<tr data-id="'+f.id+'"><td class="small" data-v="'+esc(f.date||'')+'">'+dateFr(f.date)+'<span hidden> '+esc((f.date||'').split('-').reverse().join('/'))+'</span></td><td>'+esc(nomR(f))+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill dev" title="'+esc(f.categoriePleo||'')+'">Pleo</span> <b>'+esc(f.marchand||'')+'</b> ':'')+(f.parJour?'<span class="pill" title="Prix par jour × jours'+(f.joursAuto!==false?' travaillés du calendrier':' saisis')+'">par jour</span> '+nf(f.jours)+' j'+(f.joursAuto!==false?' travaillés':'')+' × '+eur2(f.prixJour)+' ':'')+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n" data-v="'+num(f.montant)+'">'+eur2(f.montant)+'</td><td class="n" style="white-space:nowrap"><button class="btn g sm" data-act="ecarterFrais" data-id="'+f.id+'">Écarter</button><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button><button class="btn g sm" data-act="delFrais" data-id="'+f.id+'" style="color:var(--bad)" aria-label="Supprimer la dépense">Supprimer</button></td></tr>').join('')+
+    fr.map(f=>'<tr data-id="'+f.id+'"><td class="small" data-v="'+esc(f.date||'')+'">'+dateFr(f.date)+'<span hidden> '+esc((f.date||'').split('-').reverse().join('/'))+'</span></td><td>'+esc(nomR(f))+'</td><td>'+esc(f.categorie)+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill dev" title="'+esc(f.categoriePleo||'')+'">Pleo</span> <b>'+esc(estIdTech(f.marchand)?(f.categoriePleo||''):(f.marchand||''))+'</b> ':'')+(f.parJour?'<span class="pill" title="Prix par jour × jours'+(f.joursAuto!==false?' travaillés du calendrier':' saisis')+'">par jour</span> '+nf(f.jours)+' j'+(f.joursAuto!==false?' travaillés':'')+' × '+eur2(f.prixJour)+' ':'')+esc(f.note||'')+(f.dejaFacture?' <span class="pill">déjà facturé</span>':'')+(!CAT_FORFAIT.includes(f.categorie)&&!f.justif?' <span class="pill bad">justificatif manquant</span>':'')+'</td><td>'+(f.refacturable!==false?'<span class="pill ok">Oui</span>':'<span class="pill">Non</span>')+'</td><td class="n" data-v="'+num(f.montant)+'">'+eur2(f.montant)+'</td><td class="n" style="white-space:nowrap"><button class="btn g sm" data-act="ecarterFrais" data-id="'+f.id+'">Écarter</button><button class="btn g sm" data-act="editFrais" data-id="'+f.id+'">Modifier</button><button class="btn g sm" data-act="delFrais" data-id="'+f.id+'" style="color:var(--bad)" aria-label="Supprimer la dépense">Supprimer</button></td></tr>').join('')+
     '</tbody><tfoot><tr><td colspan="5">Total · dont refacturable '+eur2(fr.filter(f=>f.refacturable!==false).reduce((x,f)=>x+num(f.montant),0))+'</td><td class="n">'+eur2(fr.reduce((x,f)=>x+num(f.montant),0))+'</td><td></td></tr></tfoot></table></div>':'<div class="empty">Aucune dépense saisie pour ce mois.</div>';
   if(ec.length)h+='<details><summary class="small" style="cursor:pointer;font-weight:700;color:var(--muted)">Frais écartés ('+ec.length+') · '+eur2(ec.reduce((x,f)=>x+num(f.montant),0))+'</summary><div class="scroll"><table class="tbl" style="margin-top:8px"><tbody>'+ec.map(f=>'<tr style="opacity:.75"><td class="small">'+dateFr(f.date)+'</td><td>'+esc((byId('ressources',f.ressourceId)||{}).nom||'—')+'</td><td class="small">'+(f.source==='pleo'?'<span class="pill">Pleo</span> ':'')+'<b>'+esc(f.marchand||f.categorie)+'</b></td><td class="small">'+esc(f.motif||'')+'</td><td class="n">'+eur2(f.montant)+'</td><td class="n"><button class="btn g sm" data-act="reintegrer" data-id="'+f.id+'">Réintégrer</button><button class="btn g sm" data-act="delFrais" data-id="'+f.id+'" style="color:var(--bad)" aria-label="Supprimer la dépense">Supprimer</button></td></tr>').join('')+'</tbody></table></div></details>';
   h+='<p class="small muted" style="margin:0">Hôtels, locations et billets déjà facturés par ailleurs : décochez « Refacturable » pour qu\'ils ne remontent pas dans la préfacture.</p></section>';
@@ -900,7 +903,7 @@ function vPrefacture(key){
   const p=byId('projets',pid);if(!p)return head('Préfacture','Projet introuvable');
   const pf=pfOf(pid,m);const live=pfLines(pid,m);const L=pf&&pf.lignes?pf.lignes:live;
   const tot=L.reduce((x,l)=>x+num(l.montant),0);const st=pf&&pf.statut||'À préparer';const si=STATUTS_PF.indexOf(st);
-  let h='<a href="#prefactures" class="small" style="font-weight:600" data-pfmois="'+m+'">← Préfactures</a>'+head(moisLabel(m),'Préfacture '+p.client,'<button class="btn o" data-act="pfCsv" data-k="'+key+'">Télécharger (CSV)</button><button class="btn o" data-act="pfHtml" data-k="'+key+'">Télécharger (HTML)</button><button class="btn o" data-act="pfCopy" data-k="'+key+'">Copier</button>');
+  let h='<a href="#prefactures" class="small" style="font-weight:600" data-pfmois="'+m+'">← Préfactures</a>'+head(moisLabel(m),'Préfacture '+p.client,'<button class="btn o" data-act="pfCsv" data-k="'+key+'">Télécharger (CSV)</button><button class="btn o" data-act="pfHtml" data-k="'+key+'">Télécharger (HTML)</button><button class="btn p" data-act="pfPdf" data-k="'+key+'">Télécharger (PDF)</button><button class="btn o" data-act="pfCopy" data-k="'+key+'">Copier</button>');
   h+='<div class="steps" aria-label="Avancement">'+STATUTS_PF.map((s,k)=>'<span class="'+(k<si?'done':k===si?'cur':'')+'">'+(k+1)+'. '+s+'</span>').join('')+'</div>';
   if(pf&&pf.lignes&&changed(pf,live))h+='<div class="banner">Les jours ou frais saisis ont changé depuis que cette préfacture a été figée (nouveau calcul : '+eur2(live.reduce((x,l)=>x+l.montant,0))+'). <button class="btn o sm" data-act="pfRefresh" data-k="'+key+'">Mettre à jour les lignes</button></div>';
   h+='<div class="grid2" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start">';
@@ -1200,6 +1203,35 @@ function formFrais(f){
 }
 
 /* ---------- exports ---------- */
+async function pfPdf(key){
+  let JS;try{toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){toast(e.message);return}
+  const {p,m,pf,L,tot}=pfData(key);const t=v=>String(v==null?'':v).replace(/[  ]/g,' ').replace(/→/g,'->').replace(/½/g,' 1/2');const E2=v=>t(eur2(v));
+  const doc=new JS({unit:'mm',format:'a4'});const W=210,M=14;const NAVY=[33,50,78],PLUM=[120,78,97],MUTED=[74,84,104],BG=[241,244,247];
+  doc.setFillColor(...NAVY);doc.rect(0,0,W,28,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(t('Préfacture · pour validation'),M,13);
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(t('Pilotage équipe Mecalux · éditée le '+new Date().toLocaleDateString('fr-FR')),M,21);
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(t(moisLabel(m).replace(/^./,c=>c.toUpperCase())),W-M,13,{align:'right'});
+  doc.setTextColor(...NAVY);doc.setFontSize(14);doc.text(t(p.client+' · '+p.nom),M,39);
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...MUTED);
+  const inf=[p.site,p.refMecalux?'Réf. Mecalux '+p.refMecalux:'',pf&&pf.bdc?'Bon de commande '+pf.bdc:'','Statut : '+(pf&&pf.statut||'À préparer')].filter(Boolean).join('  ·  ');doc.text(t(inf),M,45);
+  const body=[];
+  pfGroupes(L).forEach(g=>{
+    if(g.collab)body.push([{content:t((g.collab.code?g.collab.code+' · ':'')+g.collab.nom),colSpan:4,styles:{fillColor:NAVY,textColor:255,fontStyle:'bold',fontSize:10}}]);
+    RUBRIQUES.forEach(([ty,lib])=>{const ls=g.lignes.filter(l=>(l.type||'frais')===ty);if(!ls.length)return;const st=ls.reduce((x,l)=>x+num(l.montant),0);
+      body.push([{content:t(lib),colSpan:3,styles:{fontStyle:'bold',textColor:[0,0,0]}},{content:E2(st),styles:{fontStyle:'bold',textColor:[0,0,0],halign:'right'}}]);
+      ls.forEach(l=>body.push([{content:t(l.libelle),styles:{cellPadding:{top:1.6,bottom:1.6,left:6,right:2}}},{content:t(nf(l.qte)+(l.unite?' '+l.unite:'')),styles:{halign:'right'}},{content:E2(l.pu),styles:{halign:'right'}},{content:E2(l.montant),styles:{halign:'right'}}]))});
+    if(g.collab)body.push([{content:t('Sous-total '+g.collab.nom+' · '+nf(g.jours)+' j ('+eur2(g.presta)+') + barème '+eur2(g.bareme)+' + frais réels '+eur2(g.frais)),colSpan:3,styles:{halign:'right',textColor:MUTED,fontSize:8.5}},{content:E2(g.total),styles:{halign:'right',fontStyle:'bold',fillColor:BG}}]);
+  });
+  const foot=RUBRIQUES.map(([ty,lib])=>[{content:t('Total '+lib.toLowerCase()),colSpan:3,styles:{fontStyle:'normal',textColor:MUTED}},{content:E2(totRub(L,ty)),styles:{halign:'right',fontStyle:'normal',textColor:[27,28,28]}}]);
+  foot.push([{content:'Total HT',colSpan:3,styles:{fillColor:PLUM,textColor:255,fontStyle:'bold',fontSize:11}},{content:E2(tot),styles:{halign:'right',fillColor:PLUM,textColor:255,fontStyle:'bold',fontSize:11}}]);
+  doc.autoTable({startY:51,head:[['Désignation','Qté','PU HT','Montant HT']],body:body.length?body:[[{content:'Aucune ligne.',colSpan:4}]],foot,showFoot:'lastPage',
+    styles:{fontSize:9,cellPadding:1.8,textColor:[27,28,28],lineColor:[228,233,240],lineWidth:{bottom:0.1}},headStyles:{fillColor:[255,255,255],textColor:MUTED,fontStyle:'bold',fontSize:8,lineWidth:{bottom:0.4},lineColor:NAVY},
+    footStyles:{fillColor:[255,255,255]},columnStyles:{0:{cellWidth:'auto'},1:{cellWidth:20,halign:'right'},2:{cellWidth:28,halign:'right'},3:{cellWidth:30,halign:'right'}},
+    didParseCell:d=>{if(d.section==='head'&&d.column.index>0)d.cell.styles.halign='right'},margin:{left:M,right:M,bottom:16}});
+  let y=doc.lastAutoTable.finalY+7;
+  if(pf&&pf.notes){doc.setFontSize(9);doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');if(y>270){doc.addPage();y=20}doc.text('Notes',M,y);doc.setFont('helvetica','normal');doc.setTextColor(27,28,28);const ls=doc.splitTextToSize(t(pf.notes),W-2*M);doc.text(ls,M,y+5)}
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(...MUTED);doc.text(t('Préfacture '+p.client+' · '+p.nom+' · '+moisLabel(m)+' · document de travail, non valable comme facture'),M,289);doc.text(i+' / '+n,W-M,289,{align:'right'})}
+  doc.save(pfFile(key).normalize('NFD').replace(/[̀-ͯ]/g,'')+'.pdf');toast('PDF téléchargé');
+}
 function pfData(key){const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);const p=byId('projets',pid);const pf=pfOf(pid,m);const L=pf&&pf.lignes?pf.lignes:pfLines(pid,m);return{p,m,pf,L,tot:L.reduce((x,l)=>x+num(l.montant),0)}}
 function pfFile(key){const {p,m}=pfData(key);return ('prefacture_'+p.client+'_'+p.nom+'_'+m).replace(/[^\w-]+/g,'_')}
 function pfText(key){const {p,m,pf,L,tot}=pfData(key);return 'Préfacture '+p.client+' · '+p.nom+' · '+moisLabel(m)+(pf&&pf.bdc?' · BDC '+pf.bdc:'')+'\n'+pfGroupes(L).map(g=>(g.collab?'\n'+g.collab.nom+(g.collab.code?' ('+g.collab.code+')':''):'')+RUBRIQUES.map(([t,lib])=>{const ls=g.lignes.filter(l=>(l.type||'frais')===t);return ls.length?'\n  '+lib+'\n'+ls.map(l=>'    '+l.libelle+'\t'+nf(l.qte)+' '+l.unite+'\t'+eur2(l.pu)+'\t'+eur2(l.montant)).join('\n'):''}).join('')+(g.collab?'\n  Sous-total\t\t\t'+eur2(g.total):'')).join('\n')+'\n\n'+RUBRIQUES.map(([t,lib])=>'Total '+lib.toLowerCase()+'\t\t\t'+eur2(totRub(L,t))).join('\n')+'\nTotal HT\t\t\t'+eur2(tot)}
@@ -1283,6 +1315,7 @@ document.addEventListener('click',async e=>{
       const hist=(pf.historique||[]).slice(-19);if(pf.statut!==o.statut)hist.push({statut:o.statut,le:new Date().toISOString()});o.historique=hist;
       if(await save('prefactures',key,o))toast('Préfacture enregistrée');break}
     case'pfCsv':dl(pfFile(b.dataset.k)+'.csv',pfCsv(b.dataset.k));break;
+    case'pfPdf':pfPdf(b.dataset.k);break;
     case'pfHtml':dl(pfFile(b.dataset.k)+'.html',pfHtml(b.dataset.k));break;
     case'pfCopy':copy(pfText(b.dataset.k));break;
     case'addProfil':{const r=readRegles();r.profils.push({id:uid('b'),nom:'Nouveau barème',hebergement:'reel',hotel:0,hotelEstime:90,dejeuner:0,diner:0,perDiem:0,location:'reel',locationJour:0,locationEstimee:50,regle:''});S.regles=r;render();break}
