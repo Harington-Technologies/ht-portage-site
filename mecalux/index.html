@@ -92,6 +92,10 @@ input[type=checkbox]{min-height:auto;width:18px;height:18px;accent-color:var(--p
 dialog{border:0;border-radius:20px;padding:0;max-width:min(720px,94vw);width:100%;box-shadow:0 20px 60px rgba(33,50,78,.3)}
 dialog.large{max-width:min(1100px,96vw)}
 .visu{width:100%;height:72vh;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:block}img.visu{object-fit:contain}
+#occupe{position:fixed;inset:0;z-index:9999;background:rgba(33,50,78,.45);display:flex;align-items:center;justify-content:center;cursor:wait}
+#occupe .boite{background:#fff;border-radius:16px;padding:22px 28px;display:flex;align-items:center;gap:14px;font-weight:600;color:var(--navy);box-shadow:0 20px 60px rgba(33,50,78,.3);max-width:90vw}
+#occupe .rond{width:26px;height:26px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--plum);animation:tourne .8s linear infinite;flex:none}
+@keyframes tourne{to{transform:rotate(360deg)}}
 dialog::backdrop{background:rgba(33,50,78,.45)}
 .dlg{padding:24px;display:flex;flex-direction:column;gap:18px;max-height:88vh;overflow:auto}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:14px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.2)}
@@ -970,6 +974,15 @@ function openForm(title,fields,data,onSave,extra){
 }
 dlg.addEventListener('click',e=>{const b=e.target.closest('[data-dlg]');if(e.target===dlg){dlg.close();return}if(!b)return;if(b.dataset.dlg==='close')dlg.close();if(b.dataset.dlg==='ok')dlg._save();if(b.dataset.dlg==='del'&&dlg._del){dlg._del();}});
 dlg.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();dlg._save()}});
+let occupeN=0;
+function occupe(msg){occupeN++;let o=document.getElementById('occupe');if(!o){o=document.createElement('div');o.id='occupe';o.setAttribute('role','alertdialog');o.setAttribute('aria-live','polite');o.innerHTML='<div class="boite"><span class="rond" aria-hidden="true"></span><span id="occupeMsg"></span></div>';
+  ['click','keydown','mousedown','touchstart'].forEach(t=>o.addEventListener(t,e=>{e.preventDefault();e.stopPropagation()},true))}
+  (dlg.open?dlg:document.body).appendChild(o);document.getElementById('occupeMsg').textContent=msg||'Enregistrement en cours…';document.body.setAttribute('aria-busy','true');if(o.focus){o.tabIndex=-1;o.focus()}}
+function occupeMsg(msg){const m=document.getElementById('occupeMsg');if(m)m.textContent=msg}
+function libre(){occupeN=Math.max(0,occupeN-1);if(occupeN)return;const o=document.getElementById('occupe');if(o)o.remove();document.body.removeAttribute('aria-busy')}
+window.addEventListener('beforeunload',e=>{if(occupeN){e.preventDefault();e.returnValue=''}});
+document.addEventListener('keydown',e=>{if(occupeN){e.preventDefault();e.stopPropagation()}},true);
+dlg.addEventListener('cancel',e=>{if(occupeN)e.preventDefault()});
 function confirmBox(msg,onYes){
   document.getElementById('dlgBody').innerHTML='<h2>Confirmer</h2><p style="margin:0">'+esc(msg)+'</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn d" id="cfYes">Supprimer</button></div>';
   dlg.showModal();document.getElementById('cfYes').onclick=async()=>{dlg.close();await onYes()};
@@ -1042,7 +1055,7 @@ async function lirePleo(file){
 function preparerLignes(brutes){return brutes.map(b=>{const ex=list('frais').find(f=>f.pleoRef===b.key);const cat=categorieDe(b.cp,b.mar);const sg=suggestion(cat,b.cp);
   const rid=ex?ex.ressourceId:ressourceDe(b.owner);const pp=ex?{pid:ex.projetId,via:'déjà importée'}:projetPour(rid,b.iso);
   return Object.assign(b,{rid,pid:pp.pid,via:pp.via,cat:ex?ex.categorie:cat,d:ex?(ex.statut==='ecarte'?'ecarte':'valide'):sg.d,motif:ex?(ex.motif||''):(sg.motif||''),refac:ex?ex.refacturable!==false:true,aide:sg.aide,ex:ex?ex.id:''})})}
-async function chargerFichierPleo(file){try{toast('Lecture du fichier…');const L=preparerLignes(await lirePleo(file));ui.pleo={fichier:file.name,lignes:L,f:{collab:'',cat:'',dec:'',proj:''}};location.hash='import-pleo';render()}catch(e){toast(e.message||'Import impossible.')}}
+async function chargerFichierPleo(file){occupe('Lecture du fichier '+file.name+'…');try{const L=preparerLignes(await lirePleo(file));ui.pleo={fichier:file.name,lignes:L,f:{collab:'',cat:'',dec:'',proj:''}};location.hash='import-pleo';render()}catch(e){toast(e.message||'Import impossible.')}finally{libre()}}
 function analysePleo(items){const par=(k)=>{const o={};items.forEach(x=>{const kk=x[k]||'';o[kk]=o[kk]||{n:0,tot:0,valide:0,ecarte:0,trier:0};o[kk].n++;o[kk].tot+=x.mont;o[kk][x.d||'trier']+=x.mont});return o};return {collab:par('rid'),cat:par('cat'),proj:par('pid')}}
 function tableAnalyse(titre,o,lib){const ks=Object.keys(o).sort((a,b)=>o[b].tot-o[a].tot);
   return '<section class="card"><h2>'+titre+'</h2><div class="scroll"><table class="tbl"><thead><tr><th></th><th class="n">Lignes</th><th class="n">Total</th><th class="n">Validées</th><th class="n">Écartées</th><th class="n">À trier</th></tr></thead><tbody>'+
@@ -1098,14 +1111,16 @@ function vImportPleo(){
 }
 async function enregistrerPleo(){const P=ui.pleo;const dec=P.lignes.filter(l=>l.d&&l.rid&&l.pid);const manque=P.lignes.filter(l=>l.d&&(!l.rid||!l.pid));
   if(!dec.length){toast('Aucune ligne décidée et complète (collaborateur et projet) à enregistrer.');return}
-  toast('Enregistrement de '+dec.length+' dépenses…');let ok=0;const parMP={};const envoyes={};let nbJ=0,errJ=0;
-  for(const l of dec){const id=l.ex||('pleo_'+l.key);const cur=byId('frais',id)||{};
+  occupe('Enregistrement des dépenses : 0 / '+dec.length+'…');let ok=0,nI=0;const parMP={};const envoyes={};let nbJ=0,errJ=0;
+  try{
+  for(const l of dec){nI++;occupeMsg('Enregistrement des dépenses : '+nI+' / '+dec.length+(nbJ?' · '+nbJ+' justificatif'+(nbJ>1?'s':'')+' stocké'+(nbJ>1?'s':''):'')+'…');const id=l.ex||('pleo_'+l.key);const cur=byId('frais',id)||{};
     let chemins=Array.isArray(cur.justifs)?cur.justifs.slice():[];
     if(l.fichiers&&l.fichiers.length){chemins=[];for(const fch of l.fichiers){const path='pleo/'+l.recu+'/'+fch.nom;
       if(!envoyes[path]){const {error}=await sb.storage.from(BUCKET_J).upload(path,fch.blob,{upsert:true,contentType:fch.blob.type});envoyes[path]=error?'err':'ok';if(error){errJ++;console.error(error)}else nbJ++}
       if(envoyes[path]==='ok')chemins.push(path)}}
     const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||l.note||'',refacturable:l.d==='valide'?l.refac:false,justif:chemins.length?true:l.justif!==false,justifs:chemins,pleoReceipt:l.recu||cur.pleoReceipt||'',dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));
     if(r){ok++;l.ex=id;const k=l.pid+'|'+l.iso.slice(0,7);parMP[k]=(parMP[k]||0)+1}}
+  }finally{libre()}
   ui.pleoMois=(P.lignes.map(l=>l.iso).sort()[0]||'').slice(0,7)||ui.pleoMois;
   const reste=P.lignes.filter(l=>!l.d||!l.rid||!l.pid);
   const msgJ=nbJ?' · '+nbJ+' justificatif'+(nbJ>1?'s':'')+' stocké'+(nbJ>1?'s':''):'';if(errJ)setTimeout(()=>toast(errJ+' justificatif(s) n\'ont pas pu être stockés.'),2800);
@@ -1224,13 +1239,13 @@ function formFrais(f){
     if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const mois=(o.date||m).slice(0,7);
     const id=f?f.id:uid('f');const nouveaux=[...E.pjFichiers.files];
     const trop=nouveaux.find(x=>x.size>10485760);if(trop){document.getElementById('frmErr').textContent='« '+trop.name+' » dépasse 10 Mo.';return}
-    const chemins=garder.slice();let ko=0;
-    if(nouveaux.length){document.getElementById('frmErr').textContent='Envoi des pièces jointes…';
+    const chemins=garder.slice();let ko=0;occupe(nouveaux.length?'Envoi des pièces jointes…':'Enregistrement…');try{
+    if(nouveaux.length){
       for(const x of nouveaux){const nom=x.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w.-]+/g,'_');const path='manuel/'+id+'/'+Date.now()+'-'+nom;
         const {error}=await sb.storage.from(BUCKET_J).upload(path,x,{upsert:true,contentType:x.type||typeMime(nom)});if(error)ko++;else chemins.push(path)}}
     if(ko){document.getElementById('frmErr').textContent=ko+' pièce(s) jointe(s) non envoyée(s). Réessayez.';return}
-    o.justifs=chemins;if(chemins.length)o.justif=true;
-    const ok=await save('frais',id,Object.assign({projetId:pid},f||{},o,{mois}));
+    o.justifs=chemins;if(chemins.length)o.justif=true;occupeMsg('Enregistrement…');
+    var ok=await save('frais',id,Object.assign({projetId:pid},f||{},o,{mois}));}finally{libre()}
     if(ok){const aSuppr=retires.filter(p=>p.startsWith('manuel/'));if(aSuppr.length)sb.storage.from(BUCKET_J).remove(aSuppr).catch(()=>{});
       toast('Dépense enregistrée'+(nouveaux.length?' · '+nouveaux.length+' pièce(s) jointe(s)':''));dlg.close()}};
   dlg._del=f?()=>{dlg.close();del('frais',f.id)}:null;
@@ -1333,7 +1348,7 @@ document.addEventListener('click',async e=>{
     case'delFrais':{const f=byId('frais',id);if(!f)break;confirmBox('Supprimer définitivement cette dépense ('+(f.marchand||f.categorie||'')+', '+eur2(f.montant)+' le '+dateFr(f.date)+') ?'+(f.source==='pleo'?' Elle réapparaîtra comme nouvelle si vous réimportez le même fichier Pleo.':''),async()=>{await del('frais',id);toast('Dépense supprimée')});break}
     case'delFraisAffiches':{const tbl=document.getElementById('tblFrais');if(!tbl)break;const ids=[...tbl.tBodies[0].rows].filter(r=>!r.hidden).map(r=>r.dataset.id).filter(Boolean);if(!ids.length){toast('Aucune dépense affichée.');break}
       const tot=ids.reduce((x,i)=>x+num((byId('frais',i)||{}).montant),0);
-      confirmBox('Supprimer définitivement les '+ids.length+' dépense'+(ids.length>1?'s':'')+' affichée'+(ids.length>1?'s':'')+' ('+eur2(tot)+') ? Les dépenses masquées par les filtres et les frais écartés ne sont pas concernés.',async()=>{for(const i of ids)await del('frais',i);toast(ids.length+' dépense'+(ids.length>1?'s':'')+' supprimée'+(ids.length>1?'s':''))});break}
+      confirmBox('Supprimer définitivement les '+ids.length+' dépense'+(ids.length>1?'s':'')+' affichée'+(ids.length>1?'s':'')+' ('+eur2(tot)+') ? Les dépenses masquées par les filtres et les frais écartés ne sont pas concernés.',async()=>{occupe('Suppression de '+ids.length+' dépense'+(ids.length>1?'s':'')+'…');try{let k=0;for(const i of ids){occupeMsg('Suppression : '+(++k)+' / '+ids.length+'…');await del('frais',i)}}finally{libre()}toast(ids.length+' dépense'+(ids.length>1?'s':'')+' supprimée'+(ids.length>1?'s':''))});break}
     case'calcDiversAdd':ui.calc.divers=(ui.calc.divers||[]).concat([{lib:'',montant:''}]);render();{const ins=document.querySelectorAll('[data-div$="|lib"]');if(ins.length)ins[ins.length-1].focus()}break;
     case'calcDiversDel':ui.calc.divers=(ui.calc.divers||[]).filter((_,i)=>i!==+b.dataset.i);render();break;
     case'planActifs':ui.planActifs=!ui.planActifs;render();break;
