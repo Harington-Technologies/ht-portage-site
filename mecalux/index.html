@@ -1195,7 +1195,8 @@ function formFrais(f){
       '<label class="row small" style="font-weight:600;margin-top:8px"><input type="checkbox" name="joursAuto"'+(v.joursAuto!==false?' checked':'')+'> <span id="pjAuto"></span></label></div>'+
     '<label class="f">Montant TTC (€)<input type="number" step="0.01" min="0" name="montant" value="'+esc(v.montant!=null?v.montant:'')+'"></label>'+
     '<label class="f" style="grid-column:1/-1">Détail<input name="note" value="'+esc(v.note||'')+'" placeholder="Péage A7, hôtel Ibis Lyon…"></label>'+
-    cb('refacturable','Refacturable à Mecalux',v.refacturable!==false)+cb('justif','Justificatif détaillé joint dans Pleo (obligatoire pour les frais au réel)',v.justif)+
+    cb('refacturable','Refacturable à Mecalux',v.refacturable!==false)+cb('justif','Justificatif détaillé fourni (obligatoire pour les frais au réel)',v.justif)+
+    '<div class="f" style="grid-column:1/-1"><span>Pièces jointes</span><div id="pjListe" class="small"></div><input type="file" name="pjFichiers" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.webp"><span class="small muted">PDF ou photo, 10 Mo max par fichier.</span></div>'+
     '<label class="f">Décision'+sel('statut',[['valide','Validé'],['ecarte','Écarté']],v.statut==='ecarte'?'ecarte':'valide')+'</label><label class="f">Motif d\'écart<input name="motif" value="'+esc(v.motif||'')+'" placeholder="Si écarté"></label>'+
     cb('dejaFacture','Déjà facturé par ailleurs (hôtel, location, billet)',v.dejaFacture)+'</form>'+
     '<p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
@@ -1207,6 +1208,10 @@ function formFrais(f){
     const n=nCal();document.getElementById('pjAuto').textContent='Reprendre les jours travaillés du calendrier : '+nf(n)+' j'+(n?'':' (rien de saisi ce mois-ci pour ce collaborateur sur ce projet)');
     if(E.joursAuto.checked)E.jours.value=n;E.jours.readOnly=E.joursAuto.checked;
     E.montant.readOnly=true;E.montant.value=Math.round(num(E.prixJour.value)*num(E.jours.value)*100)/100}
+  let garder=Array.isArray(v.justifs)?v.justifs.slice():[];const retires=[];
+  function majPj(){document.getElementById('pjListe').innerHTML=garder.length?garder.map((p,i)=>'<div class="row" style="gap:6px;margin:2px 0">📎 '+esc(p.split('/').pop().replace(/^\d{13}-/,''))+'<button type="button" class="btn o sm" data-pjx="'+i+'" aria-label="Retirer">Retirer</button></div>').join(''):'<span class="muted">Aucune pièce jointe.</span>'}
+  majPj();document.getElementById('pjListe').addEventListener('click',e=>{const b=e.target.closest('[data-pjx]');if(!b)return;retires.push(garder.splice(+b.dataset.pjx,1)[0]);majPj()});
+  E.pjFichiers.addEventListener('change',()=>{if(E.pjFichiers.files.length)E.justif.checked=true});
   fm.addEventListener('input',e=>maj(e.target.name));fm.addEventListener('change',e=>maj(e.target.name));maj('categorie');
   dlg._save=async()=>{const o={};['date','ressourceId','categorie','note','statut','motif'].forEach(k=>o[k]=E[k].value.trim());['refacturable','justif','dejaFacture'].forEach(k=>o[k]=E[k].checked);
     o.parJour=CAT_JOUR.includes(o.categorie);
@@ -1214,7 +1219,17 @@ function formFrais(f){
       if(!o.prixJour){document.getElementById('frmErr').textContent='Indiquez le prix par jour.';E.prixJour.focus();return}}
     else{o.prixJour='';o.jours='';o.joursAuto=true;o.montant=E.montant.value===''?'':num(E.montant.value);if(o.montant===''){document.getElementById('frmErr').textContent='« Montant TTC » est obligatoire.';E.montant.focus();return}}
     if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const mois=(o.date||m).slice(0,7);
-    const ok=await save('frais',f?f.id:uid('f'),Object.assign({projetId:pid},f||{},o,{mois}));if(ok){toast('Dépense enregistrée');dlg.close()}};
+    const id=f?f.id:uid('f');const nouveaux=[...E.pjFichiers.files];
+    const trop=nouveaux.find(x=>x.size>10485760);if(trop){document.getElementById('frmErr').textContent='« '+trop.name+' » dépasse 10 Mo.';return}
+    const chemins=garder.slice();let ko=0;
+    if(nouveaux.length){document.getElementById('frmErr').textContent='Envoi des pièces jointes…';
+      for(const x of nouveaux){const nom=x.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w.-]+/g,'_');const path='manuel/'+id+'/'+Date.now()+'-'+nom;
+        const {error}=await sb.storage.from(BUCKET_J).upload(path,x,{upsert:true,contentType:x.type||typeMime(nom)});if(error)ko++;else chemins.push(path)}}
+    if(ko){document.getElementById('frmErr').textContent=ko+' pièce(s) jointe(s) non envoyée(s). Réessayez.';return}
+    o.justifs=chemins;if(chemins.length)o.justif=true;
+    const ok=await save('frais',id,Object.assign({projetId:pid},f||{},o,{mois}));
+    if(ok){const aSuppr=retires.filter(p=>p.startsWith('manuel/'));if(aSuppr.length)sb.storage.from(BUCKET_J).remove(aSuppr).catch(()=>{});
+      toast('Dépense enregistrée'+(nouveaux.length?' · '+nouveaux.length+' pièce(s) jointe(s)':''));dlg.close()}};
   dlg._del=f?()=>{dlg.close();del('frais',f.id)}:null;
   dlg.showModal();E.date.focus();
 }
@@ -1310,7 +1325,7 @@ document.addEventListener('click',async e=>{
     case'calcDiversDel':ui.calc.divers=(ui.calc.divers||[]).filter((_,i)=>i!==+b.dataset.i);render();break;
     case'planActifs':ui.planActifs=!ui.planActifs;render();break;
     case'voirJustif':{const f=byId('frais',id);if(!f||!(f.justifs||[]).length)break;
-      const liens=[];for(const pth of f.justifs){const {data,error}=await sb.storage.from(BUCKET_J).createSignedUrl(pth,600);if(!error&&data)liens.push([pth.split('/').pop(),data.signedUrl])}
+      const liens=[];for(const pth of f.justifs){const {data,error}=await sb.storage.from(BUCKET_J).createSignedUrl(pth,600);if(!error&&data)liens.push([pth.split('/').pop().replace(/^\d{13}-/,''),data.signedUrl])}
       if(!liens.length){toast('Justificatif introuvable.');break}
       document.getElementById('dlgBody').innerHTML='<h2>Justificatif'+(liens.length>1?'s':'')+'</h2><p class="small muted" style="margin:0">'+esc((byId('ressources',f.ressourceId)||{}).nom||'')+' · '+dateFr(f.date)+' · '+esc(libMarchand(f))+' · '+eur2(f.montant)+'</p><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px">'+liens.map(([n,u])=>'<li><a href="'+esc(u)+'" target="_blank" rel="noopener" style="font-weight:600">'+esc(n)+'</a></li>').join('')+'</ul><p class="small muted" style="margin:0">Liens valables 10 minutes.</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Fermer</button></div>';
       dlg.showModal();break}
