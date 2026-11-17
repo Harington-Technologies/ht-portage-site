@@ -981,7 +981,8 @@ function ressourceDe(owner){const t=normNom(owner);if(!t.length)return '';const 
   const cands=rs.filter(x=>{const n=normNom(x.nom);return n.length&&(t.every(w=>n.some(v=>tokProche(w,v)))||n.every(v=>t.some(w=>tokProche(w,v))))});
   return cands.length===1?cands[0].id:''}
 function hashTxt(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36)}
-function isoDe(v){if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==='number'){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
+function isoLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function isoDe(v){if(v instanceof Date)return isNaN(v)?'':isoLocal(v);if(typeof v==='string'&&/^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2} \d{4}/.test(v.trim())){const d=new Date(v.trim());if(!isNaN(d))return isoLocal(d)}if(typeof v==='number'){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
   const m=String(v||'').trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');const m2=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m2?m2[0]:''}
 function categorieDe(cp,mar){const c=String(cp||'').toLowerCase(),m=String(mar||'').toUpperCase();
   if(/restauration|repas/.test(c))return 'Repas';if(/parking/.test(c)||/PARKING|PARC |COMMUNE DE|INDIGO|EFFIA|SAEMES|Q-PARK/.test(m))return 'Parking';
@@ -995,7 +996,7 @@ function categorieDe(cp,mar){const c=String(cp||'').toLowerCase(),m=String(mar||
   return 'Divers'}
 function suggestion(cat,cp){
   if(['Péages','Carburant','Parking','Train','Avion','Bus / taxi'].includes(cat))return {d:'valide',aide:''};
-  if(/équipement|equipement|matériel|t[ée]l[ée]phone|internet|abonnement|logiciel/i.test(cp))return {d:'ecarte',motif:'Hors frais de déplacement',aide:''};
+  if(/équipement|equipement|matériel|fourniture|t[ée]l[ée]phone|internet|abonnement|logiciel/i.test(cp))return {d:'ecarte',motif:'Hors frais de déplacement',aide:''};
   if(cat==='Repas')return {d:'',aide:'Repas : forfait ou per diem prévu au barème'};
   if(cat==='Location voiture')return {d:'',aide:'Location souvent déjà facturée'};
   if(cat==='Hôtel (au réel)')return {d:'',aide:'Hébergement : vérifier le barème'};
@@ -1012,10 +1013,14 @@ async function lirePleo(file){
   const X=await chargerXLSX();const buf=await new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>ko(new Error('Lecture du fichier impossible.'));fr.readAsArrayBuffer(file)});
   const wb=X.read(new Uint8Array(buf),{type:'array',cellDates:true});const rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true});
   if(!rows.length)throw new Error('Le fichier ne contient aucune ligne.');
-  const cols=Object.keys(rows[0]).map(k=>k.trim().toLowerCase());if(!cols.includes('owner')||!cols.includes('merchant'))throw new Error('Colonnes Pleo introuvables (date, amount, merchant, Owner…). Utilisez l\'export Pleo Analytics.');
+  const cols=Object.keys(rows[0]).map(k=>k.trim().toLowerCase());
+  if(!cols.includes('owner')||!(cols.includes('merchant')||cols.includes('source description')))throw new Error('Colonnes Pleo introuvables (Date, Amount, Source description ou merchant, Owner…). Utilisez l\'export Pleo.');
+  const nouveau=cols.includes('source description')||cols.includes('expense id'); // export « Pleo export » : montants négatifs, identifiant unique, lien du justificatif
   const g=(r,...ks)=>{for(const k of ks){const kk=Object.keys(r).find(x=>x.trim().toLowerCase()===k.toLowerCase());if(kk&&r[kk]!=='')return r[kk]}return ''};const vus={};
-  return rows.map(r=>{const iso=isoDe(g(r,'date')),mont=num(g(r,'billamount','amount')),mar=String(g(r,'merchant')).trim(),cp=String(g(r,'Category')).trim(),owner=String(g(r,'Owner')).trim(),acc=String(g(r,'Account Number')).replace(/"/g,'').trim();
-    const base=[iso,mont.toFixed(2),mar,owner,acc].join('|');vus[base]=(vus[base]||0)+1;return {key:hashTxt(base+'#'+vus[base]),iso,mont,mar,cp,owner,devise:String(g(r,'billcurrency','currency')||'EUR')}}).filter(l=>l.iso&&l.mont);
+  return rows.map(r=>{const iso=isoDe(g(r,'date')),brut=num(g(r,'billamount','amount')),mont=nouveau?-brut:brut,mar=String(g(r,'source description','merchant')).trim(),cp=String(g(r,'Category')).trim(),owner=String(g(r,'Owner')).trim(),acc=String(g(r,'Account Number')).replace(/"/g,'').trim();
+    const eid=String(g(r,'expense id')).trim();const note=String(g(r,'note')).trim();const recu=String(g(r,'receipt urls')).trim();
+    let key;if(eid)key=hashTxt('eid|'+eid);else{const base=[iso,mont.toFixed(2),mar,owner,acc].join('|');vus[base]=(vus[base]||0)+1;key=hashTxt(base+'#'+vus[base])}
+    return {key,iso,mont:Math.round(mont*100)/100,mar,cp,owner,note,justif:nouveau?!!recu:true,devise:String(g(r,'currency','billcurrency')||'EUR')}}).filter(l=>l.iso&&l.mont);
 }
 function preparerLignes(brutes){return brutes.map(b=>{const ex=list('frais').find(f=>f.pleoRef===b.key);const cat=categorieDe(b.cp,b.mar);const sg=suggestion(cat,b.cp);
   const rid=ex?ex.ressourceId:ressourceDe(b.owner);const pp=ex?{pid:ex.projetId,via:'déjà importée'}:projetPour(rid,b.iso);
@@ -1077,7 +1082,7 @@ async function enregistrerPleo(){const P=ui.pleo;const dec=P.lignes.filter(l=>l.
   if(!dec.length){toast('Aucune ligne décidée et complète (collaborateur et projet) à enregistrer.');return}
   toast('Enregistrement de '+dec.length+' dépenses…');let ok=0;const parMP={};
   for(const l of dec){const id=l.ex||('pleo_'+l.key);const cur=byId('frais',id)||{};
-    const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||'',refacturable:l.d==='valide'?l.refac:false,justif:true,dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));
+    const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||l.note||'',refacturable:l.d==='valide'?l.refac:false,justif:l.justif!==false,dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));
     if(r){ok++;l.ex=id;const k=l.pid+'|'+l.iso.slice(0,7);parMP[k]=(parMP[k]||0)+1}}
   ui.pleoMois=(P.lignes.map(l=>l.iso).sort()[0]||'').slice(0,7)||ui.pleoMois;
   const reste=P.lignes.filter(l=>!l.d||!l.rid||!l.pid);
