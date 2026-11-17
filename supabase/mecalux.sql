@@ -352,3 +352,13 @@ create policy "projets_harington" on public.mecalux_projets for all to authentic
 create policy "projets_mecalux" on public.mecalux_projets for all to authenticated using (public.mecalux_est_membre() and visible_mecalux) with check (public.mecalux_est_membre() and visible_mecalux);
 -- affectations, temps, frais, calendrier, préfactures, estimations : policy "equipe_projet_visible" = mecalux_voit_projet(projet_id)
 -- justificatifs : policy restrictive "mecalux_justifs_lecture_projet" (lecture limitée aux dépenses des projets visibles)
+
+-- ============ Super user Harington et per diem ============
+-- superuser : droits d'un utilisateur Harington + rubrique Per diem pour sa propre ressource (mecalux_equipe.ressource_id)
+-- Per diem du mois = jours de mise en service × taux (Règles : perDiemSuper, 70 €) − dépenses Pleo classées personnelles (mecalux_frais.perso)
+alter table public.mecalux_equipe drop constraint if exists mecalux_equipe_role_check;
+alter table public.mecalux_equipe add constraint mecalux_equipe_role_check check (role in ('admin','superuser','harington','mecalux'));
+alter table public.mecalux_equipe add column if not exists ressource_id text;
+alter table public.mecalux_frais add column if not exists perso boolean not null default false;
+-- table mecalux_perdiem (montant validé par ressource et par mois) : lecture/écriture par l'admin et par le super user pour sa ressource
+-- prestations : phase 'pil' (Pilotage) autorisée dans mecalux_affectations et mecalux_temps
