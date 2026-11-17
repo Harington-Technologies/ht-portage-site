@@ -224,6 +224,7 @@ const ICON={
  plan:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h5M10 17h6"/>',
  calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h2M12 18h4"/>',
  saisie:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13 7l4 4"/>',
+ rest:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
  pf:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
  pleo:'<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/>',
  acces:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -492,6 +493,7 @@ const ROUTES=[
   ['saisie','Saisie mensuelle','saisie'],
   ['import-pleo','Import Pleo','pleo'],
   ['prefactures','Préfactures','pf'],
+  ['restitutions','Restitutions Mecalux','rest'],
   ['regles','Règles de frais','regles'],
   ['acces','Accès','acces']
 ];
@@ -515,7 +517,7 @@ function render(){
   try{
     if(r.startsWith('projet-'))html=vProjet(r.slice(7));
     else if(r.startsWith('prefacture-'))html=vPrefacture(r.slice(11));
-    else html=({'tableau-de-bord':vDash,projets:vProjets,ressources:vRessources,planning:vPlanning,calculateur:vCalc,saisie:vSaisie,'import-pleo':vImportPleo,prefactures:vPrefactures,regles:vRegles,acces:vAcces}[r]||vDash)();
+    else html=({'tableau-de-bord':vDash,projets:vProjets,ressources:vRessources,planning:vPlanning,calculateur:vCalc,saisie:vSaisie,'import-pleo':vImportPleo,prefactures:vPrefactures,restitutions:vRestitutions,regles:vRegles,acces:vAcces}[r]||vDash)();
   }catch(e){console.error(e);html='<div class="card">Erreur d\'affichage : '+esc(e.message)+'</div>'}
   if(dbState==='login'){location.replace('connexion.html');return}
   if(dbState==='config'){m.innerHTML='<section class="card"><h1>Configuration manquante</h1><p style="margin:0">La configuration Supabase du site (assets/js/config.js) est introuvable.</p></section>';return}
@@ -952,6 +954,49 @@ function vAcces(){
   if(estAdmin&&faites.length)h+='<details><summary style="cursor:pointer;font-weight:700;color:var(--navy)">Demandes traitées ('+faites.length+')</summary><div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Nom</th><th>E-mail</th><th>Décision</th><th>Le</th><th>Par</th></tr></thead><tbody>'+faites.map(x=>'<tr><td>'+esc([x.prenom,x.nom].filter(Boolean).join(' ')||'—')+'</td><td>'+esc(x.email)+'</td><td>'+(x.statut==='acceptee'?'<span class="pill ok">Validée</span>':'<span class="pill">Refusée</span>')+'</td><td class="small">'+(x.traite_le?new Date(x.traite_le).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'}):'')+'</td><td class="small">'+esc(x.traite_par||'')+'</td></tr>').join('')+'</tbody></table></div></details>';
   return h;
 }
+/* ---------- restitutions : suivi des prestations par projet ---------- */
+function moisPrecedent(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7)}
+function libProjet(p){return String(p.client||'').toUpperCase()+(p.nom?' · '+p.nom:'')}
+// Jours du mois par projet et collaborateur, tirés de la saisie mensuelle (Développement, Mise en service ; demi-journées comprises)
+function restitution(m,seulVisibles){
+  const cal=list('calendrier').filter(c=>c.mois===m);const projets={};const autres={rd:{},conge:{}};
+  cal.forEach(c=>{const p=byId('projets',c.projetId);if(!p)return;const r=byId('ressources',c.ressourceId);if(!r)return;
+    Object.entries(c.jours||{}).forEach(([iso,v])=>{const x=pj(v);if(!x)return;
+      if(x.t==='dev'||x.t==='mes'){if(seulVisibles&&!p.visibleMecalux)return;const P=projets[p.id]=projets[p.id]||{p,res:{}};const L=P.res[r.id]=P.res[r.id]||{r,dev:0,mes:0};L[x.t]+=x.q}
+      else if(x.t==='rd'||x.t==='conge'){const A=autres[x.t][r.id]=autres[x.t][r.id]||{r,j:{}};A.j[iso]=Math.max(A.j[iso]||0,x.q)}})});
+  const tri=(a,b)=>a.r.nom.localeCompare(b.r.nom);
+  const blocs=Object.values(projets).sort((a,b)=>libProjet(a.p).localeCompare(libProjet(b.p))).map(P=>{const lignes=Object.values(P.res).filter(l=>l.dev+l.mes>0).sort(tri);
+    return {titre:libProjet(P.p),lignes:lignes.map(l=>({nom:l.r.nom,service:l.r.role||'',dev:l.dev,mes:l.mes,total:l.dev+l.mes})),total:lignes.reduce((t,l)=>t+l.dev+l.mes,0)}}).filter(b=>b.total>0);
+  [['rd','R&D'],['conge','Congé']].forEach(([k,lib])=>{const lignes=Object.values(autres[k]).map(A=>({nom:A.r.nom,service:A.r.role||'',dev:'',mes:'',total:Object.values(A.j).reduce((t,q)=>t+q,0)})).filter(l=>l.total>0).sort((a,b)=>a.nom.localeCompare(b.nom));
+    if(lignes.length)blocs.push({titre:lib,lignes,total:lignes.reduce((t,l)=>t+l.total,0),autre:true})});
+  return blocs}
+function vRestitutions(){
+  const m=ui.restMois||(ui.restMois=moisPrecedent());if(ui.restVisibles==null)ui.restVisibles=true;
+  const seul=peutPleo?ui.restVisibles:false;const B=restitution(m,seul);const v=x=>x===''||x==null?'':nf(x);
+  let h=head('Restitutions Mecalux','Suivi des prestations','<button class="btn o" data-act="restXlsx"'+(B.length?'':' disabled')+'>Export Excel</button><button class="btn p" data-act="restPdf"'+(B.length?'':' disabled')+'>Export PDF</button>');
+  h+='<div class="filters"><label class="f">Mois<input type="month" data-ui="restMois" value="'+m+'"></label>'+(peutPleo?'<label class="row small" style="font-weight:600;align-self:end;padding-bottom:10px"><input type="checkbox" data-restvis="1"'+(ui.restVisibles?' checked':'')+'> Uniquement les projets visibles par Mecalux</label>':'')+'</div>';
+  if(!B.length)return h+'<div class="empty">Aucun jour saisi pour '+moisLabel(m)+(seul?' sur les projets visibles par Mecalux':'')+'. Les jours viennent de la saisie mensuelle.</div>';
+  const tp=B.filter(b=>!b.autre);
+  h+='<section class="kpis">'+kpi('Jours DEV',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.dev,0),0)),'développement')+kpi('Jours MES',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.mes,0),0)),'mise en service')+kpi('Total facturable',nf(tp.reduce((t,b)=>t+b.total,0))+' j',tp.length+' projet'+(tp.length>1?'s':''))+'</section>';
+  h+='<section class="card"><p class="small muted" style="margin:0">Suivi des prestations — Harington Tech (classé par projet) — '+moisLabel(m)+'</p><div class="scroll"><table class="tbl"><thead><tr><th>Intervenant</th><th>Service</th><th class="n">Jours DEV</th><th class="n">Jours MES</th><th class="n">Nb jours</th></tr></thead><tbody>'+
+    B.map(b=>'<tr style="background:var(--bg)"><td colspan="4" style="font-weight:800;color:var(--navy)">'+esc(b.titre)+'</td><td class="n" style="font-weight:800;color:var(--navy)">'+nf(b.total)+'</td></tr>'+b.lignes.map(l=>'<tr><td>'+esc(l.nom)+'</td><td class="small">'+esc(l.service)+'</td><td class="n">'+v(l.dev||'')+'</td><td class="n">'+v(l.mes||'')+'</td><td class="n" style="font-weight:600">'+nf(l.total)+'</td></tr>').join('')).join('')+
+    '</tbody></table></div><p class="small muted" style="margin:0">Source : saisie mensuelle (jours Développement et Mise en service, demi-journées comprises). R&D et congés comptés une fois par jour et par personne.</p></section>';
+  return h}
+async function restExport(type){
+  const m=ui.restMois||moisPrecedent();const B=restitution(m,peutPleo?ui.restVisibles!==false:false);if(!B.length)return;
+  const ML=moisLabel(m).replace(/^./,c=>c.toUpperCase());const titre='Suivi des prestations — Harington Tech (classé par projet) — '+ML;const nomF='Suivi des prestations Harington - '+ML;
+  const lignes=[];B.forEach(b=>{lignes.push({g:true,c:[b.titre,'','','',b.total]});b.lignes.forEach(l=>lignes.push({c:[l.nom,l.service,l.dev||'',l.mes||'',l.total]}))});
+  if(type==='xlsx'){let X;try{X=await chargerXLSX()}catch(e){toast(e.message);return}
+    const aoa=[[titre],[],['Intervenant','Service','Jours DEV','Jours MES','Nb jours'],...lignes.map(l=>l.c)];const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:34},{wch:18},{wch:11},{wch:11},{wch:10}];
+    const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,ML.slice(0,31));X.writeFile(wb,nomF+'.xlsx');return}
+  let JS;try{toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){toast(e.message);return}
+  const t=x=>String(x==null?'':x).replace(/[\u202f\u00a0]/g,' ');const n=x=>x===''?'':t(nf(x));
+  const doc=new JS({unit:'mm',format:'a4'});const W=210,M=14;const NAVY=[33,50,78];
+  doc.setFillColor(...NAVY);doc.rect(0,0,W,26,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text('Suivi des prestations',M,12);
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(t('Harington Tech · classé par projet · '+ML+' · édité le '+new Date().toLocaleDateString('fr-FR')),M,20);
+  doc.autoTable({startY:33,head:[['Intervenant','Service',...['Jours DEV','Jours MES','Nb jours'].map(x=>({content:x,styles:{halign:'right'}}))]],body:lignes.map(l=>l.g?[{content:t(l.c[0]),colSpan:4,styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247]}},{content:n(l.c[4]),styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247],halign:'right'}}]:[t(l.c[0]),t(l.c[1]),n(l.c[2]),n(l.c[3]),n(l.c[4])]),
+    styles:{fontSize:9,cellPadding:2,textColor:[27,28,28]},headStyles:{fillColor:NAVY,textColor:255},columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right',fontStyle:'bold'}},margin:{left:M,right:M}});
+  doc.save(nomF+'.pdf')}
 function vRegles(){
   const R=S.regles,P=R.profils||DEFAULT_REGLES.profils,E=Object.assign({},DEFAULT_REGLES.estimations,R.estimations||{});
   let h=head('Règles applicables aux déplacements Mecalux','Règles de frais','<button class="btn p" data-act="saveRegles"'+(readOnly?' disabled':'')+'>Enregistrer les règles</button>');
@@ -1391,6 +1436,8 @@ document.addEventListener('click',async e=>{
       const match=l=>(!F.collab||(F.collab==='?'?!l.rid:l.rid===F.collab))&&(!F.cat||l.cat===F.cat)&&(!F.dec||(F.dec==='trier'?!l.d:l.d===F.dec))&&(!F.proj||(F.proj==='?'?!l.pid:l.pid===F.proj));
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
+    case'restXlsx':await restExport('xlsx');break;
+    case'restPdf':await restExport('pdf');break;
     case'basculerVisibilite':{const p=byId('projets',id);if(!p||!peutPleo)break;const v=!p.visibleMecalux;
       document.getElementById('dlgBody').innerHTML='<h2>'+(v?'Rendre visible par Mecalux':'Rendre le projet interne')+'</h2><p style="margin:0">'+(v?'Les utilisateurs Mecalux verront « '+esc(p.client+' · '+p.nom)+' » : son équipe, son calendrier, ses frais, ses justificatifs et ses préfactures.':'Les utilisateurs Mecalux ne verront plus « '+esc(p.client+' · '+p.nom)+' » ni rien de ce qui s\'y rattache.')+'</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Annuler</button><button class="btn p" id="cfYes">Confirmer</button></div>';dlg.showModal();
       document.getElementById('cfYes').onclick=async()=>{dlg.close();const ok=await save('projets',id,Object.assign({},p,{visibleMecalux:v}));if(ok)toast(v?'Projet visible par Mecalux':'Projet interne : masqué pour Mecalux')};break}
@@ -1488,6 +1535,7 @@ document.addEventListener('change',async e=>{
     if(k==='ressourceId'){ui.calc.tjm=''}
     if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
   if(t.dataset.roleEmail){const em=t.dataset.roleEmail,ro=t.value;const {error}=await sb.from('mecalux_equipe').update({role:ro}).eq('email',em);if(error){handleErr(error);chargerAcces();return}toast(em+' : '+ROLES[ro]);chargerAcces();return}
+  if(t.dataset.restvis){ui.restVisibles=t.checked;render();return}
   if(t.dataset.pnom&&ui.pleo){ui.pleo.nom=t.value;return}
   if(t.dataset.pleo){const f=t.files&&t.files[0];t.value='';if(f)chargerFichierPleo(f);return}
   if(t.dataset.pf&&ui.pleo){ui.pleo.f[t.dataset.pf]=t.value;pending=false;render();return}
