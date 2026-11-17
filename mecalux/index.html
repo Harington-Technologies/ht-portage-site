@@ -90,6 +90,8 @@ input[type=checkbox]{min-height:auto;width:18px;height:18px;accent-color:var(--p
 .gbar.dev{background:var(--steel);color:#fff}.gbar.mes{background:var(--rose);color:var(--navy)}
 .heat{display:inline-block;min-width:44px;padding:4px 6px;border-radius:8px;text-align:center;font-weight:700;font-size:12.5px}
 dialog{border:0;border-radius:20px;padding:0;max-width:min(720px,94vw);width:100%;box-shadow:0 20px 60px rgba(33,50,78,.3)}
+dialog.large{max-width:min(1100px,96vw)}
+.visu{width:100%;height:72vh;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:block}img.visu{object-fit:contain}
 dialog::backdrop{background:rgba(33,50,78,.45)}
 .dlg{padding:24px;display:flex;flex-direction:column;gap:18px;max-height:88vh;overflow:auto}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:14px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.2)}
@@ -1325,10 +1327,17 @@ document.addEventListener('click',async e=>{
     case'calcDiversDel':ui.calc.divers=(ui.calc.divers||[]).filter((_,i)=>i!==+b.dataset.i);render();break;
     case'planActifs':ui.planActifs=!ui.planActifs;render();break;
     case'voirJustif':{const f=byId('frais',id);if(!f||!(f.justifs||[]).length)break;
-      const liens=[];for(const pth of f.justifs){const {data,error}=await sb.storage.from(BUCKET_J).createSignedUrl(pth,600);if(!error&&data)liens.push([pth.split('/').pop().replace(/^\d{13}-/,''),data.signedUrl])}
-      if(!liens.length){toast('Justificatif introuvable.');break}
-      document.getElementById('dlgBody').innerHTML='<h2>Justificatif'+(liens.length>1?'s':'')+'</h2><p class="small muted" style="margin:0">'+esc((byId('ressources',f.ressourceId)||{}).nom||'')+' · '+dateFr(f.date)+' · '+esc(libMarchand(f))+' · '+eur2(f.montant)+'</p><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px">'+liens.map(([n,u])=>'<li><a href="'+esc(u)+'" target="_blank" rel="noopener" style="font-weight:600">'+esc(n)+'</a></li>').join('')+'</ul><p class="small muted" style="margin:0">Liens valables 10 minutes.</p><div class="row"><span class="sp"></span><button class="btn o" data-dlg="close">Fermer</button></div>';
-      dlg.showModal();break}
+      const docs=[];for(const pth of f.justifs){const {data,error}=await sb.storage.from(BUCKET_J).createSignedUrl(pth,3600);if(!error&&data)docs.push({nom:pth.split('/').pop().replace(/^\d{13}-/,''),url:data.signedUrl})}
+      if(!docs.length){toast('Justificatif introuvable.');break}
+      const montrer=i=>{const d=docs[i];const img=/\.(jpe?g|png|webp|gif)$/i.test(d.nom);
+        document.getElementById('visuZone').innerHTML=img?'<img class="visu" src="'+esc(d.url)+'" alt="'+esc(d.nom)+'">':'<iframe class="visu" src="'+esc(d.url)+'" title="'+esc(d.nom)+'"></iframe>';
+        document.getElementById('visuOnglet').href=d.url;document.querySelectorAll('[data-visu]').forEach(x=>x.classList.toggle('p',+x.dataset.visu===i))};
+      dlg.classList.add('large');dlg.addEventListener('close',()=>dlg.classList.remove('large'),{once:true});
+      document.getElementById('dlgBody').innerHTML='<div class="row" style="align-items:baseline"><h2 style="margin:0">Justificatif'+(docs.length>1?'s':'')+'</h2><span class="small muted">'+esc((byId('ressources',f.ressourceId)||{}).nom||'')+' · '+dateFr(f.date)+' · '+esc(libMarchand(f))+' · '+eur2(f.montant)+'</span></div>'+
+        (docs.length>1?'<div class="row" style="gap:6px;flex-wrap:wrap">'+docs.map((d,i)=>'<button type="button" class="btn o sm" data-visu="'+i+'">'+esc(d.nom)+'</button>').join('')+'</div>':'')+
+        '<div id="visuZone"></div><div class="row"><a id="visuOnglet" class="btn o" target="_blank" rel="noopener">Ouvrir dans un onglet</a><span class="sp"></span><button class="btn p" data-dlg="close">Fermer</button></div>';
+      document.getElementById('dlgBody').querySelectorAll('[data-visu]').forEach(x=>x.addEventListener('click',()=>montrer(+x.dataset.visu)));
+      montrer(0);dlg.showModal();break}
     case'razFiltres':ui.filtres[b.dataset.t]={};render();break;
     case'newRes':formRes();break;
     case'editRes':formRes(byId('ressources',id));break;
