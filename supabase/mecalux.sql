@@ -221,3 +221,13 @@ alter table public.mecalux_ressources add column if not exists pays text;
 
 -- Frais au réel saisis en prix par jour × jours travaillés (hôtel, location, voiture Harington)
 alter table public.mecalux_frais add column if not exists par_jour boolean not null default false, add column if not exists prix_jour numeric(10,2), add column if not exists jours numeric(6,2), add column if not exists jours_auto boolean not null default true;
+
+-- Justificatifs Pleo stockés chez nous (bucket privé, aucun lien vers Pleo)
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('mecalux-justifs', 'mecalux-justifs', false, 10485760)
+on conflict (id) do nothing;
+alter table public.mecalux_frais add column if not exists justifs jsonb not null default '[]'::jsonb, add column if not exists pleo_receipt text;
+drop policy if exists "mecalux_justifs_equipe" on storage.objects;
+create policy "mecalux_justifs_equipe" on storage.objects for all to authenticated
+  using (bucket_id = 'mecalux-justifs' and public.mecalux_est_membre())
+  with check (bucket_id = 'mecalux-justifs' and public.mecalux_est_membre());
