@@ -161,7 +161,7 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 (function(){
 "use strict";
 /* ---------- constantes ---------- */
-const COLLS=['projets','ressources','affectations','temps','frais','estimations','prefactures','calendrier'];
+const COLLS=['projets','ressources','affectations','temps','frais','estimations','prefactures','calendrier','imports'];
 /* Barèmes Harington · déplacements Mecalux (livret d'accueil CDC Mecalux) */
 const DEFAULT_REGLES={
   profils:[
@@ -368,10 +368,11 @@ const TABLES={
   projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','notes','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
-  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','par_jour','prix_jour','jours','jours_auto','justifs','pleo_receipt','source','statut','motif','pleo_ref','marchand','categorie_pleo','maj_le'],
+  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','par_jour','prix_jour','jours','jours_auto','justifs','pleo_receipt','import_id','source','statut','motif','pleo_ref','marchand','categorie_pleo','maj_le'],
   estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
   prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','maj_le'],
-  calendrier:['id','projet_id','ressource_id','mois','jours','baremes','resume','valide','valide_le','maj_le']
+  calendrier:['id','projet_id','ressource_id','mois','jours','baremes','resume','valide','valide_le','maj_le'],
+  imports:['id','nom','fichier','source','date_debut','date_fin','nb_lignes','total','cree_le','maj_le']
 };
 // MODE DÉVELOPPEMENT : pas de connexion (Cloudflare Turnstile bloque la connexion pour l'instant).
 // Remettre à false et appliquer le bloc « Retour au mode sécurisé » de supabase/mecalux-mode-dev.sql avant la mise en service.
@@ -380,7 +381,7 @@ const TBL=c=>'mecalux_'+c;
 const toSnake=k=>k.replace(/[A-Z]/g,c=>'_'+c.toLowerCase());
 const toCamel=k=>k.replace(/_([a-z])/g,(m,c)=>c.toUpperCase());
 function toRow(c,id,obj){const row={id};const cols=TABLES[c];Object.keys(obj).forEach(k=>{const sk=toSnake(k);if(sk==='id'||!cols.includes(sk))return;let v=obj[k];if(v===''||v===undefined)v=null;row[sk]=v});return row}
-const NUMS=['tjm_vente','tjm_cout','distance_km','budget_montant','jours_prevus','tjm','jours','montant','total_frais','trajet','refac'];
+const NUMS=['nb_lignes','total','tjm_vente','tjm_cout','distance_km','budget_montant','jours_prevus','tjm','jours','montant','total_frais','trajet','refac'];
 function fromRow(r){const o={};Object.keys(r).forEach(k=>{let v=r[k];if(v!=null&&typeof v!=='object'&&NUMS.includes(k))v=Number(v);if(v===null)v='';o[toCamel(k)]=v});return o}
 let sb=null,session=null,membre=null,authMsg='',channel=null;
 async function save(c,id,obj){
@@ -1063,6 +1064,19 @@ function tableAnalyse(titre,o,lib){const ks=Object.keys(o).sort((a,b)=>o[b].tot-
 const libCollab=k=>k?esc((byId('ressources',k)||{}).nom||'?'):'<span style="color:var(--bad)">Non reconnu</span>';
 const libProj=k=>{const p=byId('projets',k);return p?esc(p.client+' · '+p.nom):'<span style="color:var(--bad)">Sans projet</span>'};
 const nbL=n=>n+' ligne'+(n>1?'s':'');
+function nomImportDefaut(L,fichier){const ms=[...new Set(L.map(l=>l.iso.slice(0,7)))].sort();if(!ms.length)return fichier||'Import Pleo';
+  return 'Pleo '+moisLabel(ms[0])+(ms.length>1?' à '+moisLabel(ms[ms.length-1]):'')}
+const ANCIENS='_anciens';
+function groupesImports(){const g={};list('frais').filter(f=>f.source==='pleo'||f.importId).forEach(f=>{const k=f.importId&&byId('imports',f.importId)?f.importId:ANCIENS;(g[k]=g[k]||[]).push(f)});
+  const out=list('imports').map(i=>({id:i.id,imp:i,frais:g[i.id]||[]}));if(g[ANCIENS])out.push({id:ANCIENS,imp:null,frais:g[ANCIENS]});
+  return out.sort((a,b)=>String(b.imp?b.imp.creeLe:'').localeCompare(String(a.imp?a.imp.creeLe:'')))}
+function tableImports(){const G=groupesImports();if(!G.length)return '';
+  return '<section class="card"><div class="card-h"><h2 style="margin:0">Imports enregistrés</h2><span class="small muted">'+G.length+' import'+(G.length>1?'s':'')+'</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Nom</th><th>Fichier</th><th>Importé le</th><th>Période des dépenses</th><th class="n">Dépenses</th><th class="n">Validées</th><th class="n">Total</th><th></th></tr></thead><tbody>'+
+  G.map(x=>{const ds=x.frais.map(f=>f.date).filter(Boolean).sort();const tot=x.frais.reduce((t,f)=>t+num(f.montant),0);const nv=x.frais.filter(f=>f.statut!=='ecarte').length;const nj=x.frais.filter(f=>(f.justifs||[]).length).length;
+    return '<tr><td style="font-weight:700">'+(x.imp?esc(x.imp.nom):'<span class="muted">Imports antérieurs (sans nom)</span>')+'</td><td class="small">'+esc(x.imp?x.imp.fichier||'':'—')+'</td><td class="small">'+(x.imp&&x.imp.creeLe?dateFr(String(x.imp.creeLe).slice(0,10)):'—')+'</td>'+
+      '<td class="small">'+(ds.length?dateFr(ds[0])+' → '+dateFr(ds[ds.length-1]):'—')+'</td><td class="n">'+x.frais.length+(nj?'<div class="small muted">'+nj+' avec justificatif</div>':'')+'</td><td class="n">'+nv+'</td><td class="n" style="font-weight:700">'+eur2(tot)+'</td>'+
+      '<td style="white-space:nowrap;text-align:right"><button class="btn o sm" data-act="impRenommer" data-id="'+x.id+'">Renommer</button> <button class="btn d sm" data-act="impSuppr" data-id="'+x.id+'">Supprimer</button></td></tr>'}).join('')+
+  '</tbody></table></div><p class="small muted" style="margin:0">Supprimer un import retire ses dépenses (validées et écartées) et leurs justificatifs. Les dépenses saisies à la main ne sont jamais touchées.</p></section>'}
 function vImportPleo(){
   let h=head('Dépenses de toute l\'équipe','Import Pleo','<label class="btn p" style="cursor:pointer">Importer un export Pleo (.zip avec justificatifs, ou .xlsx)<input type="file" accept=".zip,.xlsx,.xls,.csv" data-pleo="1" hidden></label>');
   const P=ui.pleo;
@@ -1070,6 +1084,7 @@ function vImportPleo(){
     const m=ui.pleoMois||addMonths(curMonth(),-1);const it=list('frais').filter(f=>f.source==='pleo'&&f.mois===m).map(f=>({rid:f.ressourceId,cat:f.categorie,pid:f.projetId,mont:num(f.montant),d:f.statut==='ecarte'?'ecarte':'valide'}));
     const moisDispo=[...new Set(list('frais').filter(f=>f.source==='pleo').map(f=>f.mois))].sort().reverse();
     h+='<div class="note i">Exportez depuis Pleo › Analytics les dépenses du mois de l\'équipe MECALUX, puis importez le fichier. Chaque dépense est rattachée à son collaborateur, à son mois et au projet sur lequel il intervenait ce jour-là. Vous validez ou écartez ensuite, ligne par ligne ou en masse.</div>';
+    h+=tableImports();
     h+='<div class="filters"><label class="f">Mois déjà importés<input type="month" data-ui="pleoMois" value="'+m+'"></label>'+(moisDispo.length?'<span class="small muted">Importés : '+moisDispo.map(x=>'<a href="#import-pleo" data-pleomois="'+x+'" style="text-transform:capitalize">'+moisLabel(x)+'</a>').join(', ')+'</span>':'')+'</div>';
     if(!it.length)return h+'<div class="empty">Aucune dépense Pleo enregistrée pour <span style="text-transform:capitalize">'+moisLabel(m)+'</span>.</div>';
     const tot=k=>it.filter(x=>!k||x.d===k).reduce((s,x)=>s+x.mont,0);
@@ -1106,6 +1121,8 @@ function vImportPleo(){
       '<td><select data-pk="pid" aria-label="Projet" style="max-width:170px'+(l.pid?'':';border-color:var(--bad)')+'"><option value="">— à affecter —</option>'+ps.map(p=>'<option value="'+p.id+'"'+(p.id===l.pid?' selected':'')+'>'+esc(p.client+' · '+p.nom)+'</option>').join('')+'</select>'+(l.via?'<div class="small muted">via '+esc(l.via)+'</div>':'')+'</td></tr>').join('')+
     (vis.length?'':'<tr><td colspan="8" class="muted">Aucune ligne pour ces filtres.</td></tr>')+'</tbody></table></div>';
   const nd=L.filter(l=>l.d).length;
+  if(P.nom==null)P.nom=nomImportDefaut(L,P.fichier);
+  h+='<div class="row" style="margin-top:4px"><label class="f" style="flex:1 1 320px;max-width:460px">Nom de l\'import<input data-pnom="1" value="'+esc(P.nom)+'" placeholder="Ex. Pleo novembre 2026 · équipe Limagrain"></label></div>';
   h+='<div class="row"><span class="small muted">Seules les lignes validées ou écartées sont enregistrées. Les lignes « À trier » reviendront au prochain import.</span><span class="sp"></span><button class="btn p" data-act="pleoSave"'+(nd?'':' disabled')+'>Enregistrer '+nd+' décision'+(nd>1?'s':'')+' dans les frais des projets</button></div></section>';
   return h;
 }
@@ -1113,12 +1130,16 @@ async function enregistrerPleo(){const P=ui.pleo;const dec=P.lignes.filter(l=>l.
   if(!dec.length){toast('Aucune ligne décidée et complète (collaborateur et projet) à enregistrer.');return}
   occupe('Enregistrement des dépenses : 0 / '+dec.length+'…');let ok=0,nI=0;const parMP={};const envoyes={};let nbJ=0,errJ=0;
   try{
+  const dts=P.lignes.map(l=>l.iso).sort();const nomI=String(P.nom!=null?P.nom:nomImportDefaut(P.lignes,P.fichier)).trim()||nomImportDefaut(P.lignes,P.fichier);
+  if(!P.importId||!byId('imports',P.importId))P.importId='imp_'+Date.now().toString(36);const impPrev=byId('imports',P.importId)||{};
+  const okI=await save('imports',P.importId,Object.assign({},impPrev,{nom:nomI,fichier:P.fichier,source:'pleo',dateDebut:dts[0]||'',dateFin:dts[dts.length-1]||'',nbLignes:P.lignes.length,total:Math.round(P.lignes.reduce((t,l)=>t+l.mont,0)*100)/100,creeLe:impPrev.creeLe||new Date().toISOString()}));
+  if(!okI)return;
   for(const l of dec){nI++;occupeMsg('Enregistrement des dépenses : '+nI+' / '+dec.length+(nbJ?' · '+nbJ+' justificatif'+(nbJ>1?'s':'')+' stocké'+(nbJ>1?'s':''):'')+'…');const id=l.ex||('pleo_'+l.key);const cur=byId('frais',id)||{};
     let chemins=Array.isArray(cur.justifs)?cur.justifs.slice():[];
     if(l.fichiers&&l.fichiers.length){chemins=[];for(const fch of l.fichiers){const path='pleo/'+l.recu+'/'+fch.nom;
       if(!envoyes[path]){const {error}=await sb.storage.from(BUCKET_J).upload(path,fch.blob,{upsert:true,contentType:fch.blob.type});envoyes[path]=error?'err':'ok';if(error){errJ++;console.error(error)}else nbJ++}
       if(envoyes[path]==='ok')chemins.push(path)}}
-    const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||l.note||'',refacturable:l.d==='valide'?l.refac:false,justif:chemins.length?true:l.justif!==false,justifs:chemins,pleoReceipt:l.recu||cur.pleoReceipt||'',dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));
+    const r=await save('frais',id,Object.assign({},cur,{projetId:l.pid,ressourceId:l.rid,mois:l.iso.slice(0,7),date:l.iso,categorie:l.cat,montant:l.mont,note:cur.note||l.note||'',refacturable:l.d==='valide'?l.refac:false,justif:chemins.length?true:l.justif!==false,importId:P.importId,justifs:chemins,pleoReceipt:l.recu||cur.pleoReceipt||'',dejaFacture:false,source:'pleo',statut:l.d,motif:l.d==='ecarte'?l.motif:'',pleoRef:l.key,marchand:l.mar,categoriePleo:l.cp}));
     if(r){ok++;l.ex=id;const k=l.pid+'|'+l.iso.slice(0,7);parMP[k]=(parMP[k]||0)+1}}
   }finally{libre()}
   ui.pleoMois=(P.lignes.map(l=>l.iso).sort()[0]||'').slice(0,7)||ui.pleoMois;
@@ -1343,6 +1364,22 @@ document.addEventListener('click',async e=>{
       const match=l=>(!F.collab||(F.collab==='?'?!l.rid:l.rid===F.collab))&&(!F.cat||l.cat===F.cat)&&(!F.dec||(F.dec==='trier'?!l.d:l.d===F.dec))&&(!F.proj||(F.proj==='?'?!l.pid:l.pid===F.proj));
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
+    case'impRenommer':{const imp=byId('imports',id);const G=groupesImports().find(x=>x.id===id);if(!G)break;
+      openForm('Renommer l\'import',[{k:'nom',l:'Nom de l\'import',req:true,full:true}],{nom:imp?imp.nom:nomImportDefaut(G.frais.map(f=>({iso:f.date||f.mois+'-01'})),'')},async o=>{
+        if(imp)return await save('imports',id,Object.assign({},imp,{nom:o.nom}));
+        const nid='imp_'+Date.now().toString(36);const ds=G.frais.map(f=>f.date).filter(Boolean).sort();dlg.close();occupe('Création de l\'import…');
+        try{const okI=await save('imports',nid,{nom:o.nom,fichier:'',source:'pleo',dateDebut:ds[0]||'',dateFin:ds[ds.length-1]||'',nbLignes:G.frais.length,total:Math.round(G.frais.reduce((t,f)=>t+num(f.montant),0)*100)/100,creeLe:new Date().toISOString()});
+          if(okI){let k=0;for(const f of G.frais){occupeMsg('Rattachement des dépenses : '+(++k)+' / '+G.frais.length+'…');await save('frais',f.id,Object.assign({},f,{importId:nid}))}}}finally{libre()}
+        toast('Import renommé');return true});break}
+    case'impSuppr':{const G=groupesImports().find(x=>x.id===id);if(!G)break;const nom=G.imp?G.imp.nom:'Imports antérieurs (sans nom)';const tot=G.frais.reduce((t,f)=>t+num(f.montant),0);
+      confirmBox('Supprimer l\'import « '+nom+' » : '+G.frais.length+' dépense'+(G.frais.length>1?'s':'')+' ('+eur2(tot)+') et leurs justificatifs ? Les préfactures déjà envoyées ne sont pas modifiées. Cette suppression est définitive.',async()=>{
+        occupe('Suppression de l\'import…');let k=0;
+        try{const ids=new Set(G.frais.map(f=>f.id));const restants=list('frais').filter(f=>!ids.has(f.id));const gardes=new Set(restants.flatMap(f=>f.justifs||[]));
+          const aSuppr=[...new Set(G.frais.flatMap(f=>f.justifs||[]))].filter(p=>!gardes.has(p));
+          for(const f of G.frais){occupeMsg('Suppression des dépenses : '+(++k)+' / '+G.frais.length+'…');await del('frais',f.id)}
+          if(aSuppr.length){occupeMsg('Suppression des justificatifs…');for(let i=0;i<aSuppr.length;i+=100){const {error}=await sb.storage.from(BUCKET_J).remove(aSuppr.slice(i,i+100));if(error)console.error(error)}}
+          if(G.imp)await del('imports',G.imp.id)}finally{libre()}
+        toast('Import « '+nom+' » supprimé ('+k+' dépense'+(k>1?'s':'')+')')});break}
     case'pleoFermer':ui.pleo=null;render();break;
     case'ecarterFrais':{const f=byId('frais',id);if(!f)break;openForm('Écarter la dépense',[{k:'motif',l:'Motif d\'écart',req:true,full:true,ph:'Ex. repas couvert par le per diem, déjà facturé…'}],{motif:f.motif||''},async o=>{const ok=await save('frais',id,Object.assign({},f,{statut:'ecarte',motif:o.motif,refacturable:false}));if(ok)toast('Dépense écartée');return ok});break}
     case'delFrais':{const f=byId('frais',id);if(!f)break;confirmBox('Supprimer définitivement cette dépense ('+(f.marchand||f.categorie||'')+', '+eur2(f.montant)+' le '+dateFr(f.date)+') ?'+(f.source==='pleo'?' Elle réapparaîtra comme nouvelle si vous réimportez le même fichier Pleo.':''),async()=>{await del('frais',id);toast('Dépense supprimée')});break}
@@ -1405,6 +1442,7 @@ document.addEventListener('change',async e=>{
     if(k==='projetId'&&t.value){const p=byId('projets',t.value);if(p){if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd}}
     if(k==='ressourceId'){ui.calc.tjm=''}
     if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
+  if(t.dataset.pnom&&ui.pleo){ui.pleo.nom=t.value;return}
   if(t.dataset.pleo){const f=t.files&&t.files[0];t.value='';if(f)chargerFichierPleo(f);return}
   if(t.dataset.pf&&ui.pleo){ui.pleo.f[t.dataset.pf]=t.value;pending=false;render();return}
   if(t.dataset.pk&&ui.pleo){const tr=t.closest('tr[data-pi]');if(!tr)return;const l=ui.pleo.lignes[+tr.dataset.pi];const k=t.dataset.pk;
