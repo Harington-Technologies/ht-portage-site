@@ -367,3 +367,25 @@ alter table public.mecalux_frais add column if not exists perso boolean not null
 -- mecalux_analyse_pleo : dépenses Pleo (montant = coût, négatif = remboursement ; net = 0 pour une caution ou annulation neutralisée)
 -- mecalux_analyse_factures : lignes des factures, avoirs et préfactures émises (mois de prestation, est_frais)
 -- Lecture : Harington (admin, super user, utilisateur) ; import et attribution : admin. Attributions : mecalux_config 'analyse_attrib'.
+
+-- ---------- Droits par rubrique et par profil (réglés par l'admin dans la page Accès) ----------
+create table if not exists public.mecalux_droits (
+  role text not null check (role in ('superuser','harington','mecalux')),
+  rubrique text not null,
+  autorise boolean not null,
+  maj_le timestamptz not null default now(),
+  primary key (role, rubrique)
+);
+alter table public.mecalux_droits enable row level security;
+create policy "droits_lecture" on public.mecalux_droits for select to authenticated using (public.mecalux_est_membre());
+create policy "droits_admin" on public.mecalux_droits for all to authenticated using (public.mecalux_role() = 'admin') with check (public.mecalux_role() = 'admin');
+create or replace function public.mecalux_droit(rub text) returns boolean language sql stable security definer set search_path = public as $$
+  select case when public.mecalux_role() = 'admin' then true
+              when public.mecalux_role() is null then false
+              else coalesce((select autorise from public.mecalux_droits where role = public.mecalux_role() and rubrique = rub), true) end;
+$$;
+create policy "prefactures_droit" on public.mecalux_prefactures as restrictive for all to authenticated
+  using (public.mecalux_droit('prefactures')) with check (public.mecalux_droit('prefactures'));
+create policy "estimations_droit" on public.mecalux_estimations as restrictive for all to authenticated
+  using (public.mecalux_droit('calculateur')) with check (public.mecalux_droit('calculateur'));
+alter publication supabase_realtime add table public.mecalux_droits;
