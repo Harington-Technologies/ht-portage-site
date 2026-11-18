@@ -1118,7 +1118,8 @@ const AF_TRI_DEFAUT={SBN:'SBO',SOB:'SBO',MKI:'MFK',MBA:'MBM',MBN:'MBM',MBE:'ABR'
 // contrats nominatifs (liste des affaires Mecalux) : un contrat = un collaborateur ; les contrats d'équipe (CDC, AVV) se lisent au trigramme
 const AF_CONTRAT_DEFAUT={PRJHT2303164:'MTI',PRJHT2610271:'MTI',PRJHT2410252:'MON',PRJHT2507184:'HJA',PRJHT2601128:'HJA',PRJHT2605212:'TDS',PRJHT2605214:'BAT',PRJHT2512238:'SCE',PRJHT2512243:'KKB',PRJHT2512315:'SBO',PRJHT2512316:'HMI',PRJHT2512317:'MBM',PRJHT2512318:'BHI',PRJHT2601140:'WMI',PRJHT2601141:'HBI',PRJHT2602154:'hors:Rami Boumekhita',PRJHT2603174:'ABR',PRJHT2603175:'MBS',PRJHT2603176:'EJI',PRJHT2603177:'MAA',PRJHT2603185:'STL',PRJHT2603186:'MFK'};
 const AF_OWNER_DEFAUT={'MOHAMED AZIZ BEN ROMDHANE':'ABR','MEJDI TOUILI':'MTI','MEHDI BEN MUSTPHA':'MBM','HJIRI BOUBAKER':'BHI','ABDELHADI TELLI':'BAT','MOHAMED FATHI KAROUI':'MFK','SLIM BEN OTHMAN':'SBO','MANEL ABOUDA':'MAA','EMNA JERIDI':'EJI','RAMI BOUMEKHITA':'hors:Rami Boumekhita'};
-const afAttr=()=>Object.assign({owner:{},tri:{},contrat:{},facture:{},exclus:{}},S.analyseAttrib||{});
+const afAttr=()=>Object.assign({owner:{},tri:{},contrat:{},facture:{},ligne:{},exclus:{}},S.analyseAttrib||{});
+const afPdf=f=>'factures/'+String(f||'').split('/').pop().replace(/[^\w.\-]+/g,'_');
 // collaborateurs écartés de l'analyse (clé : code ressource ou « hors:Nom »)
 const AF_EXCLUS_DEFAUT={MTI:true,TDS:true,MON:true,BAT:true,'hors:Rami Boumekhita':true};
 function afCle(c){if(!c||c.startsWith('hors:'))return c;const r=byId('ressources',c);return r&&r.code?r.code:c}
@@ -1127,7 +1128,7 @@ function afExclu(c){const k=afCle(c);if(!k)return false;const E=afAttr().exclus;
 function afRes(code){if(!code)return '';if(code.startsWith('hors:'))return code;const r=list('ressources').find(x=>x.code===code||x.id===code);return r?r.id:''}
 function afNomCollab(c){if(!c)return 'Non attribué';if(c.startsWith('hors:'))return c.slice(5)+' (hors ressources)';const r=byId('ressources',c);return r?r.nom:c}
 function afCollabPleo(e){const A=afAttr();const k=afN(e.proprietaire);if(A.owner[k])return afRes(A.owner[k]);if(AF_OWNER_DEFAUT[k]&&afRes(AF_OWNER_DEFAUT[k]))return afRes(AF_OWNER_DEFAUT[k]);const rid=ressourceDe(e.proprietaire);return rid||('hors:'+String(e.proprietaire).replace(/\s+/g,' ').trim())}
-function afCollabFacture(f){const A=afAttr();if(A.facture[f.num])return afRes(A.facture[f.num]);
+function afCollabFacture(f){const A=afAttr();if(f.id&&A.ligne[f.id])return afRes(A.ligne[f.id]);if(A.facture[f.num])return afRes(A.facture[f.num]);
   // contrat nominatif : il désigne le collaborateur, quel que soit le trigramme écrit sur la ligne
   if(f.contrat&&A.contrat[f.contrat])return afRes(A.contrat[f.contrat]);if(f.contrat&&AF_CONTRAT_DEFAUT[f.contrat]&&afRes(AF_CONTRAT_DEFAUT[f.contrat]))return afRes(AF_CONTRAT_DEFAUT[f.contrat]);
   if(f.trigramme&&A.tri[f.trigramme])return afRes(A.tri[f.trigramme]);
@@ -1167,12 +1168,16 @@ async function afImporterPleo(file){occupe('Lecture de l\'export Pleo…');
 async function afImporterFactures(file){occupe('Ouverture du zip des factures…');
   try{const JSZip=await chargerJSZip();const lib=await chargerPdfJs();const z=await JSZip.loadAsync(file);const pdfs=Object.values(z.files).filter(x=>!x.dir&&/\.pdf$/i.test(x.name)&&!/__MACOSX/.test(x.name));
     if(!pdfs.length)throw new Error('Aucun PDF dans le zip.');const docs={};let k=0;
-    for(const e of pdfs){occupeMsg('Lecture des factures : '+(++k)+' / '+pdfs.length+'…');const pages=await afLireFacturePdf(lib,new Uint8Array(await e.async('arraybuffer')),e.name);
+    const vus=new Set();
+    for(const e of pdfs){occupeMsg('Lecture des factures : '+(++k)+' / '+pdfs.length+'…');const octets=await e.async('arraybuffer');const pages=await afLireFacturePdf(lib,new Uint8Array(octets.slice(0)),e.name);
+      const chemin=afPdf(e.name);if(pages.length&&!vus.has(chemin)){vus.add(chemin);const {error:eu}=await sb.storage.from(BUCKET_J).upload(chemin,new Blob([octets],{type:'application/pdf'}),{upsert:true,contentType:'application/pdf'});if(eu)console.warn(chemin,eu.message)}
       pages.forEach(p=>{const cle=p.type+'|'+p.num;const d=docs[cle]=docs[cle]||Object.assign({},p,{lignes:[]});if(d.fichier===p.fichier)d.lignes.push(...p.lignes)})}
     const rows=[];Object.values(docs).forEach(d=>{const s=d.type==='Avoir'?-1:1;const [jj,mm,aa]=(d.date||'').split('/');
       d.lignes.forEach((l,i)=>rows.push({id:d.type[0]+'_'+d.num+'_'+i,num:d.num,type:d.type,date:aa?aa+'-'+mm+'-'+jj:null,contrat:d.contrat,trigramme:l.init,code:l.code,description:l.desc.replace(/\s+/g,' ').trim(),qte:l.qte,pu:l.pu,montant:Math.round(s*l.montant*100)/100,mois:afMoisService(l.desc,d.date),est_frais:afEstFrais(l),fichier:d.fichier,maj_le:new Date().toISOString()}))});
+    // les collaborateurs écartés de l'analyse ne sont pas réimportés
+    const garde=rows.filter(r=>!afExclu(afCollabFacture(r)));
     occupeMsg('Remplacement des factures…');const {error:e1}=await sb.from('mecalux_analyse_factures').delete().neq('id','');if(e1)throw e1;
-    await afInserer('mecalux_analyse_factures',rows);toast(Object.keys(docs).length+' factures importées ('+rows.length+' lignes)');ui.af=null;render()}catch(e){toast('Import impossible : '+(e.message||e))}finally{libre()}}
+    await afInserer('mecalux_analyse_factures',garde);rows.length=0;rows.push(...garde);toast(Object.keys(docs).length+' factures importées ('+rows.length+' lignes)');ui.af=null;render()}catch(e){toast('Import impossible : '+(e.message||e))}finally{libre()}}
 async function afCharger(){ui.af={charge:true,pleo:[],fact:[],parNum:{},parContrat:{},f:{du:'2026-01',au:'2026-12',collab:'',cat:'',tri:'net'}};
   const tout=async t=>{let out=[];for(let i=0;;i+=1000){const {data,error}=await sb.from(t).select('*').range(i,i+999);if(error){handleErr(error);break}out=out.concat(data||[]);if(!data||data.length<1000)break}return out};
   const [p,f]=await Promise.all([tout('mecalux_analyse_pleo'),tout('mecalux_analyse_factures')]);
@@ -1231,11 +1236,12 @@ function vAnalyseFrais(){
     '</tbody></table></div>'+(susp.length?'<h3 style="margin:6px 0 0">À vérifier : locations de 1 000 € ou plus sans remboursement</h3><ul class="small" style="margin:4px 0 0">'+susp.map(e=>'<li>'+dateFr(e.date)+' · '+esc(afNomCollab(e.collab))+' · '+esc(e.marchand)+' · <b>'+eur2(e.montant)+'</b>'+(e.note?' · '+esc(e.note):'')+'</li>').join('')+'</ul>':'')+'</section>';
   // attribution
   const sans=fact.filter(x=>!x.collab);const optC=(v)=>'<option value="">— choisir —</option>'+list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.code+'"'+(afRes(v)===r.id?' selected':'')+'>'+esc(r.nom)+' ('+esc(r.code)+')</option>').join('')+[...new Set(P.map(e=>e.collab).filter(c=>c.startsWith('hors:')))].map(c=>'<option value="'+esc(c)+'"'+(v===c?' selected':'')+'>'+esc(afNomCollab(c))+'</option>').join('');
-  const parC={};sans.forEach(x=>{const k=x.contrat||('facture '+x.num);(parC[k]=parC[k]||{contrat:x.contrat,num:x.num,mont:0,n:new Set(),desc:x.description}).mont+=x.montant;parC[k].n.add(x.num)});
+  
   const tris=[...new Set(A.fact.map(x=>x.trigramme).filter(Boolean))].sort();
   h+='<details class="card"'+(sans.length?' open':'')+'><summary style="cursor:pointer;font-weight:800;color:var(--navy)">Attribution des factures et des dépenses'+(sans.length?' · <span style="color:var(--bad)">'+eur2(afSom(sans,'montant'))+' de frais facturés sans collaborateur</span>':'')+'</summary>'+
-    (Object.keys(parC).length?'<h3>Frais facturés sans collaborateur</h3><div class="scroll"><table class="tbl"><thead><tr><th>Contrat / facture</th><th>Exemple</th><th class="n">Montant</th><th>Collaborateur</th></tr></thead><tbody>'+Object.entries(parC).sort((a,b)=>b[1].mont-a[1].mont).map(([k,v])=>'<tr><td style="font-weight:700">'+esc(k)+'<div class="small muted">'+v.n.size+' facture'+(v.n.size>1?'s':'')+'</div></td><td class="small">'+esc(v.desc.slice(0,90))+'</td><td class="n">'+eur2(v.mont)+'</td><td><select '+(estAdmin?'':'disabled ')+'data-afmap="'+(v.contrat?'contrat':'facture')+'" data-k="'+esc(v.contrat||v.num)+'">'+optC('')+'</select></td></tr>').join('')+'</tbody></table></div>':'<p class="small muted">Tous les frais facturés sont rattachés à un collaborateur.</p>')+
-    '<h3>Trigrammes des factures</h3><div class="row" style="flex-wrap:wrap;gap:10px">'+tris.map(t=>{const A2=afAttr();const v=A2.tri[t]||AF_TRI_DEFAUT[t]||t;return '<label class="f" style="min-width:210px">'+esc(t)+'<select '+(estAdmin?'':'disabled ')+'data-afmap="tri" data-k="'+esc(t)+'">'+optC(v)+'</select></label>'}).join('')+'</div>'+
+    (sans.length?'<h3>Frais facturés sans collaborateur</h3><p class="small muted" style="margin:0">Une ligne par frais facturé. « Voir » ouvre la facture ; le choix du collaborateur ne s\'applique qu\'à la ligne.</p><div class="scroll"><table class="tbl"><thead><tr><th>Facture</th><th>Mois</th><th>Libellé</th><th class="n">Montant</th><th>Sur la même facture</th><th>Collaborateur</th></tr></thead><tbody>'+sans.slice().sort((a,b)=>b.montant-a.montant).map(x=>{const autres=[...new Set((A.parNum[x.num]||[]).map(y=>afCollabFacture(y)).filter(Boolean))];
+      return '<tr><td style="white-space:nowrap"><b>'+esc(x.num)+'</b><div class="small muted">'+esc(x.type)+(x.contrat?' · '+esc(x.contrat):'')+'</div><button class="btn o sm" style="margin-top:4px" data-act="afVoir" data-v="'+esc(x.fichier||'')+'" data-n="'+esc(x.num)+'">Voir</button></td><td class="small">'+(x.mois?moisLabel(x.mois):'')+'</td><td class="small">'+esc(x.description||'')+'</td><td class="n" style="font-weight:700">'+eur2(x.montant)+'</td><td class="small">'+(autres.length?autres.map(c=>esc(afNomCollab(c).replace(' (hors ressources)',''))).join('<br>'):'<span class="muted">—</span>')+'</td><td><select '+(estAdmin?'':'disabled ')+'data-afmap="ligne" data-k="'+esc(x.id)+'" aria-label="Collaborateur de la ligne">'+optC('')+'</select></td></tr>'}).join('')+'</tbody></table></div>':'<p class="small muted">Tous les frais facturés sont rattachés à un collaborateur.</p>')+
+'<h3>Trigrammes des factures</h3><div class="row" style="flex-wrap:wrap;gap:10px">'+tris.map(t=>{const A2=afAttr();const v=A2.tri[t]||AF_TRI_DEFAUT[t]||t;return '<label class="f" style="min-width:210px">'+esc(t)+'<select '+(estAdmin?'':'disabled ')+'data-afmap="tri" data-k="'+esc(t)+'">'+optC(v)+'</select></label>'}).join('')+'</div>'+
     '<h3>Titulaires des cartes Pleo</h3><div class="row" style="flex-wrap:wrap;gap:10px">'+[...new Set(A.pleo.map(e=>e.proprietaire))].sort().map(o=>{const c=afCollabPleo({proprietaire:o});return '<label class="f" style="min-width:210px">'+esc(o)+'<select '+(estAdmin?'':'disabled ')+'data-afmap="owner" data-k="'+esc(afN(o))+'">'+optC(c)+'<option value="hors:'+esc(o)+'"'+(c==='hors:'+o?' selected':'')+'>Hors ressources</option></select></label>'}).join('')+'</div></details>';
   return h}
 async function afMemo(type,k,v){S.analyseAttrib=afAttr();S.analyseAttrib[type]=Object.assign({},S.analyseAttrib[type],{[k]:v});const {error}=await sb.from(TBL('config')).upsert({id:'analyse_attrib',data:S.analyseAttrib,maj_le:new Date().toISOString()});if(error)handleErr(error);else toast('Attribution enregistrée');render()}
@@ -1794,6 +1800,8 @@ document.addEventListener('click',async e=>{
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';l.mois=l.iso.slice(0,7);n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
     case'afCat':if(ui.af){ui.af.f.cat=ui.af.f.cat===b.dataset.v?'':b.dataset.v;render();const z=document.querySelector('#main h2:nth-of-type(3)');}break;
+    case'afVoir':{const ch=afPdf(b.dataset.v);occupe('Ouverture de la facture…');const {data,error}=await sb.storage.from(BUCKET_J).createSignedUrl(ch,3600);libre();
+      if(error||!data){toast('PDF non disponible : réimportez le zip des factures pour pouvoir les consulter');break}visionneuse('Facture '+esc(b.dataset.n),[{nom:b.dataset.n+'.pdf',url:data.signedUrl}]);break}
     case'afExclure':if(ui.af){if(b.dataset.x==='1'&&ui.af.f.collab===b.dataset.v)ui.af.f.collab='';await afMemo('exclus',afCle(b.dataset.v),b.dataset.x==='1')}break;
     case'afCollab':if(ui.af){ui.af.f.collab=b.dataset.v;render()}break;
     case'afXlsx':await afExport();break;
