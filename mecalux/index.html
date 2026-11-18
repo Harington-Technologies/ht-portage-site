@@ -1160,7 +1160,7 @@ async function afInserer(table,rows){for(let i=0;i<rows.length;i+=400){occupeMsg
 async function afImporterPleo(file){occupe('Lecture de l\'export Pleo…');
   try{let f=file;if(/\.zip$/i.test(file.name)){const JSZip=await chargerJSZip();const z=await JSZip.loadAsync(file);const e=Object.values(z.files).find(x=>/\.xlsx$/i.test(x.name))||Object.values(z.files).find(x=>/\.csv$/i.test(x.name));if(!e)throw new Error('Aucun tableau dans le zip.');f=new File([await e.async('blob')],e.name.split('/').pop())}
     const L=(await lirePleo(f)).map(l=>({id:l.key,date:l.iso,montant:l.mont,marchand:l.mar,categorie_pleo:l.cp||'',categorie:afCategorie(l.mar,l.cp,l.note),proprietaire:String(l.owner||'').replace(/\s+/g,' ').trim(),note:l.note||'',recu:l.recu||''}));
-    if(!L.length)throw new Error('Aucune dépense lue.');{const sansRepas=L.filter(l=>l.categorie!=='Repas');L.length=0;L.push(...sansRepas)} // les repas ne sont pas importés
+    if(!L.length)throw new Error('Aucune dépense lue.');{const gardes=L.filter(l=>AF_TYPES.some(t=>t[0]===l.categorie));L.length=0;L.push(...gardes)} // seuls les six types analysés sont importés (ni repas, ni autres)
     afPaires(L);const ds=L.map(l=>l.date).sort();
     occupeMsg('Remplacement des dépenses du '+dateFr(ds[0])+' au '+dateFr(ds[ds.length-1])+'…');
     const {error:e1}=await sb.from('mecalux_analyse_pleo').delete().gte('date',ds[0]).lte('date',ds[ds.length-1]);if(e1)throw e1;
@@ -1194,7 +1194,7 @@ function afDonnees(){const A=ui.af,F=A.f;const dans=m=>m&&m>=F.du&&m<=F.au;
 const afSom=(L,k='net')=>L.reduce((t,x)=>t+num(x[k]),0);
 /* ---------- rapprochement : dépenses Pleo retrouvées (ou non) dans la facturation ---------- */
 const AF_TYPES=[['Carburant','Carburant'],['Hôtel','Hôtel'],['Train','Train'],['Péage','Péage'],['Avion','Billet d\'avion'],['Bus / taxi / VTC','Bus / taxi / VTC']];
-const AF_TYPES_L=[...AF_TYPES.map(t=>t[1]),'Autres'];
+const AF_TYPES_L=AF_TYPES.map(t=>t[1]);
 const afType=cat=>{const t=AF_TYPES.find(x=>x[0]===cat);return t?t[1]:'Autres'};
 const AF_NATURES={reel:'Frais réels refacturés',carbpeage:'Carburant et péage',forfait:'Forfait (barème, per diem)'};
 // période couverte par une ligne de frais : « du 23/04 au 22/05 », « du 17 mai au 12 juin 2026 », « juin 2026 », « février-26 »
@@ -1210,7 +1210,7 @@ function afNature(x){const d=String(x.description||'').toLowerCase();if(x.code==
 function afRappro(){const A=ui.af,F=A.f;const {P}=afDonnees();
   const B=A.fact.filter(x=>x.est_frais).map(x=>{const n=afNature(x);return Object.assign(x,{collab:afCollabFacture(x),nature:n,per:n==='forfait'?null:afPeriode(x.description,x.date)})}).filter(b=>!afExclu(b.collab));
   const couvre=(b,e)=>b.per&&b.collab&&b.collab===e.collab&&String(e.date)>=b.per[0]&&String(e.date)<=b.per[1]&&(b.nature==='reel'||e.categorie==='Carburant'||e.categorie==='Péage');
-  const D=P.filter(e=>e.net&&e.categorie!=='Repas').map(e=>{const bs=B.filter(b=>couvre(b,e)&&b.type!=='Avoir');const f=bs.find(b=>b.type==='Facture');return Object.assign(e,{type:afType(e.categorie),statut:f?'facture':bs.length?'prefacture':'non',doc:(f||bs[0]||{}).num||''})});
+  const D=P.filter(e=>e.net&&AF_TYPES.some(t=>t[0]===e.categorie)).map(e=>{const bs=B.filter(b=>couvre(b,e)&&b.type!=='Avoir');const f=bs.find(b=>b.type==='Facture');return Object.assign(e,{type:afType(e.categorie),statut:f?'facture':bs.length?'prefacture':'non',doc:(f||bs[0]||{}).num||''})});
   B.forEach(b=>{const L=b.per?D.filter(e=>couvre(b,e)):[];b.pleo=afSom(L);b.nPleo=L.length});
   const Bp=B.filter(b=>b.per?(b.per[1].slice(0,7)>=F.du&&b.per[0].slice(0,7)<=F.au):(b.mois>=F.du&&b.mois<=F.au));
   return {D,B:Bp}}
@@ -1232,7 +1232,7 @@ function vAnalyseFrais(){
     '<li><b>Trouvée en facturé</b> : la dépense Pleo tombe dans une période refacturée au même collaborateur (ligne « Frais de déplacement du … au … » ou « Frais de mission ») ; pour le carburant et le péage, une ligne « carburant et péage » du mois suffit.</li>'+
     '<li><b>En préfacture</b> : même règle, mais la période n\'apparaît que sur une préfacture.</li><li><b>Non trouvée</b> : aucune refacturation de frais réels ne couvre la date de la dépense.</li>'+
     '<li>Les forfaits (barème FRAIS par jour, per diem, compléments) ne remboursent pas une dépense précise : ils sont listés à part, dans « Ce qui a été facturé ».</li>'+
-    '<li>Les repas ne sont pas importés. Cautions rendues neutralisées.'+(exclus.length?' Collaborateurs écartés : '+exclus.map(c=>esc(afNomCollab(c).replace(' (hors ressources)',''))+(estAdmin?' <button class="btn g sm" style="padding:0 4px" data-act="afExclure" data-v="'+esc(c)+'" data-x="0" title="Réintégrer" aria-label="Réintégrer '+esc(afNomCollab(c))+'">×</button>':'')).join(', ')+'.':'')+'</li></ul></details>';
+    '<li>Seuls ces six types sont analysés : carburant, hôtel, train, péage, billet d\'avion, bus / taxi / VTC. Repas et autres dépenses ne sont pas importés. Cautions rendues neutralisées.'+(exclus.length?' Collaborateurs écartés : '+exclus.map(c=>esc(afNomCollab(c).replace(' (hors ressources)',''))+(estAdmin?' <button class="btn g sm" style="padding:0 4px" data-act="afExclure" data-v="'+esc(c)+'" data-x="0" title="Réintégrer" aria-label="Réintégrer '+esc(afNomCollab(c))+'">×</button>':'')).join(', ')+'.':'')+'</li></ul></details>';
   const tot=afSom(D);
   h+='<section class="kpis">'+kpi('Dépenses Pleo',eur2(tot),D.length+' dépenses')+kpi('Trouvées en facturé',eur2(afSt(D,'facture')),tot?Math.round(afSt(D,'facture')/tot*100)+' % du montant':'')+kpi('En préfacture',eur2(afSt(D,'prefacture')),D.filter(e=>e.statut==='prefacture').length+' dépenses')+kpi('Non trouvées',eur2(afSt(D,'non')),D.filter(e=>e.statut==='non').length+' dépenses')+'</section>';
   // par type
