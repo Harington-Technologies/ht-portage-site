@@ -1158,10 +1158,12 @@ async function afCharger(){ui.af={charge:true,pleo:[],fact:[],parNum:{},parContr
   ui.af.pleo=p.map(x=>Object.assign(x,{montant:num(x.montant),net:num(x.net)}));ui.af.fact=f.map(x=>Object.assign(x,{montant:num(x.montant)}));
   ui.af.fact.forEach(x=>{(ui.af.parNum[x.num]=ui.af.parNum[x.num]||[]).push(x);if(x.contrat)(ui.af.parContrat[x.contrat]=ui.af.parContrat[x.contrat]||[]).push(x)});ui.af.pret=true;render()}
 function afDonnees(){const A=ui.af,F=A.f;const dans=m=>m&&m>=F.du&&m<=F.au;
-  const P=A.pleo.filter(e=>dans(String(e.date).slice(0,7))).map(e=>Object.assign(e,{collab:afCollabPleo(e)}));
+  // les repas sont écartés de l'analyse (couverts par les forfaits et per diem), sauf si on demande à les inclure
+  const tous=A.pleo.filter(e=>dans(String(e.date).slice(0,7))).map(e=>Object.assign(e,{collab:afCollabPleo(e)}));
+  const repas=tous.filter(e=>e.categorie==='Repas');const P=F.repas?tous:tous.filter(e=>e.categorie!=='Repas');
   const fr=A.fact.filter(x=>x.est_frais&&dans(x.mois)).map(x=>Object.assign(x,{collab:afCollabFacture(x)}));
   const fact=fr.filter(x=>x.type!=='Pré-Facture'),pre=fr.filter(x=>x.type==='Pré-Facture');
-  return {P,fact,pre,Pf:P.filter(e=>(!F.collab||e.collab===F.collab)&&(!F.cat||e.categorie===F.cat))}}
+  return {P,fact,pre,repas,Pf:P.filter(e=>(!F.collab||e.collab===F.collab)&&(!F.cat||e.categorie===F.cat))}}
 const afSom=(L,k='net')=>L.reduce((t,x)=>t+num(x[k]),0);
 function afBarres(P,du,au){const ms=[];for(let d=new Date(du+'-01T12:00');d.toISOString().slice(0,7)<=au;d.setMonth(d.getMonth()+1))ms.push(d.toISOString().slice(0,7));
   const v=ms.map(m=>afSom(P.filter(e=>String(e.date).startsWith(m))));const max=Math.max(1,...v);
@@ -1170,12 +1172,13 @@ function vAnalyseFrais(){
   let h=head('Analyse','Frais non facturés',estAdmin?'<label class="btn o" style="cursor:pointer">Importer l\'export Pleo<input type="file" accept=".zip,.xlsx,.xls,.csv" data-afpleo="1" hidden></label><label class="btn o" style="cursor:pointer">Importer les factures (zip PDF)<input type="file" accept=".zip" data-affact="1" hidden></label>':'');
   if(!ui.af){if(sb&&dbState==='ok')afCharger();return h+'<div class="empty">Chargement…</div>'}if(!ui.af.pret)return h+'<div class="empty">Chargement…</div>';
   const A=ui.af,F=A.f;if(!A.pleo.length&&!A.fact.length)return h+'<div class="empty">Aucune donnée. '+(estAdmin?'Importez l\'export Pleo de l\'année et le zip des factures émises.':'L\'administrateur doit importer l\'export Pleo et les factures.')+'</div>';
-  const {P,fact,pre,Pf}=afDonnees();const collabs=[...new Set([...P.map(e=>e.collab),...fact.map(x=>x.collab)])].sort((a,b)=>afNomCollab(a).localeCompare(afNomCollab(b)));
+  const {P,fact,pre,Pf,repas}=afDonnees();const collabs=[...new Set([...P.map(e=>e.collab),...fact.map(x=>x.collab)])].sort((a,b)=>afNomCollab(a).localeCompare(afNomCollab(b)));
   const tP=afSom(P),tF=afSom(fact,'montant'),neutre=A.pleo.filter(e=>e.paire&&e.montant<0&&String(e.date).slice(0,7)>=F.du&&String(e.date).slice(0,7)<=F.au);
   h+='<div class="filters"><label class="f">Du<input type="month" data-af="du" value="'+F.du+'"></label><label class="f">Au<input type="month" data-af="au" value="'+F.au+'"></label>'+
     '<label class="f">Collaborateur<select data-af="collab"><option value="">Tous</option>'+collabs.map(c=>'<option value="'+esc(c)+'"'+(c===F.collab?' selected':'')+'>'+esc(afNomCollab(c))+'</option>').join('')+'</select></label>'+
     '<label class="f">Catégorie<select data-af="cat"><option value="">Toutes</option>'+[...new Set(P.map(e=>e.categorie))].sort().map(c=>'<option'+(c===F.cat?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label>'+
-    '<div class="row" style="align-self:end"><button class="btn o sm" data-act="afXlsx">Export Excel</button></div></div>';
+    '<label class="row small" style="align-self:end;padding-bottom:10px;font-weight:600"><input type="checkbox" data-afrepas="1"'+(F.repas?' checked':'')+'> Inclure les repas'+(repas.length?' ('+eur2(afSom(repas))+')':'')+'</label>'+
+    '<div class="row" style="align-self:end"><button class="btn o sm" data-act="afXlsx">Export Excel</button></div></div>'+(F.repas?'':'<p class="small muted" style="margin:0">Repas écartés de l\'analyse : '+repas.length+' dépenses Pleo, '+eur2(afSom(repas))+'.</p>');
   h+='<section class="kpis">'+kpi('Dépenses Pleo nettes',eur2(tP),P.filter(e=>e.net).length+' dépenses')+kpi('Frais facturés',eur2(tF),'mois de prestation'+(pre.length?' · + '+eur2(afSom(pre,'montant'))+' en préfacture':''))+kpi('Non couvert',eur2(Math.max(0,tP-tF)),tF?Math.round(tF/tP*100)+' % couvert par la facturation':'')+kpi('Cautions neutralisées',eur2(-afSom(neutre,'montant')),neutre.length+' remboursement'+(neutre.length>1?'s':''))+'</section>';
   // grandes dépenses
   h+='<h2 style="margin:6px 0 0">Grandes dépenses</h2><section class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">'+AF_CATS_GRANDES.map(c=>{const L=P.filter(e=>e.categorie===c&&e.net);const t=afSom(L);const par={};L.forEach(e=>par[e.collab]=(par[e.collab]||0)+e.net);
@@ -1221,7 +1224,7 @@ async function afExport(){const A=ui.af;if(!A)return;let EX;try{toast('Préparat
     const h=ws.getRow(3);h.values=entetes;h.eachCell(c=>{c.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.border=cadre;c.alignment={vertical:'middle',wrapText:true}});h.height=30;
     lignes.forEach(v=>{const r=ws.addRow(v.vals||v);for(let i=1;i<=entetes.length;i++){const c=r.getCell(i);c.font={name:'Calibri',size:10,bold:!!v.fort,color:{argb:v.fort?'FFFFFFFF':'FF1B1C1C'}};c.border=cadre;if(v.fort)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:PLUM}};if(euros.includes(i))c.numFmt='#,##0.00 €;-#,##0.00 €;""'}});
     ws.columns.forEach((c,i)=>c.width=larg[i]||14);ws.autoFilter={from:{row:3,column:1},to:{row:3,column:entetes.length}};return ws};
-  const per='du '+moisLabel(F.du)+' au '+moisLabel(F.au);
+  const per='du '+moisLabel(F.du)+' au '+moisLabel(F.au)+(F.repas?'':' (repas exclus)');
   const collabs=[...new Set([...P.map(e=>e.collab),...fact.map(x=>x.collab)])];
   const lc=collabs.map(c=>{const Lp=P.filter(e=>e.collab===c),Lf=fact.filter(x=>x.collab===c);const t=afSom(Lp),fa=afSom(Lf,'montant');return [afNomCollab(c),...AF_CATS_GRANDES.map(k=>afSom(Lp.filter(e=>e.categorie===k))),t-AF_CATS_GRANDES.reduce((s,k)=>s+afSom(Lp.filter(e=>e.categorie===k)),0),t,fa,Math.max(0,t-fa)]}).sort((a,b)=>b[8]-a[8]||b[6]-a[6]);
   const tot=lc.reduce((s,l)=>s.map((x,i)=>i?x+l[i]:'Total'),['Total',0,0,0,0,0,0,0,0]);
@@ -1890,6 +1893,7 @@ document.addEventListener('change',async e=>{
   if(t.dataset.ressEmail){const em=t.dataset.ressEmail;const {error}=await sb.from('mecalux_equipe').update({ressource_id:t.value||null}).eq('email',em);if(error){handleErr(error);return}toast(em+' relié à '+((byId('ressources',t.value)||{}).nom||'aucune ressource'));chargerAcces();return}
   if(t.dataset.afpleo&&t.files&&t.files[0]){const f=t.files[0];t.value='';await afImporterPleo(f);return}
   if(t.dataset.affact&&t.files&&t.files[0]){const f=t.files[0];t.value='';await afImporterFactures(f);return}
+  if(t.dataset.afrepas&&ui.af){ui.af.f.repas=t.checked;render();return}
   if(t.dataset.af&&ui.af){ui.af.f[t.dataset.af]=t.value;render();return}
   if(t.dataset.afmap){await afMemo(t.dataset.afmap,t.dataset.k,t.value);return}
   if(t.dataset.restvis){ui.restVisibles=t.checked;render();return}
