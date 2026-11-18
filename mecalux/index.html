@@ -429,6 +429,7 @@ async function loadAll(){
     const res=await Promise.all(COLLS.map(c=>sb.from(TBL(c)).select('*')));
     res.forEach((r,i)=>{if(r.error)throw r.error;const o={};r.data.forEach(row=>{o[row.id]=fromRow(row)});S[COLLS[i]]=o});
     const {data:cfgs,error:e1}=await sb.from(TBL('config')).select('id,data');if(e1)throw e1;
+    S.droits={};if(!MODE_DEV){const {data:dr,error:e2}=await sb.from('mecalux_droits').select('role,rubrique,autorise');if(e2)throw e2;(dr||[]).forEach(d=>{S.droits[d.role+'|'+d.rubrique]=d.autorise})}
     const cfg=(cfgs||[]).find(c=>c.id==='regles');
     S.regles=cfg&&cfg.data?Object.assign(clone(DEFAULT_REGLES),cfg.data):clone(DEFAULT_REGLES);
     S.moisCfg={};(cfgs||[]).forEach(c=>{if(/^mois_/.test(c.id))S.moisCfg[c.id.slice(5)]=c.data||{};if(c.id==='pleo_alias')S.pleoAlias=c.data||{};if(c.id==='agenda_alias')S.agendaAlias=c.data||{};if(c.id==='analyse_attrib')S.analyseAttrib=c.data||{}});
@@ -441,6 +442,7 @@ function subscribe(){
   if(channel)return;
   channel=sb.channel('mecalux').on('postgres_changes',{event:'*',schema:'public'},p=>{
     const t=String(p.table||'').replace(/^mecalux_/,'');
+    if(t==='droits'){S.droits=S.droits||{};const d=p.eventType==='DELETE'?p.old:p.new;if(d&&d.role){if(p.eventType==='DELETE')delete S.droits[d.role+'|'+d.rubrique];else S.droits[d.role+'|'+d.rubrique]=d.autorise}scheduleRender();return}
     if(t==='config'){if(p.new&&p.new.id==='regles'&&p.new.data){S.regles=Object.assign(clone(DEFAULT_REGLES),p.new.data);scheduleRender()}
       else if(p.new&&/^mois_/.test(p.new.id||'')){S.moisCfg[p.new.id.slice(5)]=p.new.data||{};scheduleRender()}
       else if(p.new&&p.new.id==='pleo_alias'){S.pleoAlias=p.new.data||{}}else if(p.new&&p.new.id==='agenda_alias'){S.agendaAlias=p.new.data||{}}else if(p.new&&p.new.id==='analyse_attrib'){S.analyseAttrib=p.new.data||{}}return}
@@ -485,7 +487,14 @@ function formPwd(){
 /* ---------- routage ---------- */
 // Rôles : admin (tous les droits), harington (sauf gestion des accès), mecalux (sauf gestion des accès et imports Pleo)
 const ROLES={admin:'Admin Harington',superuser:'Super user Harington',harington:'Utilisateur Harington',mecalux:'Utilisateur Mecalux'};
-function routeAutorisee(k){return !(((k==='import-pleo'||k==='analyse-frais')&&!peutPleo)||(k==='acces'&&!estAdmin)||(k==='perdiem'&&!(estAdmin||monRole==='superuser')))}
+// Droits par rubrique : réglables par l'admin (page Accès), avec des verrous imposés par la sécurité de la base
+const PROFILS_DROITS=['superuser','harington','mecalux'];
+function verrouDroit(role,k){if(role==='admin')return true;if(k==='acces')return false;
+  if(k==='perdiem'&&role!=='superuser')return false;if((k==='import-pleo'||k==='analyse-frais')&&role==='mecalux')return false;
+  if(k==='tableau-de-bord')return true;return null}
+function droit(role,k){const v=verrouDroit(role,k);if(v!==null)return v;const d=(S.droits||{})[role+'|'+k];return d===undefined?true:!!d}
+function rubriqueDe(k){return k.startsWith('projet-')?'projets':k.startsWith('prefacture-')?'prefactures':k==='import-agenda'?'saisie':k}
+function routeAutorisee(k){if(MODE_DEV)return true;return droit(monRole,rubriqueDe(k))}
 const ROUTES=[
   ['tableau-de-bord','Tableau de bord','dash'],
   ['projets','Projets','proj'],
@@ -516,7 +525,7 @@ function renderMenu(){
 function render(){
   renderMenu();
   const r=route(),m=document.getElementById('main');
-  if(dbState==='ok'&&!routeAutorisee(r)){location.replace('#tableau-de-bord');return}
+  if(dbState==='ok'&&!routeAutorisee(r)){const ok=ROUTES.find(([k])=>routeAutorisee(k));location.replace('#'+(ok?ok[0]:'tableau-de-bord'));return}
   let html='';
   try{
     if(r.startsWith('projet-'))html=vProjet(r.slice(7));
@@ -957,6 +966,10 @@ function vAcces(){
     A.equipe.map(x=>{const lui=x.email.toLowerCase()===moi;return '<tr><td style="font-weight:600">'+esc(x.email)+(lui?' <span class="pill">vous</span>':'')+'</td><td>'+esc(x.nom||'—')+'</td><td>'+(estAdmin&&!lui?'<select data-role-email="'+esc(x.email)+'" aria-label="Rôle de '+esc(x.email)+'">'+Object.entries(ROLES).map(([v,l])=>'<option value="'+v+'"'+(x.role===v?' selected':'')+'>'+l+'</option>').join('')+'</select>':(x.role==='admin'?'<span class="pill ok">'+ROLES.admin+'</span>':esc(ROLES[x.role]||x.role)))+(x.role==='superuser'?(estAdmin?'<div style="margin-top:6px"><select data-ress-email="'+esc(x.email)+'" aria-label="Ressource de '+esc(x.email)+'"><option value="">— relier à une ressource —</option>'+list('ressources').filter(r=>estActif(r)||r.id===x.ressource_id).sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.id+'"'+(r.id===x.ressource_id?' selected':'')+'>'+esc(r.nom)+'</option>').join('')+'</select></div>':'<div class="small muted">'+esc((byId('ressources',x.ressource_id)||{}).nom||'')+'</div>'):'')+'</td><td class="small">'+(x.ajoute_le?dateFr(String(x.ajoute_le).slice(0,10)):'—')+'</td>'+
       (estAdmin?'<td style="text-align:right;white-space:nowrap">'+(lui?'':'<button class="btn o sm" data-act="accesMfa" data-id="'+esc(x.email)+'" title="Téléphone perdu ou changé">Réinit. double auth.</button> <button class="btn d sm" data-act="accesRetirer" data-id="'+esc(x.email)+'">Retirer l\'accès</button>')+'</td>':'')+'</tr>'}).join('')+
     '</tbody></table></div><p class="small muted" style="margin:0"><b>Admin Harington</b> : tous les droits, reçoit les demandes d\'accès et gère cette liste. <b>Super user Harington</b> : comme un utilisateur Harington, avec en plus la rubrique Per diem pour sa propre ressource (à relier ci-dessous). <b>Utilisateur Harington</b> : tout sauf la gestion des accès. <b>Utilisateur Mecalux</b> : tout sauf la gestion des accès et les imports Pleo. Mot de passe et code de double authentification obligatoires pour tous. Une adresse autorisée à l\'avance accède au pilotage dès la confirmation de son compte, sans demande.</p></section>';
+  if(estAdmin){const cols=['admin',...PROFILS_DROITS];
+    h+='<section class="card"><div class="card-h"><h2 style="margin:0">Droits par profil</h2></div><p class="small muted" style="margin:0">Cochez les rubriques visibles pour chaque profil. Les changements s\'appliquent tout de suite, y compris pour les personnes déjà connectées. Les cases grisées sont imposées par la sécurité.</p><div class="scroll"><table class="tbl"><thead><tr><th>Rubrique</th>'+cols.map(c=>'<th style="text-align:center">'+esc(ROLES[c])+'</th>').join('')+'</tr></thead><tbody>'+
+      ROUTES.map(([k,l])=>'<tr><td style="font-weight:600">'+esc(l)+'</td>'+cols.map(c=>{const v=verrouDroit(c,k);const on=droit(c,k);return '<td style="text-align:center"><input type="checkbox"'+(on?' checked':'')+(v!==null?' disabled title="'+(c==='admin'?'L\'admin garde toutes les rubriques':k==='tableau-de-bord'?'Page d\'accueil, toujours visible':'Bloqué par la sécurité de la base')+'"':' data-droit="'+c+'|'+k+'"')+' aria-label="'+esc(l+' : '+ROLES[c])+'"></td>'}).join('')+'</tr>').join('')+
+      '</tbody></table></div><p class="small muted" style="margin:0">Préfactures et Calculateur sont aussi bloqués dans la base quand ils sont décochés. Pour les autres rubriques, le réglage masque la page ; les protections déjà en place dans la base restent actives (projets visibles par Mecalux, imports Pleo, per diem, analyse des frais).</p></section>'}
   const faites=A.demandes.filter(x=>x.statut!=='en_attente').slice(0,15);
   if(estAdmin&&faites.length)h+='<details><summary style="cursor:pointer;font-weight:700;color:var(--navy)">Demandes traitées ('+faites.length+')</summary><div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Nom</th><th>E-mail</th><th>Décision</th><th>Le</th><th>Par</th></tr></thead><tbody>'+faites.map(x=>'<tr><td>'+esc([x.prenom,x.nom].filter(Boolean).join(' ')||'—')+'</td><td>'+esc(x.email)+'</td><td>'+(x.statut==='acceptee'?'<span class="pill ok">Validée</span>':'<span class="pill">Refusée</span>')+'</td><td class="small">'+(x.traite_le?new Date(x.traite_le).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'}):'')+'</td><td class="small">'+esc(x.traite_par||'')+'</td></tr>').join('')+'</tbody></table></div></details>';
   return h;
@@ -1880,6 +1893,9 @@ document.addEventListener('change',async e=>{
     if(k==='projetId'&&t.value){const p=byId('projets',t.value);if(p){if(p.distanceKm)ui.calc.km=p.distanceKm;const wd=workdays(p.mesDebut,p.mesFin);if(wd)ui.calc.jours=wd}}
     if(k==='ressourceId'){ui.calc.tjm=''}
     if(['cas','projetId','ressourceId','mode','profil'].includes(k)){pending=false;render()}else renderCalcResult();return}
+  if(t.dataset.droit){const [ro,rub]=t.dataset.droit.split('|');const v=t.checked;occupe('Enregistrement…');
+    const {error}=await sb.from('mecalux_droits').upsert({role:ro,rubrique:rub,autorise:v,maj_le:new Date().toISOString()});libre();
+    if(error){handleErr(error);t.checked=!v;return}S.droits[ro+'|'+rub]=v;toast(ROLES[ro]+' : '+(ROUTES.find(r=>r[0]===rub)||[,rub])[1]+(v?' autorisé':' masqué'));return}
   if(t.dataset.roleEmail){const em=t.dataset.roleEmail,ro=t.value;const {error}=await sb.from('mecalux_equipe').update({role:ro}).eq('email',em);if(error){handleErr(error);chargerAcces();return}toast(em+' : '+ROLES[ro]);chargerAcces();return}
   if(t.dataset.agenda&&t.files&&t.files[0]){const f=t.files[0];t.value='';await chargerAgenda(f);return}
   if(ui.agenda&&(t.dataset.agr||t.dataset.agp||t.dataset.agt)){const l=ui.agenda.lignes.find(x=>x.id===t.closest('tr[data-ag]').dataset.ag);if(!l)return;
