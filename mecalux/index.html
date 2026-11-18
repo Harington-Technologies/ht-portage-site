@@ -1114,8 +1114,9 @@ function afPaires(L){const mk=e=>afN(e.marchand).split(' ')[0].slice(0,6);const 
   L.filter(e=>e.montant<0).sort((a,b)=>a.montant-b.montant).forEach(p=>{const c=L.filter(e=>e.montant>0&&!e.paire&&e.proprietaire===p.proprietaire&&mk(e)===mk(p)&&jours(e.date,p.date)>=0&&jours(e.date,p.date)<=180);
     const ex=c.filter(e=>Math.abs(e.montant+p.montant)<0.05).sort((a,b)=>jours(b.date,p.date)-jours(a.date,p.date));
     if(ex.length){const e=ex[ex.length-1];e.paire=p.id;p.paire=e.id;e.net=0;p.net=0}else if(c.length){const e=c.sort((a,b)=>Math.abs(a.montant+p.montant)-Math.abs(b.montant+p.montant))[0];p.partiel=e.id}});return L}
-const AF_TRI_DEFAUT={SBN:'SBO',SOB:'SBO',MKI:'MFK',MBA:'MBM',MBN:'MBM',MBE:'MBS',MAA:'hors:Manel ABOUDA',SCL:'SCE',RBA:'hors:Rami Boumekhita'};
-const AF_CONTRAT_DEFAUT={PRJHT2410252:'MON'};
+const AF_TRI_DEFAUT={SBN:'SBO',SOB:'SBO',MKI:'MFK',MBA:'MBM',MBN:'MBM',MBE:'MBS',MAA:'hors:Manel ABOUDA',SCL:'SCE',RBA:'hors:Rami Boumekhita',EJI:'hors:Emna Jeridi',HMI:'HMI'};
+// contrats nominatifs (liste des affaires Mecalux) : un contrat = un collaborateur ; les contrats d'équipe (CDC, AVV) se lisent au trigramme
+const AF_CONTRAT_DEFAUT={PRJHT2303164:'MTI',PRJHT2610271:'MTI',PRJHT2410252:'MON',PRJHT2507184:'HJA',PRJHT2601128:'HJA',PRJHT2605212:'TDS',PRJHT2605214:'BAT',PRJHT2512238:'SCE',PRJHT2512243:'KKB',PRJHT2512315:'SBO',PRJHT2512316:'HMI',PRJHT2512317:'MBM',PRJHT2512318:'BHI',PRJHT2601140:'WMI',PRJHT2601141:'HBI',PRJHT2602154:'hors:Rami Boumekhita',PRJHT2603174:'ABR',PRJHT2603175:'MBS',PRJHT2603176:'hors:Emna Jeridi',PRJHT2603177:'hors:Manel ABOUDA',PRJHT2603185:'STL',PRJHT2603186:'MFK'};
 const AF_OWNER_DEFAUT={'MOHAMED AZIZ BEN ROMDHANE':'ABR','MEJDI TOUILI':'MTI','MEHDI BEN MUSTPHA':'MBM','HJIRI BOUBAKER':'BHI','ABDELHADI TELLI':'BAT','MOHAMED FATHI KAROUI':'MFK','SLIM BEN OTHMAN':'SBO','MANEL ABOUDA':'hors:Manel ABOUDA','RAMI BOUMEKHITA':'hors:Rami Boumekhita'};
 const afAttr=()=>Object.assign({owner:{},tri:{},contrat:{},facture:{},exclus:{}},S.analyseAttrib||{});
 // collaborateurs écartés de l'analyse (clé : code ressource ou « hors:Nom »)
@@ -1126,7 +1127,10 @@ function afExclu(c){const k=afCle(c);if(!k)return false;const E=afAttr().exclus;
 function afRes(code){if(!code)return '';if(code.startsWith('hors:'))return code;const r=list('ressources').find(x=>x.code===code||x.id===code);return r?r.id:''}
 function afNomCollab(c){if(!c)return 'Non attribué';if(c.startsWith('hors:'))return c.slice(5)+' (hors ressources)';const r=byId('ressources',c);return r?r.nom:c}
 function afCollabPleo(e){const A=afAttr();const k=afN(e.proprietaire);if(A.owner[k])return afRes(A.owner[k]);if(AF_OWNER_DEFAUT[k]&&afRes(AF_OWNER_DEFAUT[k]))return afRes(AF_OWNER_DEFAUT[k]);const rid=ressourceDe(e.proprietaire);return rid||('hors:'+String(e.proprietaire).replace(/\s+/g,' ').trim())}
-function afCollabFacture(f){const A=afAttr();if(A.facture[f.num])return afRes(A.facture[f.num]);if(f.trigramme&&A.tri[f.trigramme])return afRes(A.tri[f.trigramme]);
+function afCollabFacture(f){const A=afAttr();if(A.facture[f.num])return afRes(A.facture[f.num]);
+  // contrat nominatif : il désigne le collaborateur, quel que soit le trigramme écrit sur la ligne
+  if(f.contrat&&A.contrat[f.contrat])return afRes(A.contrat[f.contrat]);if(f.contrat&&AF_CONTRAT_DEFAUT[f.contrat]&&afRes(AF_CONTRAT_DEFAUT[f.contrat]))return afRes(AF_CONTRAT_DEFAUT[f.contrat]);
+  if(f.trigramme&&A.tri[f.trigramme])return afRes(A.tri[f.trigramme]);
   if(f.trigramme){const r=afRes(AF_TRI_DEFAUT[f.trigramme]||f.trigramme);if(r)return r}
   if(f.contrat&&A.contrat[f.contrat])return afRes(A.contrat[f.contrat]);if(f.contrat&&AF_CONTRAT_DEFAUT[f.contrat])return afRes(AF_CONTRAT_DEFAUT[f.contrat]);
   const autres=[...new Set(((ui.af&&ui.af.parNum[f.num])||[]).map(x=>x.trigramme).filter(Boolean))];if(autres.length===1)return afRes(A.tri[autres[0]]||AF_TRI_DEFAUT[autres[0]]||autres[0]);
