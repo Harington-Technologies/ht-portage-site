@@ -1179,7 +1179,7 @@ async function afImporterFactures(file){occupe('Ouverture du zip des factures…
     const garde=rows.filter(r=>!afExclu(afCollabFacture(r)));
     occupeMsg('Remplacement des factures…');const {error:e1}=await sb.from('mecalux_analyse_factures').delete().neq('id','');if(e1)throw e1;
     await afInserer('mecalux_analyse_factures',garde);rows.length=0;rows.push(...garde);toast(Object.keys(docs).length+' factures importées ('+rows.length+' lignes)');ui.af=null;render()}catch(e){toast('Import impossible : '+(e.message||e))}finally{libre()}}
-async function afCharger(){ui.af={charge:true,pleo:[],fact:[],parNum:{},parContrat:{},f:{du:'2026-01',au:'2026-12',collab:'',cat:'',type:'',tri:'net'}};
+async function afCharger(){ui.af={charge:true,pleo:[],fact:[],parNum:{},parContrat:{},f:{du:'2026-01',au:'2026-09',collab:'',cat:'',type:'',tri:'net'}};
   const tout=async t=>{let out=[];for(let i=0;;i+=1000){const {data,error}=await sb.from(t).select('*').range(i,i+999);if(error){handleErr(error);break}out=out.concat(data||[]);if(!data||data.length<1000)break}return out};
   const [p,f]=await Promise.all([tout('mecalux_analyse_pleo'),tout('mecalux_analyse_factures')]);
   ui.af.pleo=p.map(x=>Object.assign(x,{montant:num(x.montant),net:num(x.net)}));ui.af.fact=f.map(x=>Object.assign(x,{montant:num(x.montant)}));
