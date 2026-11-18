@@ -1117,7 +1117,11 @@ function afPaires(L){const mk=e=>afN(e.marchand).split(' ')[0].slice(0,6);const 
 const AF_TRI_DEFAUT={SBN:'SBO',SOB:'SBO',MKI:'MFK',MBA:'MBM',MBN:'MBM',MBE:'MBS',MAA:'hors:Manel ABOUDA',SCL:'SCE',RBA:'hors:Rami Boumekhita'};
 const AF_CONTRAT_DEFAUT={PRJHT2410252:'MON'};
 const AF_OWNER_DEFAUT={'MOHAMED AZIZ BEN ROMDHANE':'ABR','MEJDI TOUILI':'MTI','MEHDI BEN MUSTPHA':'MBM','HJIRI BOUBAKER':'BHI','ABDELHADI TELLI':'BAT','MOHAMED FATHI KAROUI':'MFK','SLIM BEN OTHMAN':'SBO','MANEL ABOUDA':'hors:Manel ABOUDA','RAMI BOUMEKHITA':'hors:Rami Boumekhita'};
-const afAttr=()=>Object.assign({owner:{},tri:{},contrat:{},facture:{}},S.analyseAttrib||{});
+const afAttr=()=>Object.assign({owner:{},tri:{},contrat:{},facture:{},exclus:{}},S.analyseAttrib||{});
+// collaborateurs écartés de l'analyse (clé : code ressource ou « hors:Nom »)
+const AF_EXCLUS_DEFAUT={MTI:true,TDS:true,MON:true,BAT:true,'hors:Rami Boumekhita':true};
+function afCle(c){if(!c||c.startsWith('hors:'))return c;const r=byId('ressources',c);return r&&r.code?r.code:c}
+function afExclu(c){const k=afCle(c);if(!k)return false;const E=afAttr().exclus;return E.hasOwnProperty(k)?!!E[k]:!!AF_EXCLUS_DEFAUT[k]}
 // collaborateur : identifiant de ressource, ou « hors:Nom » pour une personne absente des ressources
 function afRes(code){if(!code)return '';if(code.startsWith('hors:'))return code;const r=list('ressources').find(x=>x.code===code||x.id===code);return r?r.id:''}
 function afNomCollab(c){if(!c)return 'Non attribué';if(c.startsWith('hors:'))return c.slice(5)+' (hors ressources)';const r=byId('ressources',c);return r?r.nom:c}
@@ -1172,9 +1176,9 @@ async function afCharger(){ui.af={charge:true,pleo:[],fact:[],parNum:{},parContr
   ui.af.fact.forEach(x=>{(ui.af.parNum[x.num]=ui.af.parNum[x.num]||[]).push(x);if(x.contrat)(ui.af.parContrat[x.contrat]=ui.af.parContrat[x.contrat]||[]).push(x)});ui.af.pret=true;render()}
 function afDonnees(){const A=ui.af,F=A.f;const dans=m=>m&&m>=F.du&&m<=F.au;
   // les repas sont écartés de l'analyse (couverts par les forfaits et per diem), sauf si on demande à les inclure
-  const tous=A.pleo.filter(e=>dans(String(e.date).slice(0,7))).map(e=>Object.assign(e,{collab:afCollabPleo(e)}));
+  const tous=A.pleo.filter(e=>dans(String(e.date).slice(0,7))).map(e=>Object.assign(e,{collab:afCollabPleo(e)})).filter(e=>!afExclu(e.collab));
   const repas=tous.filter(e=>e.categorie==='Repas');const P=F.repas?tous:tous.filter(e=>e.categorie!=='Repas');
-  const fr=A.fact.filter(x=>x.est_frais&&dans(x.mois)).map(x=>Object.assign(x,{collab:afCollabFacture(x)}));
+  const fr=A.fact.filter(x=>x.est_frais&&dans(x.mois)).map(x=>Object.assign(x,{collab:afCollabFacture(x)})).filter(x=>!afExclu(x.collab));
   const fact=fr.filter(x=>x.type!=='Pré-Facture'),pre=fr.filter(x=>x.type==='Pré-Facture');
   return {P,fact,pre,repas,Pf:P.filter(e=>(!F.collab||e.collab===F.collab)&&(!F.cat||e.categorie===F.cat))}}
 const afSom=(L,k='net')=>L.reduce((t,x)=>t+num(x[k]),0);
@@ -1192,6 +1196,8 @@ function vAnalyseFrais(){
     '<label class="f">Catégorie<select data-af="cat"><option value="">Toutes</option>'+[...new Set(P.map(e=>e.categorie))].sort().map(c=>'<option'+(c===F.cat?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label>'+
     '<label class="row small" style="align-self:end;padding-bottom:10px;font-weight:600"><input type="checkbox" data-afrepas="1"'+(F.repas?' checked':'')+'> Inclure les repas'+(repas.length?' ('+eur2(afSom(repas))+')':'')+'</label>'+
     '<div class="row" style="align-self:end"><button class="btn o sm" data-act="afXlsx">Export Excel</button></div></div>'+(F.repas?'':'<p class="small muted" style="margin:0">Repas écartés de l\'analyse : '+repas.length+' dépenses Pleo, '+eur2(afSom(repas))+'.</p>');
+  const exclus=[...new Set([...A.pleo.map(e=>afCollabPleo(e)),...A.fact.filter(x=>x.est_frais).map(x=>afCollabFacture(x))])].filter(afExclu).sort((a,b)=>afNomCollab(a).localeCompare(afNomCollab(b)));
+  if(exclus.length)h+='<p class="small muted" style="margin:0;display:flex;flex-wrap:wrap;gap:6px;align-items:center">Collaborateurs écartés de l\'analyse : '+exclus.map(c=>'<span class="pill">'+esc(afNomCollab(c).replace(' (hors ressources)',''))+(estAdmin?' <button class="btn g sm" style="padding:0 4px" data-act="afExclure" data-v="'+esc(c)+'" data-x="0" title="Réintégrer dans l\'analyse" aria-label="Réintégrer '+esc(afNomCollab(c))+'">×</button>':'')+'</span>').join('')+'</p>';
   h+='<section class="kpis">'+kpi('Dépenses Pleo nettes',eur2(tP),P.filter(e=>e.net).length+' dépenses')+kpi('Frais facturés',eur2(tF),'mois de prestation'+(pre.length?' · + '+eur2(afSom(pre,'montant'))+' en préfacture':''))+kpi('Non couvert',eur2(Math.max(0,tP-tF)),tF?Math.round(tF/tP*100)+' % couvert par la facturation':'')+kpi('Cautions neutralisées',eur2(-afSom(neutre,'montant')),neutre.length+' remboursement'+(neutre.length>1?'s':''))+'</section>';
   // grandes dépenses
   h+='<h2 style="margin:6px 0 0">Grandes dépenses</h2><section class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">'+AF_CATS_GRANDES.map(c=>{const L=P.filter(e=>e.categorie===c&&e.net);const t=afSom(L);const par={};L.forEach(e=>par[e.collab]=(par[e.collab]||0)+e.net);
@@ -1201,7 +1207,7 @@ function vAnalyseFrais(){
   // rapprochement par collaborateur
   const lignes=collabs.map(c=>{const Lp=P.filter(e=>e.collab===c),Lf=fact.filter(x=>x.collab===c);const v={c,tot:afSom(Lp),fac:afSom(Lf,'montant')};AF_CATS_GRANDES.forEach(k=>v[k]=afSom(Lp.filter(e=>e.categorie===k)));v.autres=v.tot-AF_CATS_GRANDES.reduce((t,k)=>t+v[k],0);v.ecart=v.tot-v.fac;return v}).sort((a,b)=>b.ecart-a.ecart);
   h+='<section class="card"><div class="card-h"><h2 style="margin:0">Dépensé et facturé par collaborateur</h2><span class="small muted">Cliquez sur un nom pour le détail par mois.</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Collaborateur</th>'+AF_CATS_GRANDES.map(k=>'<th class="n">'+k+'</th>').join('')+'<th class="n">Autres</th><th class="n">Total Pleo</th><th class="n">Frais facturés</th><th class="n">Non couvert</th></tr></thead><tbody>'+
-    lignes.map(v=>'<tr'+(v.c===F.collab?' style="background:var(--bg)"':'')+'><td><button class="btn g sm" data-act="afCollab" data-v="'+esc(v.c)+'" style="font-weight:700;padding:2px 4px">'+esc(afNomCollab(v.c))+'</button></td>'+AF_CATS_GRANDES.map(k=>'<td class="n">'+(v[k]?eur2(v[k]):'<span class="muted">·</span>')+'</td>').join('')+'<td class="n">'+(v.autres?eur2(v.autres):'·')+'</td><td class="n" style="font-weight:700">'+eur2(v.tot)+'</td><td class="n">'+eur2(v.fac)+'</td><td class="n" style="font-weight:800;color:'+(v.ecart>0?'var(--bad)':'var(--ok)')+'">'+(v.ecart>0?eur2(v.ecart):'—')+'</td></tr>').join('')+
+    lignes.map(v=>'<tr'+(v.c===F.collab?' style="background:var(--bg)"':'')+'><td><button class="btn g sm" data-act="afCollab" data-v="'+esc(v.c)+'" style="font-weight:700;padding:2px 4px">'+esc(afNomCollab(v.c))+'</button>'+(estAdmin&&v.c?' <button class="btn g sm" style="padding:0 4px;opacity:.6" data-act="afExclure" data-v="'+esc(v.c)+'" data-x="1" title="Écarter de l\'analyse">Écarter</button>':'')+'</td>'+AF_CATS_GRANDES.map(k=>'<td class="n">'+(v[k]?eur2(v[k]):'<span class="muted">·</span>')+'</td>').join('')+'<td class="n">'+(v.autres?eur2(v.autres):'·')+'</td><td class="n" style="font-weight:700">'+eur2(v.tot)+'</td><td class="n">'+eur2(v.fac)+'</td><td class="n" style="font-weight:800;color:'+(v.ecart>0?'var(--bad)':'var(--ok)')+'">'+(v.ecart>0?eur2(v.ecart):'—')+'</td></tr>').join('')+
     '</tbody></table></div><p class="small muted" style="margin:0">Frais facturés : lignes « FRAIS » (barème par jour) et forfaits de frais (per diem, frais de déplacement, carburant…) des factures et avoirs, au mois de la prestation. Les astreintes ne sont pas des frais. « Non couvert » = dépenses Pleo − frais facturés.</p></section>';
   if(F.collab){const ms=[...new Set([...P.filter(e=>e.collab===F.collab).map(e=>String(e.date).slice(0,7)),...fact.filter(x=>x.collab===F.collab).map(x=>x.mois)])].sort();
     h+='<section class="card"><div class="card-h"><h2 style="margin:0">'+esc(afNomCollab(F.collab))+' · par mois</h2><button class="btn g sm" data-act="afCollab" data-v="">Fermer</button></div><div class="scroll"><table class="tbl"><thead><tr><th>Mois</th>'+AF_CATS_GRANDES.map(k=>'<th class="n">'+k+'</th>').join('')+'<th class="n">Total Pleo</th><th class="n">Frais facturés</th><th>Factures</th><th class="n">Non couvert</th></tr></thead><tbody>'+
@@ -1784,6 +1790,7 @@ document.addEventListener('click',async e=>{
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';l.mois=l.iso.slice(0,7);n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
     case'afCat':if(ui.af){ui.af.f.cat=ui.af.f.cat===b.dataset.v?'':b.dataset.v;render();const z=document.querySelector('#main h2:nth-of-type(3)');}break;
+    case'afExclure':if(ui.af){if(b.dataset.x==='1'&&ui.af.f.collab===b.dataset.v)ui.af.f.collab='';await afMemo('exclus',afCle(b.dataset.v),b.dataset.x==='1')}break;
     case'afCollab':if(ui.af){ui.af.f.collab=b.dataset.v;render()}break;
     case'afXlsx':await afExport();break;
     case'pdValider':{const rid=ui.pdRes,m=ui.pdMois;const c=calculPerdiem(rid,m);
