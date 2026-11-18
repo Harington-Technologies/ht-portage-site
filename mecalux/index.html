@@ -431,7 +431,7 @@ async function loadAll(){
     const {data:cfgs,error:e1}=await sb.from(TBL('config')).select('id,data');if(e1)throw e1;
     const cfg=(cfgs||[]).find(c=>c.id==='regles');
     S.regles=cfg&&cfg.data?Object.assign(clone(DEFAULT_REGLES),cfg.data):clone(DEFAULT_REGLES);
-    S.moisCfg={};(cfgs||[]).forEach(c=>{if(/^mois_/.test(c.id))S.moisCfg[c.id.slice(5)]=c.data||{};if(c.id==='pleo_alias')S.pleoAlias=c.data||{};if(c.id==='agenda_alias')S.agendaAlias=c.data||{}});
+    S.moisCfg={};(cfgs||[]).forEach(c=>{if(/^mois_/.test(c.id))S.moisCfg[c.id.slice(5)]=c.data||{};if(c.id==='pleo_alias')S.pleoAlias=c.data||{};if(c.id==='agenda_alias')S.agendaAlias=c.data||{};if(c.id==='analyse_attrib')S.analyseAttrib=c.data||{}});
     dbState='ok';
   }catch(e){console.error(e);dbState='erreur';authMsg=(e&&e.message)||''}
   render();
@@ -443,7 +443,7 @@ function subscribe(){
     const t=String(p.table||'').replace(/^mecalux_/,'');
     if(t==='config'){if(p.new&&p.new.id==='regles'&&p.new.data){S.regles=Object.assign(clone(DEFAULT_REGLES),p.new.data);scheduleRender()}
       else if(p.new&&/^mois_/.test(p.new.id||'')){S.moisCfg[p.new.id.slice(5)]=p.new.data||{};scheduleRender()}
-      else if(p.new&&p.new.id==='pleo_alias'){S.pleoAlias=p.new.data||{}}else if(p.new&&p.new.id==='agenda_alias'){S.agendaAlias=p.new.data||{}}return}
+      else if(p.new&&p.new.id==='pleo_alias'){S.pleoAlias=p.new.data||{}}else if(p.new&&p.new.id==='agenda_alias'){S.agendaAlias=p.new.data||{}}else if(p.new&&p.new.id==='analyse_attrib'){S.analyseAttrib=p.new.data||{}}return}
     if(!S[t])return;
     if(p.eventType==='DELETE'){if(p.old&&p.old.id)delete S[t][p.old.id]}
     else if(p.new&&p.new.id){S[t][p.new.id]=fromRow(p.new)}
@@ -485,7 +485,7 @@ function formPwd(){
 /* ---------- routage ---------- */
 // Rôles : admin (tous les droits), harington (sauf gestion des accès), mecalux (sauf gestion des accès et imports Pleo)
 const ROLES={admin:'Admin Harington',superuser:'Super user Harington',harington:'Utilisateur Harington',mecalux:'Utilisateur Mecalux'};
-function routeAutorisee(k){return !((k==='import-pleo'&&!peutPleo)||(k==='acces'&&!estAdmin)||(k==='perdiem'&&!(estAdmin||monRole==='superuser')))}
+function routeAutorisee(k){return !(((k==='import-pleo'||k==='analyse-frais')&&!peutPleo)||(k==='acces'&&!estAdmin)||(k==='perdiem'&&!(estAdmin||monRole==='superuser')))}
 const ROUTES=[
   ['tableau-de-bord','Tableau de bord','dash'],
   ['projets','Projets','proj'],
@@ -497,6 +497,7 @@ const ROUTES=[
   ['prefactures','Préfactures','pf'],
   ['restitutions','Restitutions Mecalux','rest'],
   ['regles','Règles de frais','regles'],
+  ['analyse-frais','Analyse des frais','rest'],
   ['perdiem','Per diem','calc'],
   ['acces','Accès','acces']
 ];
@@ -520,7 +521,7 @@ function render(){
   try{
     if(r.startsWith('projet-'))html=vProjet(r.slice(7));
     else if(r.startsWith('prefacture-'))html=vPrefacture(r.slice(11));
-    else html=({'tableau-de-bord':vDash,projets:vProjets,ressources:vRessources,planning:vPlanning,calculateur:vCalc,saisie:vSaisie,'import-pleo':vImportPleo,prefactures:vPrefactures,restitutions:vRestitutions,perdiem:vPerdiem,'import-agenda':vImportAgenda,regles:vRegles,acces:vAcces}[r]||vDash)();
+    else html=({'tableau-de-bord':vDash,projets:vProjets,ressources:vRessources,planning:vPlanning,calculateur:vCalc,saisie:vSaisie,'import-pleo':vImportPleo,prefactures:vPrefactures,restitutions:vRestitutions,'analyse-frais':vAnalyseFrais,perdiem:vPerdiem,'import-agenda':vImportAgenda,regles:vRegles,acces:vAcces}[r]||vDash)();
   }catch(e){console.error(e);html='<div class="card">Erreur d\'affichage : '+esc(e.message)+'</div>'}
   if(dbState==='login'){location.replace('connexion.html');return}
   if(dbState==='config'){m.innerHTML='<section class="card"><h1>Configuration manquante</h1><p style="margin:0">La configuration Supabase du site (assets/js/config.js) est introuvable.</p></section>';return}
@@ -1073,6 +1074,163 @@ function vPerdiem(){
   h+='<section class="card"><div class="card-h"><h2 style="margin:0">Dépenses Pleo écartées du mois</h2>'+(c.dep.length?'<div class="row"><button class="btn o sm" data-act="pdMasse" data-v="1"'+(c.perso.length===c.dep.length?' disabled':'')+'>Tout marquer personnel</button><button class="btn g sm" data-act="pdMasse" data-v="0"'+(c.perso.length?'':' disabled')+'>Tout démarquer</button></div>':'')+'</div><p class="small muted" style="margin:0">Seules les dépenses écartées à l\'import Pleo (non refacturées à Mecalux) sont listées. Cochez celles qui sont personnelles : elles sont déduites du per diem.</p>'+
     (c.dep.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Marchand</th><th>Catégorie</th><th>Projet</th><th class="n">Montant</th><th>Personnelle</th></tr></thead><tbody>'+c.dep.map(f=>{const p=byId('projets',f.projetId);return '<tr'+(f.perso?' style="background:#FBF0F4"':'')+'><td>'+dateFr(f.date)+'</td><td>'+esc(libMarchand(f))+'</td><td class="small">'+esc(f.categorie||'')+'</td><td class="small">'+esc(p?libProjet(p):'')+'</td><td class="n">'+eur2(num(f.montant))+'</td><td><label class="row small" style="font-weight:600"><input type="checkbox" data-pdperso="'+f.id+'"'+(f.perso?' checked':'')+'> Personnelle</label></td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune dépense Pleo écartée ce mois-ci pour '+esc(r.nom)+'.</div>')+'</section>';
   return h}
+/* ---------- analyse des frais non facturés ---------- */
+const AF_CATS_GRANDES=['Location de voiture','Train','Carburant','Hôtel'];
+const AF_REGLES=[['Amendes',/TRESO CONTROLE|DRFIP|ANTAI|AMENDE|\bFPS\b/],
+ ['Location de voiture',/HERTZ|EUROPCAR|SIXT|BSP AUTO|\bET CAR\b|LOCATOUR|GOLDCAR|RENTALCARS|AUTOEUROPE|CARJET|GETAROUND|ENTERPRISE|ALAMO|\bAVIS\b|\bADA\b|LEASYS|RENT ?A ?CAR|UCAR|VIRTUO|DRIVALIA|OK ?CARS|BUDGET|THRIFTY|FIREFLY|KEDDY|NATIONAL CAR|DISCOVER CARS|ECONOMYBOOKING|FREE2MOVE|CAR RENTAL/],
+ ['Train',/SNCF|OUIGO|TRAINLINE|RENFE|THALYS|EUROSTAR|\bTGV\b|\bTER\b|TRENITALIA|LYRIA|IRYO/],
+ ['Avion',/TRANSAVIA|NOUVELAIR|TUNISAIR|AIR ?FRANCE|VOLOTEA|EASYJET|RYANAIR|VUELING|TRIP COM|OPODO|EDREAMS|LASTMINUTE|ROYAL AIR|LUFTHANSA|IBERIA/],
+ ['Péage',/AUTOROUTE|\bASF\b|SAPN|COFIROUTE|\bAPRR\b|SANEF|VINCI|ESCOTA|\bAREA\b|A R E A|ATMB|BIP ?GO|PEAGE|ALIS|ADELAC|ALBEA|ARCOUR|ATLANDES|PERIPHERIQUE|TUNNEL|VIADUC/],
+ ['Carburant',/\bTOTAL\b|TOTALENERGIES|SHELL|AGIP|\bBP\b|ESSO|\bAVIA\b|^ENI|\bENI\b|STATION|CARBU|DYNEFF|\bQ8\b|REPSOL|CEPSA|GALP|ARGEDIS|\bDAC\b/],
+ ['Hôtel',/AIRBNB|BOOKING|\bBKG\b|HOTEL|APPART ?CITY|ADAGIO|\bIBIS\b|KYRIAD|CAMPANILE|PREMIERE CLASSE|LOGIS|NOVOTEL|MERCURE|ACCOR|ODALYS|RESIDENCE|BEST WESTERN|CITADINES|STUDEO|NEMEA|AUBERGE|HOSTEL|GITE|CHAMBRE|EXPEDIA|CALAO|OLYS/],
+ ['Bus / taxi / VTC',/FLIX|BLABLA|UBER(?! ?EATS)|BOLT|TAXI|HEETCH|\bG7\b|\bRATP\b|TRANSDEV|KEOLIS|\bTCL\b|TISSEO|FREE NOW|NAVIGO|REGIE TRANSP|\bGARE\b|\bT2C\b/],
+ ['Matériel / fournitures',/LEROY MERLIN|CASTORAMA|BRICO|\bACTION\b|AMAZON|BACK MARKET|FNAC|DARTY|BOULANGER|PROTEXTYL|IKEA|LDLC|BUREAU VALLEE/],
+ ['Téléphone',/LYCAMOBILE|\bORANGE\b|\bSFR\b|BOUYGUES|FREE MOBILE|LEBARA/],
+ ['Parking',/PARK|INDIGO|EFFIA|SAEMES|ZENPARK|PARCMETRE|STATIONNEMENT|JAUDE|\bPBP\b/]];
+const afN=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+function afCategorie(mar,cat,note){const m=afN(mar),n=afN(note);for(const [lib,rx] of AF_REGLES)if(rx.test(m))return lib;
+  if(/INTERMARCHE|LECLERC|CARREFOUR|AUCHAN|SUPER U|HYPER U|SYSTEME U|CASINO|NETTO|GEANT|LIDL|ALDI/.test(m)&&cat==='Voyages & Déplacements')return 'Carburant';
+  if(cat==='Logement')return 'Hôtel';if(cat==='Parking')return 'Parking';if(cat==='Restauration')return 'Repas';
+  for(const [lib,rx] of AF_REGLES)if(rx.test(n))return lib;
+  if(/LOCATION|VOITURE|CAUTION/.test(n))return 'Location de voiture';if(/ESSENCE|GASOIL|GAZOLE|CARBURANT|DIESEL|PLEIN/.test(n))return 'Carburant';
+  if(/TRAIN|BILLET/.test(n))return 'Train';if(/HEBERGEMENT|LOGEMENT|NUIT/.test(n))return 'Hôtel';
+  if(cat==='Téléphone & internet')return 'Téléphone';if(cat==='Voyages & Déplacements')return 'Déplacement non identifié';return 'Autres'}
+// cautions et annulations : un montant remboursé (coût négatif) annule la dépense du même collaborateur, même marchand, même montant, dans les 180 jours
+function afPaires(L){const mk=e=>afN(e.marchand).split(' ')[0].slice(0,6);const jours=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+  L.forEach(e=>{e.paire=null;e.partiel=null;e.net=e.montant});
+  L.filter(e=>e.montant<0).sort((a,b)=>a.montant-b.montant).forEach(p=>{const c=L.filter(e=>e.montant>0&&!e.paire&&e.proprietaire===p.proprietaire&&mk(e)===mk(p)&&jours(e.date,p.date)>=0&&jours(e.date,p.date)<=180);
+    const ex=c.filter(e=>Math.abs(e.montant+p.montant)<0.05).sort((a,b)=>jours(b.date,p.date)-jours(a.date,p.date));
+    if(ex.length){const e=ex[ex.length-1];e.paire=p.id;p.paire=e.id;e.net=0;p.net=0}else if(c.length){const e=c.sort((a,b)=>Math.abs(a.montant+p.montant)-Math.abs(b.montant+p.montant))[0];p.partiel=e.id}});return L}
+const AF_TRI_DEFAUT={SBN:'SBO',SOB:'SBO',MKI:'MFK',MBA:'MBM',MBN:'MBM',MBE:'MBS',MAA:'hors:Manel ABOUDA',SCL:'SCE',RBA:'hors:Rami Boumekhita'};
+const AF_CONTRAT_DEFAUT={PRJHT2410252:'MON'};
+const AF_OWNER_DEFAUT={'MOHAMED AZIZ BEN ROMDHANE':'ABR','MEJDI TOUILI':'MTI','MEHDI BEN MUSTPHA':'MBM','HJIRI BOUBAKER':'BHI','ABDELHADI TELLI':'BAT','MOHAMED FATHI KAROUI':'MFK','SLIM BEN OTHMAN':'SBO','MANEL ABOUDA':'hors:Manel ABOUDA','RAMI BOUMEKHITA':'hors:Rami Boumekhita'};
+const afAttr=()=>Object.assign({owner:{},tri:{},contrat:{},facture:{}},S.analyseAttrib||{});
+// collaborateur : identifiant de ressource, ou « hors:Nom » pour une personne absente des ressources
+function afRes(code){if(!code)return '';if(code.startsWith('hors:'))return code;const r=list('ressources').find(x=>x.code===code||x.id===code);return r?r.id:''}
+function afNomCollab(c){if(!c)return 'Non attribué';if(c.startsWith('hors:'))return c.slice(5)+' (hors ressources)';const r=byId('ressources',c);return r?r.nom:c}
+function afCollabPleo(e){const A=afAttr();const k=afN(e.proprietaire);if(A.owner[k])return afRes(A.owner[k]);if(AF_OWNER_DEFAUT[k]&&afRes(AF_OWNER_DEFAUT[k]))return afRes(AF_OWNER_DEFAUT[k]);const rid=ressourceDe(e.proprietaire);return rid||('hors:'+String(e.proprietaire).replace(/\s+/g,' ').trim())}
+function afCollabFacture(f){const A=afAttr();if(A.facture[f.num])return afRes(A.facture[f.num]);if(f.trigramme&&A.tri[f.trigramme])return afRes(A.tri[f.trigramme]);
+  if(f.trigramme){const r=afRes(AF_TRI_DEFAUT[f.trigramme]||f.trigramme);if(r)return r}
+  if(f.contrat&&A.contrat[f.contrat])return afRes(A.contrat[f.contrat]);if(f.contrat&&AF_CONTRAT_DEFAUT[f.contrat])return afRes(AF_CONTRAT_DEFAUT[f.contrat]);
+  const autres=[...new Set(((ui.af&&ui.af.parNum[f.num])||[]).map(x=>x.trigramme).filter(Boolean))];if(autres.length===1)return afRes(A.tri[autres[0]]||AF_TRI_DEFAUT[autres[0]]||autres[0]);
+  const parContrat=f.contrat?[...new Set(((ui.af&&ui.af.parContrat[f.contrat])||[]).map(x=>x.trigramme).filter(Boolean))]:[];if(parContrat.length===1)return afRes(A.tri[parContrat[0]]||AF_TRI_DEFAUT[parContrat[0]]||parContrat[0]);return ''}
+const AF_MOIS={janvier:1,fevrier:2,'février':2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,'août':8,septembre:9,octobre:10,novembre:11,decembre:12,'décembre':12};
+function afMoisService(desc,dateFr){let m=String(desc).match(/(\d{2})\/(\d{2})\/(\d{4})/);if(m)return m[3]+'-'+m[2];
+  m=String(desc).match(new RegExp('('+Object.keys(AF_MOIS).join('|')+')\\s+(\\d{4})','i'));if(m)return m[2]+'-'+String(AF_MOIS[m[1].toLowerCase()]).padStart(2,'0');
+  const d=String(dateFr).split('/');return d.length===3?d[2]+'-'+d[1]:''}
+const afEstFrais=l=>l.code==='FRAIS'||(l.code==='FORFAIT'&&/frais|perdiem|per diem|d[ée]placement|h[ée]bergement|carburant|p[ée]age|km|indemnit/i.test(l.desc)&&!/astreinte/i.test(l.desc));
+async function afLireFacturePdf(pdfjsLib,data,fichier){
+  const doc=await pdfjsLib.getDocument({data,isEvalSupported:false}).promise;const pages=[];const nombre=s=>parseFloat(String(s).replace(/[\s  ]/g,'').replace(',','.'));
+  for(let n=1;n<=doc.numPages;n++){const page=await doc.getPage(n);const tc=await page.getTextContent();
+    const it=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]}));
+    const L=[];it.sort((a,b)=>b.y-a.y||a.x-b.x).forEach(i=>{const l=L.find(l=>Math.abs(l.y-i.y)<2.2);if(l)l.it.push(i);else L.push({y:i.y,it:[i]})});
+    L.forEach(l=>{l.it.sort((a,b)=>a.x-b.x);l.txt=l.it.map(i=>i.s).join(' ')});
+    const tout=L.map(l=>l.txt).join('\n');const m=tout.match(/(Pré-Facture|Facture|Avoir)\s+N°\s*:\s*(\S+)/);if(!m)continue;
+    const d=tout.match(/(\d{2}\/\d{2}\/\d{4})\s+(\S+)\s+\d+\/\d+/);const ctr=tout.match(/Numéro de contrat\s*:\s*(\S+)/);
+    const iH=L.findIndex(l=>/^Code\b/.test(l.txt)&&/Description/.test(l.txt));const iB=L.findIndex(l=>/BASES HT/.test(l.txt));const lignes=[];
+    if(iH>=0){const xDesc=(L[iH].it.find(i=>/^Description/.test(i.s))||{x:150}).x;let cur=null;
+      for(const l of L.slice(iH+1,iB>iH?iB:undefined)){const nums=l.it.filter(i=>/^-?[\d\s  ]+,\d{2,3}$/.test(i.s));const code=l.it.find(i=>i.x<xDesc-8);
+        if(nums.length>=3&&code){const v=nums.slice(-3);cur={code:code.s,desc:l.it.filter(i=>i!==code&&!v.includes(i)).map(i=>i.s).join(' '),qte:nombre(v[0].s),pu:nombre(v[1].s),montant:nombre(v[2].s),init:''};lignes.push(cur)}
+        else if(cur){const t=l.txt.trim();if(/^[A-Z]{2,4}$/.test(t))cur.init=t;else cur.desc+=' '+t}}}
+    pages.push({fichier,page:n,type:m[1],num:m[2],date:d?d[1]:'',contrat:ctr?ctr[1]:'',lignes})}
+  return pages}
+async function afInserer(table,rows){for(let i=0;i<rows.length;i+=400){occupeMsg('Enregistrement : '+Math.min(i+400,rows.length)+' / '+rows.length+'…');const {error}=await sb.from(table).upsert(rows.slice(i,i+400));if(error)throw error}}
+async function afImporterPleo(file){occupe('Lecture de l\'export Pleo…');
+  try{let f=file;if(/\.zip$/i.test(file.name)){const JSZip=await chargerJSZip();const z=await JSZip.loadAsync(file);const e=Object.values(z.files).find(x=>/\.xlsx$/i.test(x.name))||Object.values(z.files).find(x=>/\.csv$/i.test(x.name));if(!e)throw new Error('Aucun tableau dans le zip.');f=new File([await e.async('blob')],e.name.split('/').pop())}
+    const L=(await lirePleo(f)).map(l=>({id:l.key,date:l.iso,montant:l.mont,marchand:l.mar,categorie_pleo:l.cp||'',categorie:afCategorie(l.mar,l.cp,l.note),proprietaire:String(l.owner||'').replace(/\s+/g,' ').trim(),note:l.note||'',recu:l.recu||''}));
+    if(!L.length)throw new Error('Aucune dépense lue.');afPaires(L);const ds=L.map(l=>l.date).sort();
+    occupeMsg('Remplacement des dépenses du '+dateFr(ds[0])+' au '+dateFr(ds[ds.length-1])+'…');
+    const {error:e1}=await sb.from('mecalux_analyse_pleo').delete().gte('date',ds[0]).lte('date',ds[ds.length-1]);if(e1)throw e1;
+    await afInserer('mecalux_analyse_pleo',L.map(l=>({id:l.id,date:l.date,montant:l.montant,net:l.net,marchand:l.marchand,categorie_pleo:l.categorie_pleo,categorie:l.categorie,proprietaire:l.proprietaire,note:l.note,recu:l.recu,paire:l.paire,partiel:l.partiel,maj_le:new Date().toISOString()})));
+    toast(L.length+' dépenses Pleo importées pour l\'analyse');ui.af=null;render()}catch(e){toast('Import impossible : '+(e.message||e))}finally{libre()}}
+async function afImporterFactures(file){occupe('Ouverture du zip des factures…');
+  try{const JSZip=await chargerJSZip();const lib=await chargerPdfJs();const z=await JSZip.loadAsync(file);const pdfs=Object.values(z.files).filter(x=>!x.dir&&/\.pdf$/i.test(x.name)&&!/__MACOSX/.test(x.name));
+    if(!pdfs.length)throw new Error('Aucun PDF dans le zip.');const docs={};let k=0;
+    for(const e of pdfs){occupeMsg('Lecture des factures : '+(++k)+' / '+pdfs.length+'…');const pages=await afLireFacturePdf(lib,new Uint8Array(await e.async('arraybuffer')),e.name);
+      pages.forEach(p=>{const cle=p.type+'|'+p.num;const d=docs[cle]=docs[cle]||Object.assign({},p,{lignes:[]});if(d.fichier===p.fichier)d.lignes.push(...p.lignes)})}
+    const rows=[];Object.values(docs).forEach(d=>{const s=d.type==='Avoir'?-1:1;const [jj,mm,aa]=(d.date||'').split('/');
+      d.lignes.forEach((l,i)=>rows.push({id:d.type[0]+'_'+d.num+'_'+i,num:d.num,type:d.type,date:aa?aa+'-'+mm+'-'+jj:null,contrat:d.contrat,trigramme:l.init,code:l.code,description:l.desc.replace(/\s+/g,' ').trim(),qte:l.qte,pu:l.pu,montant:Math.round(s*l.montant*100)/100,mois:afMoisService(l.desc,d.date),est_frais:afEstFrais(l),fichier:d.fichier,maj_le:new Date().toISOString()}))});
+    occupeMsg('Remplacement des factures…');const {error:e1}=await sb.from('mecalux_analyse_factures').delete().neq('id','');if(e1)throw e1;
+    await afInserer('mecalux_analyse_factures',rows);toast(Object.keys(docs).length+' factures importées ('+rows.length+' lignes)');ui.af=null;render()}catch(e){toast('Import impossible : '+(e.message||e))}finally{libre()}}
+async function afCharger(){ui.af={charge:true,pleo:[],fact:[],parNum:{},parContrat:{},f:{du:'2026-01',au:'2026-12',collab:'',cat:'',tri:'net'}};
+  const tout=async t=>{let out=[];for(let i=0;;i+=1000){const {data,error}=await sb.from(t).select('*').range(i,i+999);if(error){handleErr(error);break}out=out.concat(data||[]);if(!data||data.length<1000)break}return out};
+  const [p,f]=await Promise.all([tout('mecalux_analyse_pleo'),tout('mecalux_analyse_factures')]);
+  ui.af.pleo=p.map(x=>Object.assign(x,{montant:num(x.montant),net:num(x.net)}));ui.af.fact=f.map(x=>Object.assign(x,{montant:num(x.montant)}));
+  ui.af.fact.forEach(x=>{(ui.af.parNum[x.num]=ui.af.parNum[x.num]||[]).push(x);if(x.contrat)(ui.af.parContrat[x.contrat]=ui.af.parContrat[x.contrat]||[]).push(x)});ui.af.pret=true;render()}
+function afDonnees(){const A=ui.af,F=A.f;const dans=m=>m&&m>=F.du&&m<=F.au;
+  const P=A.pleo.filter(e=>dans(String(e.date).slice(0,7))).map(e=>Object.assign(e,{collab:afCollabPleo(e)}));
+  const fr=A.fact.filter(x=>x.est_frais&&dans(x.mois)).map(x=>Object.assign(x,{collab:afCollabFacture(x)}));
+  const fact=fr.filter(x=>x.type!=='Pré-Facture'),pre=fr.filter(x=>x.type==='Pré-Facture');
+  return {P,fact,pre,Pf:P.filter(e=>(!F.collab||e.collab===F.collab)&&(!F.cat||e.categorie===F.cat))}}
+const afSom=(L,k='net')=>L.reduce((t,x)=>t+num(x[k]),0);
+function afBarres(P,du,au){const ms=[];for(let d=new Date(du+'-01T12:00');d.toISOString().slice(0,7)<=au;d.setMonth(d.getMonth()+1))ms.push(d.toISOString().slice(0,7));
+  const v=ms.map(m=>afSom(P.filter(e=>String(e.date).startsWith(m))));const max=Math.max(1,...v);
+  return '<div style="display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:6px" aria-hidden="true">'+v.map((x,i)=>'<div title="'+moisLabel(ms[i])+' : '+eur2(x)+'" style="flex:1;background:var(--navy);opacity:'+(x?0.85:0.15)+';height:'+Math.max(2,Math.round(x/max*44))+'px;border-radius:3px 3px 0 0"></div>').join('')+'</div><div class="small muted" style="display:flex;justify-content:space-between"><span>'+MOIS_COURT(ms[0])+'</span><span>'+MOIS_COURT(ms[ms.length-1])+'</span></div>'}
+function vAnalyseFrais(){
+  let h=head('Analyse','Frais non facturés',estAdmin?'<label class="btn o" style="cursor:pointer">Importer l\'export Pleo<input type="file" accept=".zip,.xlsx,.xls,.csv" data-afpleo="1" hidden></label><label class="btn o" style="cursor:pointer">Importer les factures (zip PDF)<input type="file" accept=".zip" data-affact="1" hidden></label>':'');
+  if(!ui.af){if(sb&&dbState==='ok')afCharger();return h+'<div class="empty">Chargement…</div>'}if(!ui.af.pret)return h+'<div class="empty">Chargement…</div>';
+  const A=ui.af,F=A.f;if(!A.pleo.length&&!A.fact.length)return h+'<div class="empty">Aucune donnée. '+(estAdmin?'Importez l\'export Pleo de l\'année et le zip des factures émises.':'L\'administrateur doit importer l\'export Pleo et les factures.')+'</div>';
+  const {P,fact,pre,Pf}=afDonnees();const collabs=[...new Set([...P.map(e=>e.collab),...fact.map(x=>x.collab)])].sort((a,b)=>afNomCollab(a).localeCompare(afNomCollab(b)));
+  const tP=afSom(P),tF=afSom(fact,'montant'),neutre=A.pleo.filter(e=>e.paire&&e.montant<0&&String(e.date).slice(0,7)>=F.du&&String(e.date).slice(0,7)<=F.au);
+  h+='<div class="filters"><label class="f">Du<input type="month" data-af="du" value="'+F.du+'"></label><label class="f">Au<input type="month" data-af="au" value="'+F.au+'"></label>'+
+    '<label class="f">Collaborateur<select data-af="collab"><option value="">Tous</option>'+collabs.map(c=>'<option value="'+esc(c)+'"'+(c===F.collab?' selected':'')+'>'+esc(afNomCollab(c))+'</option>').join('')+'</select></label>'+
+    '<label class="f">Catégorie<select data-af="cat"><option value="">Toutes</option>'+[...new Set(P.map(e=>e.categorie))].sort().map(c=>'<option'+(c===F.cat?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label>'+
+    '<div class="row" style="align-self:end"><button class="btn o sm" data-act="afXlsx">Export Excel</button></div></div>';
+  h+='<section class="kpis">'+kpi('Dépenses Pleo nettes',eur2(tP),P.filter(e=>e.net).length+' dépenses')+kpi('Frais facturés',eur2(tF),'mois de prestation'+(pre.length?' · + '+eur2(afSom(pre,'montant'))+' en préfacture':''))+kpi('Non couvert',eur2(Math.max(0,tP-tF)),tF?Math.round(tF/tP*100)+' % couvert par la facturation':'')+kpi('Cautions neutralisées',eur2(-afSom(neutre,'montant')),neutre.length+' remboursement'+(neutre.length>1?'s':''))+'</section>';
+  // grandes dépenses
+  h+='<h2 style="margin:6px 0 0">Grandes dépenses</h2><section class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">'+AF_CATS_GRANDES.map(c=>{const L=P.filter(e=>e.categorie===c&&e.net);const t=afSom(L);const par={};L.forEach(e=>par[e.collab]=(par[e.collab]||0)+e.net);
+    const top=Object.entries(par).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    return '<div class="kpi" style="cursor:pointer" data-act="afCat" data-v="'+esc(c)+'" role="button" tabindex="0"><span class="small" style="font-weight:700;color:var(--plum)">'+c+'</span><b style="font-size:22px">'+eur2(t)+'</b><span class="small muted">'+L.length+' dépenses · moyenne '+eur2(L.length?t/L.length:0)+' · '+(tP?Math.round(t/tP*100):0)+' % du total</span>'+afBarres(L,F.du,F.au)+
+      '<div class="small" style="margin-top:6px">'+top.map(([k,v])=>esc(afNomCollab(k).replace(' (hors ressources)',''))+' <b>'+eur2(v)+'</b>').join('<br>')+'</div></div>'}).join('')+'</section>';
+  // rapprochement par collaborateur
+  const lignes=collabs.map(c=>{const Lp=P.filter(e=>e.collab===c),Lf=fact.filter(x=>x.collab===c);const v={c,tot:afSom(Lp),fac:afSom(Lf,'montant')};AF_CATS_GRANDES.forEach(k=>v[k]=afSom(Lp.filter(e=>e.categorie===k)));v.autres=v.tot-AF_CATS_GRANDES.reduce((t,k)=>t+v[k],0);v.ecart=v.tot-v.fac;return v}).sort((a,b)=>b.ecart-a.ecart);
+  h+='<section class="card"><div class="card-h"><h2 style="margin:0">Dépensé et facturé par collaborateur</h2><span class="small muted">Cliquez sur un nom pour le détail par mois.</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Collaborateur</th>'+AF_CATS_GRANDES.map(k=>'<th class="n">'+k+'</th>').join('')+'<th class="n">Autres</th><th class="n">Total Pleo</th><th class="n">Frais facturés</th><th class="n">Non couvert</th></tr></thead><tbody>'+
+    lignes.map(v=>'<tr'+(v.c===F.collab?' style="background:var(--bg)"':'')+'><td><button class="btn g sm" data-act="afCollab" data-v="'+esc(v.c)+'" style="font-weight:700;padding:2px 4px">'+esc(afNomCollab(v.c))+'</button></td>'+AF_CATS_GRANDES.map(k=>'<td class="n">'+(v[k]?eur2(v[k]):'<span class="muted">·</span>')+'</td>').join('')+'<td class="n">'+(v.autres?eur2(v.autres):'·')+'</td><td class="n" style="font-weight:700">'+eur2(v.tot)+'</td><td class="n">'+eur2(v.fac)+'</td><td class="n" style="font-weight:800;color:'+(v.ecart>0?'var(--bad)':'var(--ok)')+'">'+(v.ecart>0?eur2(v.ecart):'—')+'</td></tr>').join('')+
+    '</tbody></table></div><p class="small muted" style="margin:0">Frais facturés : lignes « FRAIS » (barème par jour) et forfaits de frais (per diem, frais de déplacement, carburant…) des factures et avoirs, au mois de la prestation. Les astreintes ne sont pas des frais. « Non couvert » = dépenses Pleo − frais facturés.</p></section>';
+  if(F.collab){const ms=[...new Set([...P.filter(e=>e.collab===F.collab).map(e=>String(e.date).slice(0,7)),...fact.filter(x=>x.collab===F.collab).map(x=>x.mois)])].sort();
+    h+='<section class="card"><div class="card-h"><h2 style="margin:0">'+esc(afNomCollab(F.collab))+' · par mois</h2><button class="btn g sm" data-act="afCollab" data-v="">Fermer</button></div><div class="scroll"><table class="tbl"><thead><tr><th>Mois</th>'+AF_CATS_GRANDES.map(k=>'<th class="n">'+k+'</th>').join('')+'<th class="n">Total Pleo</th><th class="n">Frais facturés</th><th>Factures</th><th class="n">Non couvert</th></tr></thead><tbody>'+
+      ms.map(m=>{const Lp=P.filter(e=>e.collab===F.collab&&String(e.date).startsWith(m)),Lf=fact.filter(x=>x.collab===F.collab&&x.mois===m);const t=afSom(Lp),fa=afSom(Lf,'montant');
+        return '<tr><td>'+moisLabel(m)+'</td>'+AF_CATS_GRANDES.map(k=>'<td class="n">'+(afSom(Lp.filter(e=>e.categorie===k))?eur2(afSom(Lp.filter(e=>e.categorie===k))):'·')+'</td>').join('')+'<td class="n" style="font-weight:700">'+eur2(t)+'</td><td class="n">'+eur2(fa)+'</td><td class="small">'+[...new Set(Lf.map(x=>x.num))].join(', ')+'</td><td class="n" style="font-weight:700;color:'+(t-fa>0?'var(--bad)':'var(--ok)')+'">'+(t-fa>0?eur2(t-fa):'—')+'</td></tr>'}).join('')+'</tbody></table></div></section>'}
+  // détail des dépenses
+  const det=Pf.filter(e=>e.net||e.paire||e.partiel).sort((a,b)=>F.tri==='date'?String(b.date).localeCompare(String(a.date)):Math.abs(b.montant)-Math.abs(a.montant));
+  const aVerifier=e=>e.categorie==='Location de voiture'&&e.montant>=1000&&!e.paire;
+  h+='<section class="card"><div class="card-h"><h2 style="margin:0">Détail des dépenses'+(F.cat?' · '+esc(F.cat):'')+(F.collab?' · '+esc(afNomCollab(F.collab)):'')+'</h2><div class="row"><span class="small muted">'+det.length+' lignes · '+eur2(afSom(det))+'</span><select data-af="tri" aria-label="Tri"><option value="net"'+(F.tri!=='date'?' selected':'')+'>Plus gros montants</option><option value="date"'+(F.tri==='date'?' selected':'')+'>Plus récentes</option></select></div></div>'+
+    '<div class="scroll" style="max-height:520px"><table class="tbl"><thead><tr><th>Date</th><th>Collaborateur</th><th>Catégorie</th><th>Marchand</th><th>Note</th><th class="n">Montant</th><th>Remarque</th></tr></thead><tbody>'+
+    det.slice(0,300).map(e=>'<tr><td>'+dateFr(e.date)+'</td><td class="small">'+esc(afNomCollab(e.collab).replace(' (hors ressources)',' *'))+'</td><td class="small">'+esc(e.categorie)+'</td><td>'+esc(estIdTech(e.marchand)?(e.categorie_pleo||'—'):e.marchand)+'</td><td class="small muted">'+esc(e.note||'')+'</td><td class="n" style="font-weight:600'+(e.montant<0?';color:var(--ok)':'')+'">'+eur2(e.montant)+'</td><td>'+(e.paire?'<span class="pill">'+(e.montant<0?'Remboursement':'Caution remboursée')+'</span>':e.partiel?'<span class="pill">Remboursement partiel</span>':aVerifier(e)?'<span class="pill warn" title="Location de 1 000 € ou plus sans remboursement associé : vérifier s\'il s\'agit d\'une caution">À vérifier</span>':'')+'</td></tr>').join('')+'</tbody></table></div>'+(det.length>300?'<p class="small muted" style="margin:0">300 premières lignes affichées ; l\'export Excel contient tout.</p>':'')+'</section>';
+  // cautions
+  const pairs=A.pleo.filter(e=>e.paire&&e.montant<0).map(r=>({r,d:A.pleo.find(x=>x.id===r.paire)})).filter(x=>x.d);const part=A.pleo.filter(e=>e.partiel).map(r=>({r,d:A.pleo.find(x=>x.id===r.partiel)})).filter(x=>x.d);
+  const susp=P.filter(aVerifier);
+  h+='<section class="card"><div class="card-h"><h2 style="margin:0">Cautions et remboursements</h2></div><p class="small muted" style="margin:0">Un montant positif dans Pleo (caution rendue, annulation) est rapproché de la dépense d\'origine : même collaborateur, même marchand, même montant, dans les 180 jours. La paire est neutralisée. Un remboursement partiel est déduit.</p><div class="scroll"><table class="tbl"><thead><tr><th>Collaborateur</th><th>Marchand</th><th>Débit</th><th>Remboursement</th><th class="n">Montant</th><th>Traitement</th></tr></thead><tbody>'+
+    pairs.concat(part).map(({r,d})=>'<tr><td class="small">'+esc(afNomCollab(afCollabPleo(r)))+'</td><td>'+esc(d.marchand)+'</td><td>'+dateFr(d.date)+' · '+eur2(d.montant)+'</td><td>'+dateFr(r.date)+' · '+eur2(-r.montant)+'</td><td class="n">'+eur2(d.montant+r.montant)+'</td><td><span class="pill'+(r.paire?' ok':'')+'">'+(r.paire?'Neutralisée':'Retenue de '+eur2(d.montant+r.montant))+'</span></td></tr>').join('')+
+    '</tbody></table></div>'+(susp.length?'<h3 style="margin:6px 0 0">À vérifier : locations de 1 000 € ou plus sans remboursement</h3><ul class="small" style="margin:4px 0 0">'+susp.map(e=>'<li>'+dateFr(e.date)+' · '+esc(afNomCollab(e.collab))+' · '+esc(e.marchand)+' · <b>'+eur2(e.montant)+'</b>'+(e.note?' · '+esc(e.note):'')+'</li>').join('')+'</ul>':'')+'</section>';
+  // attribution
+  const sans=fact.filter(x=>!x.collab);const optC=(v)=>'<option value="">— choisir —</option>'+list('ressources').sort((a,b)=>a.nom.localeCompare(b.nom)).map(r=>'<option value="'+r.code+'"'+(afRes(v)===r.id?' selected':'')+'>'+esc(r.nom)+' ('+esc(r.code)+')</option>').join('')+[...new Set(P.map(e=>e.collab).filter(c=>c.startsWith('hors:')))].map(c=>'<option value="'+esc(c)+'"'+(v===c?' selected':'')+'>'+esc(afNomCollab(c))+'</option>').join('');
+  const parC={};sans.forEach(x=>{const k=x.contrat||('facture '+x.num);(parC[k]=parC[k]||{contrat:x.contrat,num:x.num,mont:0,n:new Set(),desc:x.description}).mont+=x.montant;parC[k].n.add(x.num)});
+  const tris=[...new Set(A.fact.map(x=>x.trigramme).filter(Boolean))].sort();
+  h+='<details class="card"'+(sans.length?' open':'')+'><summary style="cursor:pointer;font-weight:800;color:var(--navy)">Attribution des factures et des dépenses'+(sans.length?' · <span style="color:var(--bad)">'+eur2(afSom(sans,'montant'))+' de frais facturés sans collaborateur</span>':'')+'</summary>'+
+    (Object.keys(parC).length?'<h3>Frais facturés sans collaborateur</h3><div class="scroll"><table class="tbl"><thead><tr><th>Contrat / facture</th><th>Exemple</th><th class="n">Montant</th><th>Collaborateur</th></tr></thead><tbody>'+Object.entries(parC).sort((a,b)=>b[1].mont-a[1].mont).map(([k,v])=>'<tr><td style="font-weight:700">'+esc(k)+'<div class="small muted">'+v.n.size+' facture'+(v.n.size>1?'s':'')+'</div></td><td class="small">'+esc(v.desc.slice(0,90))+'</td><td class="n">'+eur2(v.mont)+'</td><td><select '+(estAdmin?'':'disabled ')+'data-afmap="'+(v.contrat?'contrat':'facture')+'" data-k="'+esc(v.contrat||v.num)+'">'+optC('')+'</select></td></tr>').join('')+'</tbody></table></div>':'<p class="small muted">Tous les frais facturés sont rattachés à un collaborateur.</p>')+
+    '<h3>Trigrammes des factures</h3><div class="row" style="flex-wrap:wrap;gap:10px">'+tris.map(t=>{const A2=afAttr();const v=A2.tri[t]||AF_TRI_DEFAUT[t]||t;return '<label class="f" style="min-width:210px">'+esc(t)+'<select '+(estAdmin?'':'disabled ')+'data-afmap="tri" data-k="'+esc(t)+'">'+optC(v)+'</select></label>'}).join('')+'</div>'+
+    '<h3>Titulaires des cartes Pleo</h3><div class="row" style="flex-wrap:wrap;gap:10px">'+[...new Set(A.pleo.map(e=>e.proprietaire))].sort().map(o=>{const c=afCollabPleo({proprietaire:o});return '<label class="f" style="min-width:210px">'+esc(o)+'<select '+(estAdmin?'':'disabled ')+'data-afmap="owner" data-k="'+esc(afN(o))+'">'+optC(c)+'<option value="hors:'+esc(o)+'"'+(c==='hors:'+o?' selected':'')+'>Hors ressources</option></select></label>'}).join('')+'</div></details>';
+  return h}
+async function afMemo(type,k,v){S.analyseAttrib=afAttr();S.analyseAttrib[type]=Object.assign({},S.analyseAttrib[type],{[k]:v});const {error}=await sb.from(TBL('config')).upsert({id:'analyse_attrib',data:S.analyseAttrib,maj_le:new Date().toISOString()});if(error)handleErr(error);else toast('Attribution enregistrée');render()}
+async function afExport(){const A=ui.af;if(!A)return;let EX;try{toast('Préparation du fichier Excel…');if(!window.ExcelJS)await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');EX=window.ExcelJS}catch(e){toast('Export indisponible');return}
+  const {P,fact,pre}=afDonnees();const F=A.f;const wb=new EX.Workbook();wb.creator='Pilotage équipe Mecalux';
+  const NAVY='FF21324E',PLUM='FF784E61',LIGNE='FFD7DDE5';const fin={style:'thin',color:{argb:LIGNE}};const cadre={top:fin,left:fin,bottom:fin,right:fin};
+  const feuille=(nom,titre,entetes,lignes,larg,euros)=>{const ws=wb.addWorksheet(nom,{views:[{state:'frozen',ySplit:3,showGridLines:false}],pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+    ws.mergeCells(1,1,1,entetes.length);ws.getCell(1,1).value=titre;ws.getCell(1,1).font={name:'Calibri',size:14,bold:true,color:{argb:NAVY}};ws.getRow(1).height=24;
+    const h=ws.getRow(3);h.values=entetes;h.eachCell(c=>{c.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.border=cadre;c.alignment={vertical:'middle',wrapText:true}});h.height=30;
+    lignes.forEach(v=>{const r=ws.addRow(v.vals||v);for(let i=1;i<=entetes.length;i++){const c=r.getCell(i);c.font={name:'Calibri',size:10,bold:!!v.fort,color:{argb:v.fort?'FFFFFFFF':'FF1B1C1C'}};c.border=cadre;if(v.fort)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:PLUM}};if(euros.includes(i))c.numFmt='#,##0.00 €;-#,##0.00 €;""'}});
+    ws.columns.forEach((c,i)=>c.width=larg[i]||14);ws.autoFilter={from:{row:3,column:1},to:{row:3,column:entetes.length}};return ws};
+  const per='du '+moisLabel(F.du)+' au '+moisLabel(F.au);
+  const collabs=[...new Set([...P.map(e=>e.collab),...fact.map(x=>x.collab)])];
+  const lc=collabs.map(c=>{const Lp=P.filter(e=>e.collab===c),Lf=fact.filter(x=>x.collab===c);const t=afSom(Lp),fa=afSom(Lf,'montant');return [afNomCollab(c),...AF_CATS_GRANDES.map(k=>afSom(Lp.filter(e=>e.categorie===k))),t-AF_CATS_GRANDES.reduce((s,k)=>s+afSom(Lp.filter(e=>e.categorie===k)),0),t,fa,Math.max(0,t-fa)]}).sort((a,b)=>b[8]-a[8]||b[6]-a[6]);
+  const tot=lc.reduce((s,l)=>s.map((x,i)=>i?x+l[i]:'Total'),['Total',0,0,0,0,0,0,0,0]);
+  feuille('Par collaborateur','Dépensé (Pleo) et facturé par collaborateur — '+per,['Collaborateur',...AF_CATS_GRANDES,'Autres','Total Pleo','Frais facturés','Non couvert'],[...lc,{vals:tot,fort:true}],[30,16,12,12,12,12,14,15,14],[2,3,4,5,6,7,8,9]);
+  const cats=[...new Set(P.map(e=>e.categorie))];const lk=cats.map(c=>{const L=P.filter(e=>e.categorie===c&&e.net);const t=afSom(L);return [c,L.length,t,L.length?t/L.length:0,afSom(P)?t/afSom(P):0]}).sort((a,b)=>b[2]-a[2]);
+  const wk=feuille('Par catégorie','Dépenses Pleo par catégorie — '+per,['Catégorie','Dépenses','Montant','Moyenne','Part'],lk,[30,11,15,13,10],[3,4]);wk.getColumn(5).numFmt='0%';
+  feuille('Détail Pleo','Détail des dépenses Pleo — '+per,['Date','Collaborateur','Catégorie','Catégorie Pleo','Marchand','Note','Montant','Montant net','Remarque'],P.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(e=>[new Date(e.date+'T12:00'),afNomCollab(e.collab),e.categorie,e.categorie_pleo,e.marchand,e.note,e.montant,e.net,e.paire?(e.montant<0?'Remboursement (neutralisé)':'Caution remboursée (neutralisée)'):e.partiel?'Remboursement partiel':(e.categorie==='Location de voiture'&&e.montant>=1000?'À vérifier':'')]),[11,26,20,20,28,30,12,12,26],[7,8]).getColumn(1).numFmt='dd/mm/yyyy';
+  feuille('Frais facturés','Frais facturés (factures, avoirs et préfactures) — '+per,['Document','N°','Date','Contrat','Trigramme','Collaborateur','Mois de prestation','Code','Description','Montant'],fact.concat(pre).map(x=>[x.type,x.num,x.date?new Date(x.date+'T12:00'):'',x.contrat,x.trigramme,afNomCollab(x.collab),x.mois,x.code,x.description,x.montant]),[12,12,11,15,10,26,12,10,60,12],[10]).getColumn(3).numFmt='dd/mm/yyyy';
+  const buf=await wb.xlsx.writeBuffer();const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const a=document.createElement('a');a.href=url;a.download='Analyse des frais non facturés '+F.du+' à '+F.au+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
 /* ---------- restitutions : suivi des prestations par projet ---------- */
 function moisPrecedent(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7)}
 function libProjet(p){return String(p.client||'').toUpperCase()+(p.nom?' · '+p.nom:'')}
@@ -1609,6 +1767,9 @@ document.addEventListener('click',async e=>{
       const match=l=>(!F.collab||(F.collab==='?'?!l.rid:l.rid===F.collab))&&(!F.cat||l.cat===F.cat)&&(!F.dec||(F.dec==='trier'?!l.d:l.d===F.dec))&&(!F.proj||(F.proj==='?'?!l.pid:l.pid===F.proj));
       let n=0;P.lignes.filter(match).forEach(l=>{l.pid=v;l.via='manuel';l.mois=l.iso.slice(0,7);n++});toast(n+' ligne'+(n>1?'s':'')+' affectée'+(n>1?'s':''));render();break}
     case'pleoSave':await enregistrerPleo();break;
+    case'afCat':if(ui.af){ui.af.f.cat=ui.af.f.cat===b.dataset.v?'':b.dataset.v;render();const z=document.querySelector('#main h2:nth-of-type(3)');}break;
+    case'afCollab':if(ui.af){ui.af.f.collab=b.dataset.v;render()}break;
+    case'afXlsx':await afExport();break;
     case'pdValider':{const rid=ui.pdRes,m=ui.pdMois;const c=calculPerdiem(rid,m);
       const ok=await save('perdiem',rid+'_'+m,{ressourceId:rid,mois:m,joursMes:c.jours,taux:c.taux,depensesPerso:c.totPerso,montant:c.montant,detail:{parProjet:c.parProjet,perso:c.perso.map(f=>({id:f.id,date:f.date,marchand:libMarchand(f),montant:num(f.montant)}))},statut:'valide',valideLe:new Date().toISOString(),validePar:session&&session.user.email||''});
       if(ok)toast('Per diem de '+moisLabel(m)+' validé : '+eur2(c.montant));break}
@@ -1727,6 +1888,10 @@ document.addEventListener('change',async e=>{
   if(t.dataset.agrempl&&ui.agenda){ui.agenda.remplacer=t.checked;render();return}
   if(t.dataset.pdperso){const f=byId('frais',t.dataset.pdperso);if(f){const ok=await save('frais',f.id,Object.assign({},f,{perso:t.checked}));if(!ok)t.checked=!t.checked;render()}return}
   if(t.dataset.ressEmail){const em=t.dataset.ressEmail;const {error}=await sb.from('mecalux_equipe').update({ressource_id:t.value||null}).eq('email',em);if(error){handleErr(error);return}toast(em+' relié à '+((byId('ressources',t.value)||{}).nom||'aucune ressource'));chargerAcces();return}
+  if(t.dataset.afpleo&&t.files&&t.files[0]){const f=t.files[0];t.value='';await afImporterPleo(f);return}
+  if(t.dataset.affact&&t.files&&t.files[0]){const f=t.files[0];t.value='';await afImporterFactures(f);return}
+  if(t.dataset.af&&ui.af){ui.af.f[t.dataset.af]=t.value;render();return}
+  if(t.dataset.afmap){await afMemo(t.dataset.afmap,t.dataset.k,t.value);return}
   if(t.dataset.restvis){ui.restVisibles=t.checked;render();return}
   if(t.dataset.pnom&&ui.pleo){ui.pleo.nom=t.value;return}
   if(t.dataset.pleo){const f=t.files&&t.files[0];t.value='';if(f)chargerFichierPleo(f);return}

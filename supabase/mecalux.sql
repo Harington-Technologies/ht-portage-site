@@ -362,3 +362,8 @@ alter table public.mecalux_equipe add column if not exists ressource_id text;
 alter table public.mecalux_frais add column if not exists perso boolean not null default false;
 -- table mecalux_perdiem (montant validé par ressource et par mois) : lecture/écriture par l'admin et par le super user pour sa ressource
 -- prestations : phase 'pil' (Pilotage) autorisée dans mecalux_affectations et mecalux_temps
+
+-- ============ Analyse des frais non facturés (interne Harington) ============
+-- mecalux_analyse_pleo : dépenses Pleo (montant = coût, négatif = remboursement ; net = 0 pour une caution ou annulation neutralisée)
+-- mecalux_analyse_factures : lignes des factures, avoirs et préfactures émises (mois de prestation, est_frais)
+-- Lecture : Harington (admin, super user, utilisateur) ; import et attribution : admin. Attributions : mecalux_config 'analyse_attrib'.
