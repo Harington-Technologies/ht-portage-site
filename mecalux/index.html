@@ -1538,6 +1538,7 @@ function isoLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(
 function isoDe(v){if(v instanceof Date)return isNaN(v)?'':isoLocal(v);if(typeof v==='string'&&/^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2} \d{4}/.test(v.trim())){const d=new Date(v.trim());if(!isNaN(d))return isoLocal(d)}if(typeof v==='number'){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
   const m=String(v||'').trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');const m2=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m2?m2[0]:''}
 function categorieDe(cp,mar){const c=String(cp||'').toLowerCase(),m=String(mar||'').toUpperCase();
+  if(/LEROY\s*-?\s*MERLIN|BRICO\s*-?\s*D[EÉ]P[OÔ]T/.test(m))return 'Équipements / matériels';
   if(/restauration|repas/.test(c))return 'Repas';if(/parking/.test(c)||/PARKING|PARC |COMMUNE DE|INDIGO|EFFIA|SAEMES|Q-PARK/.test(m))return 'Parking';
   if(/logement|h[ée]bergement|h[ôo]tel/.test(c)||/HOTEL|IBIS|NOVOTEL|MERCURE|B&B|KYRIAD|CAMPANILE|BOOKING|AIRBNB|PREMIERE CLASSE/.test(m))return 'Hôtel (au réel)';
   if(/APRR|ASF|AUTOROUTE|PEAGE|SANEF|COFIROUTE|VINCI AUTO|PERIPHERIQUE|ESCOTA|ATMB|SAPN|ALIS|TUNNEL|VIADUC/.test(m))return 'Péages';
