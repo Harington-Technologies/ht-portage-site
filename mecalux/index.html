@@ -1756,12 +1756,16 @@ function formAff(pid,a){
 function formFrais(f){
   const pid=f?f.projetId:(ui.saisieProjet||(list('projets')[0]||{}).id);const m=f?f.mois:ui.saisieMois;
   const resIds=[...new Set(list('affectations').filter(a=>a.projetId===pid).map(a=>a.ressourceId).concat(list('calendrier').filter(c=>c.projetId===pid&&c.mois===m).map(c=>c.ressourceId)))];
+  const resDe=(p,garde)=>{const ids=[...new Set(list('affectations').filter(a=>a.projetId===p).map(a=>a.ressourceId).concat(list('calendrier').filter(c=>c.projetId===p).map(c=>c.ressourceId)))];const L=(ids.length?ids:list('ressources').filter(r=>estActif(r)).map(r=>r.id));if(garde&&!L.includes(garde))L.push(garde);return L.map(id=>[id,(byId('ressources',id)||{}).nom||'?']).sort((a,b)=>a[1].localeCompare(b[1]))};
   const opts=(resIds.length?resIds:list('ressources').filter(r=>estActif(r)||(f&&f.ressourceId===r.id)).map(r=>r.id)).map(id=>[id,(byId('ressources',id)||{}).nom||'?']);
+  const libPS=p=>libProjet(p)+(p.site?' — '+p.site:'')+(p.cloture?' (clôturé)':'');const projOpts=list('projets').filter(p=>!p.cloture||p.id===pid).sort((a,b)=>libPS(a).localeCompare(libPS(b))).map(p=>[p.id,libPS(p)]);
   const v=Object.assign({date:m===curMonth()?today():m+'-01',ressourceId:opts[0]?opts[0][0]:'',categorie:CAT_FRAIS[0],refacturable:S.regles.fraisRefacturablesParDefaut,statut:'valide',joursAuto:true},f||{});
   const sel=(k,o,val)=>'<select name="'+k+'">'+o.map(x=>'<option value="'+esc(x[0])+'"'+(String(x[0])===String(val)?' selected':'')+'>'+esc(x[1])+'</option>').join('')+'</select>';
   const cb=(k,l,val)=>'<label class="row small" style="font-weight:600;grid-column:1/-1"><input type="checkbox" name="'+k+'"'+(val?' checked':'')+'> '+esc(l)+'</label>';
   let h='<h2>'+(f?'Modifier la dépense':'Nouvelle dépense · '+moisLabel(m))+'</h2><form id="frm" class="formgrid" novalidate>'+
+    (f?'<label class="f" style="grid-column:1/-1">Projet'+sel('projetId',projOpts,pid)+'</label>':'')+
     '<label class="f">Date<input type="date" name="date" value="'+esc(v.date||'')+'"></label>'+
+    (f?'<label class="f">Mois de rattachement<input type="month" name="moisRat" value="'+esc(f.mois||(v.date||m).slice(0,7))+'"></label>':'')+
     '<label class="f">Ressource'+sel('ressourceId',opts,v.ressourceId)+'</label>'+
     '<label class="f">Catégorie'+sel('categorie',CAT_FRAIS.map(c=>[c,c]),v.categorie)+'</label>'+
     '<div id="pj" style="grid-column:1/-1;display:none;background:var(--bg);border-radius:12px;padding:12px 14px"><div class="formgrid">'+
@@ -1776,7 +1780,8 @@ function formFrais(f){
     cb('dejaFacture','Déjà facturé par ailleurs (hôtel, location, billet)',v.dejaFacture)+'</form>'+
     '<p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
   document.getElementById('dlgBody').innerHTML=h;const fm=document.getElementById('frm');const E=fm.elements;
-  const nCal=()=>joursFraisCal(pid,E.ressourceId.value,(E.date.value||m).slice(0,7),E.categorie.value);const nWe=()=>E.categorie.value==='Hôtel (au réel)'?joursDeplWeekend(pid,E.ressourceId.value,(E.date.value||m).slice(0,7)):0;
+  const pidF=()=>E.projetId?E.projetId.value:pid;const moisF=()=>E.moisRat&&E.moisRat.value?E.moisRat.value:(E.date.value||m).slice(0,7);
+  const nCal=()=>joursFraisCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value);const nWe=()=>E.categorie.value==='Hôtel (au réel)'?joursDeplWeekend(pidF(),E.ressourceId.value,moisF()):0;
   function maj(evtName){const parJour=CAT_JOUR.includes(E.categorie.value);document.getElementById('pj').style.display=parJour?'':'none';
     if(!parJour){E.montant.readOnly=false;return}
     if(evtName==='categorie'&&E.categorie.value==='Voiture Harington'&&!E.prixJour.value)E.prixJour.value=num(S.regles.voitureHarington)||45;
@@ -1787,13 +1792,16 @@ function formFrais(f){
   function majPj(){document.getElementById('pjListe').innerHTML=garder.length?garder.map((p,i)=>'<div class="row" style="gap:6px;margin:2px 0">📎 '+esc(p.split('/').pop().replace(/^\d{13}-/,''))+'<button type="button" class="btn o sm" data-pjx="'+i+'" aria-label="Retirer">Retirer</button></div>').join(''):'<span class="muted">Aucune pièce jointe.</span>'}
   majPj();document.getElementById('pjListe').addEventListener('click',e=>{const b=e.target.closest('[data-pjx]');if(!b)return;retires.push(garder.splice(+b.dataset.pjx,1)[0]);majPj()});
   E.pjFichiers.addEventListener('change',()=>{if(E.pjFichiers.files.length)E.justif.checked=true});
+  // changement de projet : liste des ressources du projet choisi, la ressource actuelle reste disponible
+  if(E.projetId)E.projetId.addEventListener('change',()=>{const cur=E.ressourceId.value;E.ressourceId.innerHTML=resDe(E.projetId.value,cur).map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===cur?' selected':'')+'>'+esc(x[1])+'</option>').join('')});
+  if(E.moisRat)E.date.addEventListener('change',()=>{if(E.date.value&&f&&E.moisRat.value===(f.mois||''))E.moisRat.value=E.date.value.slice(0,7)});
   fm.addEventListener('input',e=>maj(e.target.name));fm.addEventListener('change',e=>maj(e.target.name));maj('categorie');
   dlg._save=async()=>{const o={};['date','ressourceId','categorie','note','statut','motif'].forEach(k=>o[k]=E[k].value.trim());['refacturable','justif','dejaFacture'].forEach(k=>o[k]=E[k].checked);
     o.parJour=CAT_JOUR.includes(o.categorie);
     if(o.parJour){o.prixJour=num(E.prixJour.value);o.joursAuto=E.joursAuto.checked;o.jours=num(E.jours.value);o.montant=Math.round(o.prixJour*o.jours*100)/100;
       if(!o.prixJour){document.getElementById('frmErr').textContent='Indiquez le prix par jour.';E.prixJour.focus();return}}
     else{o.prixJour='';o.jours='';o.joursAuto=true;o.montant=E.montant.value===''?'':num(E.montant.value);if(o.montant===''){document.getElementById('frmErr').textContent='« Montant TTC » est obligatoire.';E.montant.focus();return}}
-    if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const mois=(o.date||m).slice(0,7);
+    if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const mois=E.moisRat&&/^\d{4}-\d{2}$/.test(E.moisRat.value)?E.moisRat.value:(o.date||m).slice(0,7);const pidN=E.projetId&&E.projetId.value?E.projetId.value:pid;
     const id=f?f.id:uid('f');const nouveaux=[...E.pjFichiers.files];
     const trop=nouveaux.find(x=>x.size>10485760);if(trop){document.getElementById('frmErr').textContent='« '+trop.name+' » dépasse 10 Mo.';return}
     const chemins=garder.slice();let ko=0;occupe(nouveaux.length?'Envoi des pièces jointes…':'Enregistrement…');try{
@@ -1802,9 +1810,9 @@ function formFrais(f){
         const {error}=await sb.storage.from(BUCKET_J).upload(path,x,{upsert:true,contentType:x.type||typeMime(nom)});if(error)ko++;else chemins.push(path)}}
     if(ko){document.getElementById('frmErr').textContent=ko+' pièce(s) jointe(s) non envoyée(s). Réessayez.';return}
     o.justifs=chemins;if(chemins.length)o.justif=true;occupeMsg('Enregistrement…');
-    var ok=await save('frais',id,Object.assign({projetId:pid},f||{},o,{mois}));}finally{libre()}
+    var ok=await save('frais',id,Object.assign({projetId:pid},f||{},o,{mois,projetId:pidN}));}finally{libre()}
     if(ok){const aSuppr=retires.filter(p=>p.startsWith('manuel/'));if(aSuppr.length)sb.storage.from(BUCKET_J).remove(aSuppr).catch(()=>{});
-      toast('Dépense enregistrée'+(nouveaux.length?' · '+nouveaux.length+' pièce(s) jointe(s)':''));dlg.close()}};
+      toast('Dépense enregistrée'+(f&&pidN!==f.projetId?' et déplacée sur '+libPS(byId('projets',pidN)||{})+' ('+moisLabel(mois)+')':'')+(nouveaux.length?' · '+nouveaux.length+' pièce(s) jointe(s)':''));dlg.close()}};
   dlg._del=f?()=>{dlg.close();del('frais',f.id)}:null;
   dlg.showModal();E.date.focus();
 }
