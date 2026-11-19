@@ -730,8 +730,36 @@ function vPlanning(){
   h+='<section class="card"><div class="card-h"><h2>Charge par ressource (jours)</h2><label class="row small" style="font-weight:600"><input type="checkbox" data-act="planActifs"'+(ui.planActifs?' checked':'')+'> Actifs seulement</label></div>'+
     '<div class="row small">'+CAT.map(c=>'<span class="row" style="gap:6px"><i style="display:inline-block;width:14px;height:10px;border-radius:3px;background:'+c[2]+'"></i>'+c[1]+' ('+c[1].charAt(0)+')</span>').join('')+'<span class="row" style="gap:6px"><i style="display:inline-block;width:14px;height:10px;border-radius:3px;border:1.5px dashed var(--line2)"></i>Prévisionnel</span><span class="muted">· Mois saisis : calendrier de la saisie mensuelle. Mois à venir : affectations réparties sur les dates des phases ; jours ouvrés restants en R&D (mois sans affectation = R&D). Survolez une case pour le détail.</span></div>'+
     (rs.length?'<div class="scroll">'+t+'</div>':'<div class="empty">Aucune ressource.</div>')+'</section>';
+  h+=vActiviteMois();
   return h;
 }
+/* activité du mois : jour par jour, par collaborateur, d'après la saisie mensuelle (tous projets confondus) */
+function vActiviteMois(){const m=ui.actMois||curMonth();const J=joursMois(m);const jo=joursOuvres(m).n;
+  const cals=list('calendrier').filter(c=>c.mois===m&&c.jours&&Object.keys(c.jours).length);
+  const projIds=[...new Set(cals.filter(c=>Object.values(c.jours).some(v=>{const x=pj(v);return x&&!TYPES_J[x.t].nonTravaille})).map(c=>c.projetId))].filter(id=>byId('projets',id)).sort((a,b)=>libProjet(byId('projets',a)).localeCompare(libProjet(byId('projets',b)))||String(byId('projets',a).site||'').localeCompare(String(byId('projets',b).site||'')));
+  const num_=id=>projIds.indexOf(id)+1;const libP=id=>{const p=byId('projets',id)||{};return libProjet(p)+(p.site?' — '+p.site:'')};
+  const rids=[...new Set(cals.map(c=>c.ressourceId))].concat(ui.actTous?list('ressources').filter(estActif).map(r=>r.id):[]);
+  const rs=[...new Set(rids)].map(id=>byId('ressources',id)).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
+  let h='<section class="card"><div class="card-h"><h2>Activité du mois par collaborateur</h2><div class="row"><button class="btn o sm" data-act="actPrev" aria-label="Mois précédent">←</button><span style="font-weight:700;text-transform:capitalize;min-width:120px;text-align:center">'+moisLabel(m)+'</span><button class="btn o sm" data-act="actNext" aria-label="Mois suivant">→</button>'+
+    '<label class="row small" style="font-weight:600"><input type="checkbox" data-act="actTous"'+(ui.actTous?' checked':'')+'> Tous les actifs</label></div></div>'+
+    '<p class="small muted" style="margin:0">D\'après la saisie mensuelle. Couleur = type de journée, chiffre = projet (légende en dessous). '+jo+' jours ouvrés.</p>';
+  if(!rs.length)return h+'<div class="empty">Rien de saisi pour '+moisLabel(m)+'.</div></section>';
+  const cellsOf=rid=>{const out={};cals.filter(c=>c.ressourceId===rid).forEach(c=>Object.entries(c.jours).forEach(([iso,v])=>{const x=pj(v);if(x)(out[iso]=out[iso]||[]).push({pid:c.projetId,x})}));return out};
+  h+='<div class="scroll"><table class="tbl" style="table-layout:auto"><thead><tr><th style="position:sticky;left:0;background:var(--card,#fff);z-index:1">Collaborateur</th>'+J.map(j=>'<th class="n" style="padding:4px 1px;'+(j.we||j.ferie?'color:var(--muted);':'')+'font-size:11px" title="'+esc(j.ferie||'')+'">'+'LMMJVSD'[(j.w+6)%7]+'<br>'+j.d+'</th>').join('')+'</tr></thead><tbody>'+
+    rs.map(r=>{const C=cellsOf(r.id);return '<tr><td style="font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--card,#fff);z-index:1">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+'</td>'+
+      J.map(j=>{const L=C[j.iso]||[];if(!L.length)return '<td style="padding:2px 1px"><div class="cb'+(j.we?' we':'')+(j.ferie?' fe':'')+'" style="width:24px;height:26px;cursor:default;opacity:.55"></div></td>';
+        const a=L[0],T=TYPES_J[a.x.t]||{};const lab=T.nonTravaille?T.c:String(num_(a.pid)||'?');const tip=dateFr(j.iso)+'\n'+L.map(y=>(TYPES_J[y.x.t]||{}).nom+(y.x.demi?' (demi-journée)':'')+(TYPES_J[y.x.t]&&TYPES_J[y.x.t].nonTravaille&&y.x.t!=='depl'?'':' · '+libP(y.pid))).join('\n');
+        return '<td style="padding:2px 1px"><div class="cb'+(j.we?' we':'')+(j.ferie?' fe':'')+' t-'+a.x.t+(a.x.demi?' demi':'')+'" style="width:24px;height:26px;cursor:default;display:flex;align-items:center;justify-content:center;font-size:10px;position:relative" title="'+esc(tip)+'">'+esc(lab)+(L.length>1?'<sup style="position:absolute;top:-2px;right:0;font-size:8px">+'+(L.length-1)+'</sup>':'')+'</div></td>'}).join('')+'</tr>'}).join('')+
+    '</tbody></table></div>';
+  h+='<div class="row small" style="flex-wrap:wrap;gap:10px">'+Object.entries(TYPES_J).map(([k,t])=>'<span class="row" style="gap:5px"><span class="cb t-'+k+'" style="width:18px;height:18px;display:inline-block;cursor:default"></span>'+esc(t.nom)+'</span>').join('')+'</div>';
+  if(projIds.length)h+='<div class="small" style="display:grid;gap:2px">'+projIds.map(id=>'<div><b>'+num_(id)+'</b> = <a href="#projet-'+id+'" style="color:var(--navy)">'+esc(libP(id))+'</a></div>').join('')+'</div>';
+  // récapitulatif par collaborateur
+  const cols=[...projIds.map(id=>['p:'+id,num_(id)+'. '+libP(id)]),['depl','Déplacement'],['rd','R&D'],['conge','Congés']];
+  const recap=rs.map(r=>{const o={};let trav=0;cals.filter(c=>c.ressourceId===r.id).forEach(c=>Object.values(c.jours).forEach(v=>{const x=pj(v);if(!x)return;const T=TYPES_J[x.t]||{};const k=T.nonTravaille?x.t:'p:'+c.projetId;o[k]=(o[k]||0)+x.q;if(!T.nonTravaille)trav+=x.q}));const tot=Object.values(o).reduce((a,b)=>a+b,0);return {r,o,trav,tot}});
+  h+='<h3 style="margin:6px 0 0">Récapitulatif de '+moisLabel(m)+' (jours)</h3><div class="scroll"><table class="tbl"><thead><tr><th>Collaborateur</th>'+cols.map(c=>'<th class="n" style="max-width:140px;white-space:normal">'+esc(c[1])+'</th>').join('')+'<th class="n">Travaillé</th><th class="n">Total saisi</th><th class="n">Non saisi</th></tr></thead><tbody>'+
+    recap.map(({r,o,trav,tot})=>'<tr><td style="font-weight:600;white-space:nowrap">'+esc(r.nom)+'</td>'+cols.map(c=>'<td class="n">'+(o[c[0]]?nf(o[c[0]]):'<span class="muted">·</span>')+'</td>').join('')+'<td class="n" style="font-weight:700">'+nf(trav)+'</td><td class="n">'+nf(tot)+'</td><td class="n"'+(jo-tot>0?' style="color:var(--bad);font-weight:700"':'')+'>'+(jo-tot>0?nf(jo-tot):'—')+'</td></tr>').join('')+
+    '</tbody></table></div><p class="small muted" style="margin:0">« Non saisi » = jours ouvrés du mois sans aucune saisie (un week-end ou un jour férié saisi compte aussi dans le total).</p></section>';
+  return h}
 
 function vCalc(){
   const c=ui.calc,R=S.regles;
@@ -1985,6 +2013,7 @@ document.addEventListener('click',async e=>{
     case'calcDiversAdd':ui.calc.divers=(ui.calc.divers||[]).concat([{lib:'',montant:''}]);render();{const ins=document.querySelectorAll('[data-div$="|lib"]');if(ins.length)ins[ins.length-1].focus()}break;
     case'calcDiversDel':ui.calc.divers=(ui.calc.divers||[]).filter((_,i)=>i!==+b.dataset.i);render();break;
     case'planActifs':ui.planActifs=!ui.planActifs;render();break;
+    case'actTous':ui.actTous=!ui.actTous;render();break;
     case'voirJustif':{const f=byId('frais',id);if(!f||!(f.justifs||[]).length)break;
       const docs=[];for(const pth of f.justifs){const {data,error}=await sb.storage.from(BUCKET_J).createSignedUrl(pth,3600);if(!error&&data)docs.push({nom:pth.split('/').pop().replace(/^\d{13}-/,''),url:data.signedUrl})}
       if(!docs.length){toast('Justificatif introuvable.');break}
@@ -2000,6 +2029,8 @@ document.addEventListener('click',async e=>{
     case'newFrais':formFrais();break;
     case'editFrais':formFrais(byId('frais',id));break;
     case'planPrev':ui.planStart=addMonths(ui.planStart,-3);render();break;
+    case'actPrev':ui.actMois=addMonths(ui.actMois||curMonth(),-1);render();break;
+    case'actNext':ui.actMois=addMonths(ui.actMois||curMonth(),1);render();break;
     case'planNext':ui.planStart=addMonths(ui.planStart,3);render();break;
     case'saveEst':{const c=ui.calc;if(!c.projetId)return;const r=calcFrais(c);const lib=(document.getElementById('estLib')||{}).value||'Estimation';
       const ok=await save('estimations',c.estId||uid('e'),{projetId:c.projetId,ressourceId:c.ressourceId,libelle:lib,params:{cas:c.cas,profil:c.profil,arPrix:c.arPrix,nuitsDepart:c.nuitsDepart,nuitsArrivee:c.nuitsArrivee,trainNb:c.trainNb,trainPrix:c.trainPrix,qKm:c.qKm,qCarb:c.qCarb,qPeage:c.qPeage,avionNb:c.avionNb,avionPrix:c.avionPrix,divers:(c.divers||[]).filter(d=>num(d.montant)||String(d.lib||'').trim()),jours:c.jours,km:c.km,mode:c.mode,location:c.location,nuitPrix:c.nuitPrix,tjm:c.tjm},detail:r.lines.map(l=>({k:l.k,d:l.d,v:l.v,t:l.t})),totalFrais:Math.round(r.totalFrais*100)/100,trajet:Math.round(r.trajet*100)/100,refac:Math.round(r.refac*100)/100});
