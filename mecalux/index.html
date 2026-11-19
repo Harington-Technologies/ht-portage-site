@@ -832,7 +832,9 @@ function draftOf(pid,rid,m,kind){const D=kind==='b'?(ui.draftB=ui.draftB||{}):(u
 // Hôtel au réel et location de voiture : les jours tagués Déplacement (semaine comme week-end) comptent aussi
 function joursDeplWeekend(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&j.t==='depl'?j.q:0)},0)}
 const CAT_AVEC_DEPL=['Hôtel (au réel)','Location voiture']; // les jours de déplacement s'ajoutent aux jours travaillés
-function joursFraisCal(pid,rid,m,cat){return joursTravCal(pid,rid,m)+(CAT_AVEC_DEPL.includes(cat)?joursDeplWeekend(pid,rid,m):0)}
+// Location de voiture : facturée à la journée entière (une demi-journée travaillée ou de déplacement compte pour un jour)
+function joursLocationCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&(!TYPES_J[j.t].nonTravaille||j.t==='depl')&&j.q>0?1:0)},0)}
+function joursFraisCal(pid,rid,m,cat){if(cat==='Location voiture')return joursLocationCal(pid,rid,m);return joursTravCal(pid,rid,m)+(CAT_AVEC_DEPL.includes(cat)?joursDeplWeekend(pid,rid,m):0)}
 function joursTravCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille?j.q:0)},0)}
 async function majFraisParJour(pid,rid,m){for(const f of list('frais').filter(x=>x.parJour&&x.joursAuto!==false&&x.projetId===pid&&x.ressourceId===rid&&x.mois===m)){const n=joursFraisCal(pid,rid,m,f.categorie);const mt=Math.round(num(f.prixJour)*n*100)/100;if(num(f.montant)!==mt||num(f.jours)!==n)await save('frais',f.id,Object.assign({},f,{montant:mt,jours:n}))}}
 async function saveCal(pid,rid,m,jours,extra){
@@ -1782,11 +1784,11 @@ function formFrais(f){
     '<p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
   document.getElementById('dlgBody').innerHTML=h;const fm=document.getElementById('frm');const E=fm.elements;
   const pidF=()=>E.projetId?E.projetId.value:pid;const moisF=()=>E.moisRat&&E.moisRat.value?E.moisRat.value:(E.date.value||m).slice(0,7);
-  const nCal=()=>joursFraisCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value);const nWe=()=>CAT_AVEC_DEPL.includes(E.categorie.value)?joursDeplWeekend(pidF(),E.ressourceId.value,moisF()):0;
+  const nCal=()=>joursFraisCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value);const nWe=()=>CAT_AVEC_DEPL.includes(E.categorie.value)?(E.categorie.value==='Location voiture'?Object.values((calOf(pidF(),E.ressourceId.value,moisF())||{}).jours||{}).filter(v=>{const j=pj(v);return j&&j.t==='depl'}).length:joursDeplWeekend(pidF(),E.ressourceId.value,moisF())):0;
   function maj(evtName){const parJour=CAT_JOUR.includes(E.categorie.value);document.getElementById('pj').style.display=parJour?'':'none';
     if(!parJour){E.montant.readOnly=false;return}
     if(evtName==='categorie'&&E.categorie.value==='Voiture Harington'&&!E.prixJour.value)E.prixJour.value=num(S.regles.voitureHarington)||45;
-    const n=nCal();const we=nWe();document.getElementById('pjAuto').textContent='Reprendre les jours travaillés du calendrier : '+nf(n)+' j'+(we?' (dont '+nf(we)+' j de déplacement)':'')+(n?'':' (rien de saisi ce mois-ci pour ce collaborateur sur ce projet)');
+    const n=nCal();const we=nWe();document.getElementById('pjAuto').textContent=(E.categorie.value==='Location voiture'?'Reprendre les jours du calendrier, à la journée entière : ':'Reprendre les jours travaillés du calendrier : ')+nf(n)+' j'+(we?' (dont '+nf(we)+' j de déplacement)':'')+(n?'':' (rien de saisi ce mois-ci pour ce collaborateur sur ce projet)');
     if(E.joursAuto.checked)E.jours.value=n;E.jours.readOnly=E.joursAuto.checked;
     E.montant.readOnly=true;E.montant.value=Math.round(num(E.prixJour.value)*num(E.jours.value)*100)/100}
   let garder=Array.isArray(v.justifs)?v.justifs.slice():[];const retires=[];
