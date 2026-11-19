@@ -829,9 +829,10 @@ function resumeBaremes(baremes,jours){const n={};let tot=0,reel=0;Object.entries
 let paint=null;
 function draftOf(pid,rid,m,kind){const D=kind==='b'?(ui.draftB=ui.draftB||{}):(ui.draft=ui.draft||{});const k=calId(pid,rid,m);if(!D[k])D[k]=Object.assign({},((calOf(pid,rid,m)||{})[kind==='b'?'baremes':'jours'])||{});return D[k]}
 /* jours travaillés d'un collaborateur sur un projet et un mois (calendrier, hors congés et R&D, demi-journées comprises) */
-// Hôtel au réel : les jours tagués Déplacement (semaine comme week-end) comptent comme des nuits
+// Hôtel au réel et location de voiture : les jours tagués Déplacement (semaine comme week-end) comptent aussi
 function joursDeplWeekend(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&j.t==='depl'?j.q:0)},0)}
-function joursFraisCal(pid,rid,m,cat){return joursTravCal(pid,rid,m)+(cat==='Hôtel (au réel)'?joursDeplWeekend(pid,rid,m):0)}
+const CAT_AVEC_DEPL=['Hôtel (au réel)','Location voiture']; // les jours de déplacement s'ajoutent aux jours travaillés
+function joursFraisCal(pid,rid,m,cat){return joursTravCal(pid,rid,m)+(CAT_AVEC_DEPL.includes(cat)?joursDeplWeekend(pid,rid,m):0)}
 function joursTravCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille?j.q:0)},0)}
 async function majFraisParJour(pid,rid,m){for(const f of list('frais').filter(x=>x.parJour&&x.joursAuto!==false&&x.projetId===pid&&x.ressourceId===rid&&x.mois===m)){const n=joursFraisCal(pid,rid,m,f.categorie);const mt=Math.round(num(f.prixJour)*n*100)/100;if(num(f.montant)!==mt||num(f.jours)!==n)await save('frais',f.id,Object.assign({},f,{montant:mt,jours:n}))}}
 async function saveCal(pid,rid,m,jours,extra){
@@ -1781,7 +1782,7 @@ function formFrais(f){
     '<p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
   document.getElementById('dlgBody').innerHTML=h;const fm=document.getElementById('frm');const E=fm.elements;
   const pidF=()=>E.projetId?E.projetId.value:pid;const moisF=()=>E.moisRat&&E.moisRat.value?E.moisRat.value:(E.date.value||m).slice(0,7);
-  const nCal=()=>joursFraisCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value);const nWe=()=>E.categorie.value==='Hôtel (au réel)'?joursDeplWeekend(pidF(),E.ressourceId.value,moisF()):0;
+  const nCal=()=>joursFraisCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value);const nWe=()=>CAT_AVEC_DEPL.includes(E.categorie.value)?joursDeplWeekend(pidF(),E.ressourceId.value,moisF()):0;
   function maj(evtName){const parJour=CAT_JOUR.includes(E.categorie.value);document.getElementById('pj').style.display=parJour?'':'none';
     if(!parJour){E.montant.readOnly=false;return}
     if(evtName==='categorie'&&E.categorie.value==='Voiture Harington'&&!E.prixJour.value)E.prixJour.value=num(S.regles.voitureHarington)||45;
