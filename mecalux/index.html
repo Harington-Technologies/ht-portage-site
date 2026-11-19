@@ -118,6 +118,7 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 .cb.t-dev,.sw.t-dev{background:#435B7B;color:#fff;border-color:#435B7B}.cb.t-mes,.sw.t-mes{background:#C187A1;color:#21324E;border-color:#C187A1}
 .cb.t-pil,.sw.t-pil{background:#5B3F8C;color:#fff;border-color:#5B3F8C}.cb.t-pil.demi{background:linear-gradient(90deg,#5B3F8C 50%,#fff 50%)}
 .cb.t-pmo,.sw.t-pmo{background:#1F5F66;color:#fff;border-color:#1F5F66}.cb.t-pmo.demi{background:linear-gradient(90deg,#1F5F66 50%,#fff 50%)}
+.cb.t-hyp,.sw.t-hyp{background:#B5651D;color:#fff;border-color:#B5651D}.cb.t-hyp.demi{background:linear-gradient(90deg,#B5651D 50%,#fff 50%)}
 .cb.t-depl,.sw.t-depl{background:#1F6F78;color:#fff;border-color:#1F6F78}.cb.t-rd,.sw.t-rd{background:#8A5A00;color:#fff;border-color:#8A5A00}.cb.t-conge,.sw.t-conge{background:#2E6B4F;color:#fff;border-color:#2E6B4F}
 .cb{font-size:11px}.sw{min-width:20px;width:auto;padding:0 3px}
 .cb.bc{height:22px;font-size:10.5px;border-style:dashed;margin-bottom:6px}
@@ -262,10 +263,10 @@ function projStats(pid){
 /* jours facturés au TJM, avec majoration samedi / dimanche et férié (à partir du calendrier quand il existe) */
 function prestationLignes(pid,rid,mois){const out=[];const R=S.regles;const kS=num(R.majSamedi||150)/100,kD=num(R.majDimFerie||200)/100;
   const c=list('calendrier').find(x=>x.projetId===pid&&x.ressourceId===rid&&x.mois===mois&&x.jours&&Object.keys(x.jours).length);
-  const lib=ph=>ph==='mes'?'Mise en service sur site':ph==='pil'?'Pilotage':ph==='pmo'?'PMO':'Développement';
-  if(c){const info={};joursMois(mois).forEach(j=>info[j.iso]=j);const b={dev:{n:0,sam:0,dim:0},mes:{n:0,sam:0,dim:0},pil:{n:0,sam:0,dim:0},pmo:{n:0,sam:0,dim:0}};
+  const lib=ph=>ph==='mes'?'Mise en service sur site':ph==='pil'?'Pilotage':ph==='pmo'?'PMO':ph==='hyp'?'Hypercare':'Développement';
+  if(c){const info={};joursMois(mois).forEach(j=>info[j.iso]=j);const b={dev:{n:0,sam:0,dim:0},mes:{n:0,sam:0,dim:0},pil:{n:0,sam:0,dim:0},pmo:{n:0,sam:0,dim:0},hyp:{n:0,sam:0,dim:0}};
     Object.entries(c.jours).forEach(([iso,v])=>{const x=pj(v),j=info[iso];if(!x||!j||!b[x.t])return;b[x.t][j.ferie||j.w===0?'dim':j.w===6?'sam':'n']+=x.q});
-    ['dev','mes','pil','pmo'].forEach(ph=>{const tj=tjmFor(pid,rid,ph),q=b[ph];
+    ['dev','mes','pil','pmo','hyp'].forEach(ph=>{const tj=tjmFor(pid,rid,ph),q=b[ph];
       if(q.n)out.push({type:'prestation',libelle:lib(ph),qte:q.n,unite:'j',pu:tj,montant:q.n*tj});
       if(q.sam)out.push({type:'prestation',libelle:lib(ph)+' · samedi ('+nf(kS*100)+' %)',qte:q.sam,unite:'j',pu:tj*kS,montant:q.sam*tj*kS});
       if(q.dim)out.push({type:'prestation',libelle:lib(ph)+' · dimanche et jours fériés ('+nf(kD*100)+' %)',qte:q.dim,unite:'j',pu:tj*kD,montant:q.dim*tj*kD})});
@@ -623,7 +624,7 @@ function vProjet(id){
   h+='<section class="card"><div class="card-h"><h2>Ressources affectées</h2><button class="btn o sm" data-act="newAff" data-id="'+id+'">+ Affecter une ressource</button></div>';
   if(!aff.length)h+='<div class="empty">Aucune ressource affectée.</div>';
   else h+='<div class="scroll"><table class="tbl"><thead><tr><th>Ressource</th><th>Prestation</th><th class="n">Jours prévus</th><th class="n">TJM</th><th class="n">Montant prévu</th><th class="n">Jours réalisés</th><th>Consommé</th><th></th></tr></thead><tbody>'+aff.sort((a,b)=>a.phase>b.phase?1:-1).map(a=>{const r=byId('ressources',a.ressourceId)||{nom:'?'};const tj=num(a.tjm)||num(r.tjmVente);const jr=list('temps').filter(t=>t.projetId===id&&t.ressourceId===a.ressourceId&&t.phase===a.phase).reduce((x,t)=>x+num(t.jours),0);const pct=num(a.joursPrevus)?100*jr/num(a.joursPrevus):0;
-    return '<tr><td style="font-weight:600">'+esc(r.nom)+'<div class="small muted">'+esc(r.role||'')+'</div></td><td><span class="pill '+(a.phase==='mes'?'mes':'dev')+'"'+(a.phase==='pil'?' style="background:#EEE7F7;color:#4B2E7A"':a.phase==='pmo'?' style="background:#E6F3F4;color:#1F5F66"':'')+'>'+(a.phase==='mes'?'Mise en service':a.phase==='pil'?'Pilotage':a.phase==='pmo'?'PMO':'Développement')+'</span></td><td class="n">'+nf(a.joursPrevus)+'</td><td class="n">'+eur(tj)+'</td><td class="n">'+eur(num(a.joursPrevus)*tj)+'</td><td class="n">'+nf(jr)+'</td><td>'+bar(pct)+'</td><td class="n"><button class="btn g sm" data-act="editAff" data-id="'+a.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>';
+    return '<tr><td style="font-weight:600">'+esc(r.nom)+'<div class="small muted">'+esc(r.role||'')+'</div></td><td><span class="pill '+(a.phase==='mes'?'mes':'dev')+'"'+(a.phase==='pil'?' style="background:#EEE7F7;color:#4B2E7A"':a.phase==='pmo'?' style="background:#E6F3F4;color:#1F5F66"':a.phase==='hyp'?' style="background:#FBEFE3;color:#8A4A12"':'')+'>'+(a.phase==='mes'?'Mise en service':a.phase==='pil'?'Pilotage':a.phase==='pmo'?'PMO':a.phase==='hyp'?'Hypercare':'Développement')+'</span></td><td class="n">'+nf(a.joursPrevus)+'</td><td class="n">'+eur(tj)+'</td><td class="n">'+eur(num(a.joursPrevus)*tj)+'</td><td class="n">'+nf(jr)+'</td><td>'+bar(pct)+'</td><td class="n"><button class="btn g sm" data-act="editAff" data-id="'+a.id+'">Modifier</button></td></tr>'}).join('')+'</tbody></table></div>';
   h+='</section>';
   // estimations
   h+='<section class="card"><div class="card-h"><h2>Estimations de frais de déplacement</h2><a class="btn o sm" href="#calculateur" data-calcproj="'+id+'">+ Nouvelle estimation</a></div>';
@@ -710,7 +711,7 @@ function vPlanning(){
   const arr=v=>Math.round(v*2)/2;
   function charge(r,m){if(r.dateFin&&r.dateFin<m+'-01')return null;const ouv=joursOuvres(m).n;
     const cs=list('calendrier').filter(c=>c.ressourceId===r.id&&c.mois===m&&c.jours&&Object.keys(c.jours).length);
-    if(cs.length){const o={src:'saisi',trav:0,depl:0,conge:0,rd:0,ouv,projets:{}};cs.forEach(c=>{Object.values(c.jours).forEach(v=>{const x=pj(v);if(!x)return;const k=x.t==='dev'||x.t==='mes'||x.t==='pil'||x.t==='pmo'?'trav':x.t;if(o[k]!=null)o[k]+=x.q;if(k==='trav')o.projets[c.projetId]=(o.projets[c.projetId]||0)+x.q})});return o}
+    if(cs.length){const o={src:'saisi',trav:0,depl:0,conge:0,rd:0,ouv,projets:{}};cs.forEach(c=>{Object.values(c.jours).forEach(v=>{const x=pj(v);if(!x)return;const k=x.t==='dev'||x.t==='mes'||x.t==='pil'||x.t==='pmo'||x.t==='hyp'?'trav':x.t;if(o[k]!=null)o[k]+=x.q;if(k==='trav')o.projets[c.projetId]=(o.projets[c.projetId]||0)+x.q})});return o}
     const l=load[r.id+'|'+m];const trav=l?arr(l.j):0;return {src:'prevu',trav,depl:0,conge:0,rd:Math.max(0,ouv-trav),ouv,projets:l?l.projets:{}}}
   function cellule(o){if(!o)return '<td class="n muted" title="Hors effectif">—</td>';const tot=CAT.reduce((x,c)=>x+o[c[0]],0);const base=Math.max(o.ouv,tot)||1;
     const tip=(o.src==='saisi'?'Saisi au calendrier':'Prévisionnel (affectations)')+' · '+o.ouv+' j ouvrés\n'+CAT.filter(c=>o[c[0]]).map(c=>c[1]+' : '+nf(o[c[0]])+' j').join('\n')+(Object.keys(o.projets).length?'\nProjets : '+Object.entries(o.projets).map(([id,j])=>{const p=byId('projets',id);return (p?p.client:'?')+' ('+nf(arr(j))+' j)'}).join(', '):'');
@@ -793,7 +794,7 @@ async function moisComplet(pid,rid,m,coche){const je=joursEffectifs(m);
   else{await setJours(pid,rid,m,'dev',0);await setJours(pid,rid,m,'mes',0)}}
 
 /* ---------- calendrier jour par jour ---------- */
-const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mise en service',court:'MES'},pil:{c:'P',nom:'Pilotage',court:'Pilot.',techLead:true},pmo:{c:'PM',nom:'PMO',court:'PMO'},depl:{c:'DP',nom:'Déplacement',court:'Dépl.',nonTravaille:true},rd:{c:'R',nom:'R&D',court:'R&D',nonTravaille:true,sansBareme:true},conge:{c:'C',nom:'Congés',court:'Congés',nonTravaille:true,sansBareme:true}};
+const TYPES_J={dev:{c:'D',nom:'Développement',court:'Dév.'},mes:{c:'M',nom:'Mise en service',court:'MES'},pil:{c:'P',nom:'Pilotage',court:'Pilot.',techLead:true},pmo:{c:'PM',nom:'PMO',court:'PMO'},hyp:{c:'H',nom:'Hypercare',court:'Hyper.'},depl:{c:'DP',nom:'Déplacement',court:'Dépl.',nonTravaille:true},rd:{c:'R',nom:'R&D',court:'R&D',nonTravaille:true,sansBareme:true},conge:{c:'C',nom:'Congés',court:'Congés',nonTravaille:true,sansBareme:true}};
 const totalTravaille=rs=>Object.keys(TYPES_J).filter(k=>!TYPES_J[k].nonTravaille).reduce((x,k)=>x+rs[k].total,0);
 /* barème de frais du jour (montants selon le pays du collaborateur, cf. Règles de frais) */
 /* les 3 barèmes Mecalux (montants repris de la page Règles de frais) */
@@ -837,7 +838,7 @@ async function saveCal(pid,rid,m,jours,extra){
   const cur=calOf(pid,rid,m)||{};jours=jours||cur.jours||{};const baremes=(extra&&extra.baremes)||cur.baremes||{};
   const r=resumeJours(jours,m);r.baremes=resumeBaremes(baremes,jours);
   const ok=await save('calendrier',calId(pid,rid,m),Object.assign({projetId:pid,ressourceId:rid,mois:m,jours,baremes,resume:r,valide:!!cur.valide,valideLe:cur.valideLe||''},extra||{},{baremes}));
-  if(ok){await setJours(pid,rid,m,'dev',r.dev.total);await setJours(pid,rid,m,'mes',r.mes.total);if(r.pil.total||byId('temps',[pid,rid,m,'pil'].join('_')))await setJours(pid,rid,m,'pil',r.pil.total);if(r.pmo.total||byId('temps',[pid,rid,m,'pmo'].join('_')))await setJours(pid,rid,m,'pmo',r.pmo.total);await majFraisParJour(pid,rid,m)}
+  if(ok){await setJours(pid,rid,m,'dev',r.dev.total);await setJours(pid,rid,m,'mes',r.mes.total);if(r.pil.total||byId('temps',[pid,rid,m,'pil'].join('_')))await setJours(pid,rid,m,'pil',r.pil.total);if(r.pmo.total||byId('temps',[pid,rid,m,'pmo'].join('_')))await setJours(pid,rid,m,'pmo',r.pmo.total);if(r.hyp.total||byId('temps',[pid,rid,m,'hyp'].join('_')))await setJours(pid,rid,m,'hyp',r.hyp.total);await majFraisParJour(pid,rid,m)}
   return ok;
 }
 function cellClass(v,j){const x=pj(v);return 'cb'+(j.we?' we':'')+(j.ferie?' fe':'')+(x?' t-'+x.t+(x.demi?' demi':''):'')}
@@ -1367,12 +1368,12 @@ function restitution(m,seulVisibles){
   const cal=list('calendrier').filter(c=>c.mois===m);const projets={};const autres={rd:{},conge:{}};
   cal.forEach(c=>{const p=byId('projets',c.projetId);if(!p)return;const r=byId('ressources',c.ressourceId);if(!r)return;
     Object.entries(c.jours||{}).forEach(([iso,v])=>{const x=pj(v);if(!x)return;
-      if(x.t==='dev'||x.t==='mes'||x.t==='pil'||x.t==='pmo'){if(seulVisibles&&!p.visibleMecalux)return;const P=projets[p.id]=projets[p.id]||{p,res:{}};const L=P.res[r.id]=P.res[r.id]||{r,dev:0,mes:0,pil:0,pmo:0};L[x.t]+=x.q}
+      if(x.t==='dev'||x.t==='mes'||x.t==='pil'||x.t==='pmo'||x.t==='hyp'){if(seulVisibles&&!p.visibleMecalux)return;const P=projets[p.id]=projets[p.id]||{p,res:{}};const L=P.res[r.id]=P.res[r.id]||{r,dev:0,mes:0,pil:0,pmo:0,hyp:0};L[x.t]+=x.q}
       else if(x.t==='rd'||x.t==='conge'){const A=autres[x.t][r.id]=autres[x.t][r.id]||{r,j:{}};A.j[iso]=Math.max(A.j[iso]||0,x.q)}})});
   const tri=(a,b)=>a.r.nom.localeCompare(b.r.nom);
-  const blocs=Object.values(projets).sort((a,b)=>libProjet(a.p).localeCompare(libProjet(b.p))).map(P=>{const lignes=Object.values(P.res).filter(l=>l.dev+l.mes+l.pil+l.pmo>0).sort(tri);
-    return {titre:libProjet(P.p),lignes:lignes.map(l=>({nom:l.r.nom,service:l.r.role||'',dev:l.dev,mes:l.mes,pil:l.pil,pmo:l.pmo,total:l.dev+l.mes+l.pil+l.pmo})),total:lignes.reduce((t,l)=>t+l.dev+l.mes+l.pil+l.pmo,0)}}).filter(b=>b.total>0);
-  [['rd','R&D'],['conge','Congé']].forEach(([k,lib])=>{const lignes=Object.values(autres[k]).map(A=>({nom:A.r.nom,service:A.r.role||'',dev:'',mes:'',pil:'',pmo:'',total:Object.values(A.j).reduce((t,q)=>t+q,0)})).filter(l=>l.total>0).sort((a,b)=>a.nom.localeCompare(b.nom));
+  const blocs=Object.values(projets).sort((a,b)=>libProjet(a.p).localeCompare(libProjet(b.p))).map(P=>{const lignes=Object.values(P.res).filter(l=>l.dev+l.mes+l.pil+l.pmo+l.hyp>0).sort(tri);
+    return {titre:libProjet(P.p),lignes:lignes.map(l=>({nom:l.r.nom,service:l.r.role||'',dev:l.dev,mes:l.mes,pil:l.pil,pmo:l.pmo,hyp:l.hyp,total:l.dev+l.mes+l.pil+l.pmo+l.hyp})),total:lignes.reduce((t,l)=>t+l.dev+l.mes+l.pil+l.pmo+l.hyp,0)}}).filter(b=>b.total>0);
+  [['rd','R&D'],['conge','Congé']].forEach(([k,lib])=>{const lignes=Object.values(autres[k]).map(A=>({nom:A.r.nom,service:A.r.role||'',dev:'',mes:'',pil:'',pmo:'',hyp:'',total:Object.values(A.j).reduce((t,q)=>t+q,0)})).filter(l=>l.total>0).sort((a,b)=>a.nom.localeCompare(b.nom));
     if(lignes.length)blocs.push({titre:lib,lignes,total:lignes.reduce((t,l)=>t+l.total,0),autre:true})});
   return blocs}
 function vRestitutions(){
@@ -1382,10 +1383,10 @@ function vRestitutions(){
   h+='<div class="filters"><label class="f">Mois<input type="month" data-ui="restMois" value="'+m+'"></label>'+(peutPleo?'<label class="row small" style="font-weight:600;align-self:end;padding-bottom:10px"><input type="checkbox" data-restvis="1"'+(ui.restVisibles?' checked':'')+'> Uniquement les projets visibles par Mecalux</label>':'')+'</div>';
   if(!B.length)return h+'<div class="empty">Aucun jour saisi pour '+moisLabel(m)+(seul?' sur les projets visibles par Mecalux':'')+'. Les jours viennent de la saisie mensuelle.</div>';
   const tp=B.filter(b=>!b.autre);
-  h+='<section class="kpis">'+kpi('Jours DEV',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.dev,0),0)),'développement')+kpi('Jours MES',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.mes,0),0)),'mise en service')+kpi('Jours Pilotage',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(l.pil||0),0),0)),'Tech lead')+kpi('Jours PMO',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(l.pmo||0),0),0)),'PMO')+kpi('Total facturable',nf(tp.reduce((t,b)=>t+b.total,0))+' j',tp.length+' projet'+(tp.length>1?'s':''))+'</section>';
-  h+='<section class="card"><p class="small muted" style="margin:0">Suivi des prestations — Harington Tech (classé par projet) — '+moisLabel(m)+'</p><div class="scroll"><table class="tbl"><thead><tr><th>Intervenant</th><th>Service</th><th class="n">Jours DEV</th><th class="n">Jours MES</th><th class="n">Jours Pilotage</th><th class="n">Jours PMO</th><th class="n">Nb jours effectués</th></tr></thead><tbody>'+
-    B.map(b=>'<tr style="background:var(--bg)"><td colspan="6" style="font-weight:800;color:var(--navy)">'+esc(b.titre)+'</td><td class="n" style="font-weight:800;color:var(--navy)">'+nf(b.total)+'</td></tr>'+b.lignes.map(l=>'<tr><td>'+esc(l.nom)+'</td><td class="small">'+esc(l.service)+'</td><td class="n">'+v(l.dev||'')+'</td><td class="n">'+v(l.mes||'')+'</td><td class="n">'+v(l.pil||'')+'</td><td class="n">'+v(l.pmo||'')+'</td><td class="n" style="font-weight:600">'+nf(l.total)+'</td></tr>').join('')).join('')+
-    '</tbody></table></div><p class="small muted" style="margin:0">Source : saisie mensuelle (jours Développement, Mise en service, Pilotage et PMO, demi-journées comprises). R&D et congés comptés une fois par jour et par personne.</p></section>';
+  h+='<section class="kpis">'+kpi('Jours DEV',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.dev,0),0)),'développement')+kpi('Jours MES',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+l.mes,0),0)),'mise en service')+kpi('Jours Pilotage',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(l.pil||0),0),0)),'Tech lead')+kpi('Jours PMO',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(l.pmo||0),0),0)),'PMO')+kpi('Jours Hypercare',nf(tp.reduce((t,b)=>t+b.lignes.reduce((s,l)=>s+(l.hyp||0),0),0)),'Hypercare')+kpi('Total facturable',nf(tp.reduce((t,b)=>t+b.total,0))+' j',tp.length+' projet'+(tp.length>1?'s':''))+'</section>';
+  h+='<section class="card"><p class="small muted" style="margin:0">Suivi des prestations — Harington Tech (classé par projet) — '+moisLabel(m)+'</p><div class="scroll"><table class="tbl"><thead><tr><th>Intervenant</th><th>Service</th><th class="n">Jours DEV</th><th class="n">Jours MES</th><th class="n">Jours Pilotage</th><th class="n">Jours PMO</th><th class="n">Jours Hypercare</th><th class="n">Nb jours effectués</th></tr></thead><tbody>'+
+    B.map(b=>'<tr style="background:var(--bg)"><td colspan="7" style="font-weight:800;color:var(--navy)">'+esc(b.titre)+'</td><td class="n" style="font-weight:800;color:var(--navy)">'+nf(b.total)+'</td></tr>'+b.lignes.map(l=>'<tr><td>'+esc(l.nom)+'</td><td class="small">'+esc(l.service)+'</td><td class="n">'+v(l.dev||'')+'</td><td class="n">'+v(l.mes||'')+'</td><td class="n">'+v(l.pil||'')+'</td><td class="n">'+v(l.pmo||'')+'</td><td class="n">'+v(l.hyp||'')+'</td><td class="n" style="font-weight:600">'+nf(l.total)+'</td></tr>').join('')).join('')+
+    '</tbody></table></div><p class="small muted" style="margin:0">Source : saisie mensuelle (jours Développement, Mise en service, Pilotage, PMO et Hypercare, demi-journées comprises). R&D et congés comptés une fois par jour et par personne.</p></section>';
   return h}
 // Classeur Excel de la restitution (même disposition que le suivi Harington : titre, en-tête ligne 4, un bloc par projet)
 function classeurRestitution(EX,B,m){
@@ -1394,47 +1395,47 @@ function classeurRestitution(EX,B,m){
   const wb=new EX.Workbook();wb.creator='Pilotage équipe Mecalux';wb.created=new Date();wb.title='Suivi des prestations Harington - '+ML;
   const F=o=>Object.assign({name:'Calibri',size:10},o||{});const fin={style:'thin',color:{argb:LIGNE}};const cadre={top:fin,left:fin,bottom:fin,right:fin};
   const plein=c=>({type:'pattern',pattern:'solid',fgColor:{argb:c}});const FMT='General;-General;""';
-  // Feuille principale : A Intervenant, B Service, C DEV, D MES, E Pilotage, F PMO, G Nb jours effectués
+  // Feuille principale : A Intervenant, B Service, C DEV, D MES, E Pilotage, F PMO, G Hypercare, H Nb jours effectués
   const ws=wb.addWorksheet(ML.slice(0,31),{views:[{state:'frozen',ySplit:4,showGridLines:false}],
     pageSetup:{paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'4:4',margins:{left:0.5,right:0.5,top:0.6,bottom:0.6,header:0.3,footer:0.3}},
     headerFooter:{oddFooter:'&L&8Pilotage équipe Mecalux&C&8Suivi des prestations — '+ML+'&R&8Page &P / &N'}});
-  ws.columns=[{width:34},{width:19},{width:12},{width:12},{width:14},{width:12},{width:19}];
-  ws.mergeCells('A1:G1');const t=ws.getCell('A1');t.value='Suivi des prestations — Harington Tech (classé par projet) — '+ML;t.font=F({size:14,bold:true,color:{argb:NAVY}});t.alignment={vertical:'middle'};ws.getRow(1).height=26;
-  ws.mergeCells('A2:G2');const st=ws.getCell('A2');st.value='Jours effectués saisis dans la saisie mensuelle · édité le '+new Date().toLocaleDateString('fr-FR');st.font=F({size:9,italic:true,color:{argb:MUTED}});
-  const h=ws.getRow(4);h.values=['Intervenant','Service','Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Nb jours effectués'];h.height=22;
+  ws.columns=[{width:34},{width:19},{width:12},{width:12},{width:14},{width:12},{width:14},{width:19}];
+  ws.mergeCells('A1:H1');const t=ws.getCell('A1');t.value='Suivi des prestations — Harington Tech (classé par projet) — '+ML;t.font=F({size:14,bold:true,color:{argb:NAVY}});t.alignment={vertical:'middle'};ws.getRow(1).height=26;
+  ws.mergeCells('A2:H2');const st=ws.getCell('A2');st.value='Jours effectués saisis dans la saisie mensuelle · édité le '+new Date().toLocaleDateString('fr-FR');st.font=F({size:9,italic:true,color:{argb:MUTED}});
+  const h=ws.getRow(4);h.values=['Intervenant','Service','Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Jours Hypercare','Nb jours effectués'];h.height=22;
   h.eachCell((c,i)=>{c.font=F({bold:true,color:{argb:BLANC}});c.fill=plein(NAVY);c.alignment={vertical:'middle',horizontal:i>2?'center':'left',indent:i>2?0:1};c.border=cadre});
-  const ligne=(vals,style)=>{const r=ws.addRow(vals);r.height=18;for(let i=1;i<=7;i++){const c=r.getCell(i);c.font=F();c.border=cadre;c.alignment={vertical:'middle',horizontal:i>2?'right':'left',indent:i===1&&!style?2:i<=2?1:0};if(i>2)c.numFmt=FMT;if(style)style(c,i)}return r};
+  const ligne=(vals,style)=>{const r=ws.addRow(vals);r.height=18;for(let i=1;i<=8;i++){const c=r.getCell(i);c.font=F();c.border=cadre;c.alignment={vertical:'middle',horizontal:i>2?'right':'left',indent:i===1&&!style?2:i<=2?1:0};if(i>2)c.numFmt=FMT;if(style)style(c,i)}return r};
   const projets=B.filter(b=>!b.autre),autres=B.filter(b=>b.autre);const lignesProjet=[];
   const som=(b,k)=>b.lignes.reduce((x,l)=>x+(l[k]||0),0);
   projets.forEach(b=>{const r0=ws.rowCount+1,r1=r0+1,r2=r0+b.lignes.length;const S=col=>'SUM('+col+r1+':'+col+r2+')';
-    ligne([b.titre,'',{formula:S('C'),result:som(b,'dev')},{formula:S('D'),result:som(b,'mes')},{formula:S('E'),result:som(b,'pil')},{formula:S('F'),result:som(b,'pmo')},{formula:S('G'),result:b.total}],c=>{c.font=F({bold:true,color:{argb:NAVY}});c.fill=plein(GRIS)});lignesProjet.push(r0);
-    b.lignes.forEach(l=>{const n=ws.rowCount+1;ligne([l.nom,l.service,l.dev||null,l.mes||null,l.pil||null,l.pmo||null,{formula:'C'+n+'+D'+n+'+E'+n+'+F'+n,result:l.total}],(c,i)=>{if(i===2)c.font=F({color:{argb:MUTED}});if(i===7)c.font=F({bold:true})})})});
+    ligne([b.titre,'',{formula:S('C'),result:som(b,'dev')},{formula:S('D'),result:som(b,'mes')},{formula:S('E'),result:som(b,'pil')},{formula:S('F'),result:som(b,'pmo')},{formula:S('G'),result:som(b,'hyp')},{formula:S('H'),result:b.total}],c=>{c.font=F({bold:true,color:{argb:NAVY}});c.fill=plein(GRIS)});lignesProjet.push(r0);
+    b.lignes.forEach(l=>{const n=ws.rowCount+1;ligne([l.nom,l.service,l.dev||null,l.mes||null,l.pil||null,l.pmo||null,l.hyp||null,{formula:'C'+n+'+D'+n+'+E'+n+'+F'+n+'+G'+n,result:l.total}],(c,i)=>{if(i===2)c.font=F({color:{argb:MUTED}});if(i===8)c.font=F({bold:true})})})});
   if(projets.length){const ref=col=>lignesProjet.map(r=>col+r).join('+');const tot=k=>projets.reduce((x,b)=>x+(k==='total'?b.total:som(b,k)),0);
-    ligne(['Total facturable','',{formula:ref('C'),result:tot('dev')},{formula:ref('D'),result:tot('mes')},{formula:ref('E'),result:tot('pil')},{formula:ref('F'),result:tot('pmo')},{formula:ref('G'),result:tot('total')}],c=>{c.font=F({bold:true,color:{argb:BLANC}});c.fill=plein(PLUM)}).height=22}
+    ligne(['Total facturable','',{formula:ref('C'),result:tot('dev')},{formula:ref('D'),result:tot('mes')},{formula:ref('E'),result:tot('pil')},{formula:ref('F'),result:tot('pmo')},{formula:ref('G'),result:tot('hyp')},{formula:ref('H'),result:tot('total')}],c=>{c.font=F({bold:true,color:{argb:BLANC}});c.fill=plein(PLUM)}).height=22}
   if(autres.length){ws.addRow([]);const x=ws.addRow(['Hors facturation']);x.getCell(1).font=F({bold:true,size:9,color:{argb:MUTED}});
     autres.forEach(b=>{const r1=ws.rowCount+2,r2=r1+b.lignes.length-1;
-      ligne([b.titre,'',null,null,null,null,{formula:'SUM(G'+r1+':G'+r2+')',result:b.total}],c=>{c.font=F({bold:true,color:{argb:PLUM}});c.fill=plein(ROSE)});
-      b.lignes.forEach(l=>ligne([l.nom,l.service,null,null,null,null,l.total],(c,i)=>{if(i===2)c.font=F({color:{argb:MUTED}})}))})}
+      ligne([b.titre,'',null,null,null,null,null,{formula:'SUM(H'+r1+':H'+r2+')',result:b.total}],c=>{c.font=F({bold:true,color:{argb:PLUM}});c.fill=plein(ROSE)});
+      b.lignes.forEach(l=>ligne([l.nom,l.service,null,null,null,null,null,l.total],(c,i)=>{if(i===2)c.font=F({color:{argb:MUTED}})}))})}
   // Synthèse
   const sy=wb.addWorksheet('Synthèse',{views:[{showGridLines:false}],pageSetup:{paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0}});
-  sy.columns=[{width:34},{width:19},{width:12},{width:12},{width:14},{width:12},{width:16},{width:13}];
-  sy.mergeCells('A1:H1');sy.getCell('A1').value='Synthèse — '+ML;sy.getCell('A1').font=F({size:14,bold:true,color:{argb:NAVY}});sy.getRow(1).height=26;
+  sy.columns=[{width:34},{width:19},{width:12},{width:12},{width:14},{width:12},{width:14},{width:16},{width:13}];
+  sy.mergeCells('A1:I1');sy.getCell('A1').value='Synthèse — '+ML;sy.getCell('A1').font=F({size:14,bold:true,color:{argb:NAVY}});sy.getRow(1).height=26;
   const entete=(r,vals)=>{const row=sy.getRow(r);row.values=vals;row.height=20;row.eachCell((c,i)=>{c.font=F({bold:true,color:{argb:BLANC}});c.fill=plein(NAVY);c.border=cadre;c.alignment={vertical:'middle',horizontal:i>2?'center':'left',indent:i>2?0:1}})};
-  const lsy=(vals,fort,pct)=>{const r=sy.addRow(vals);for(let i=1;i<=8;i++){const c=r.getCell(i);c.font=F();c.border=cadre;c.alignment={vertical:'middle',horizontal:i>1?'right':'left',indent:i===1?1:0};if(i>2)c.numFmt=pct&&i===8?'0%':FMT;if(fort){c.font=F({bold:true,color:{argb:BLANC}});c.fill=plein(PLUM)}}return r};
-  sy.getCell('A3').value='Par projet';sy.getCell('A3').font=F({bold:true,color:{argb:PLUM}});entete(4,['Projet','Intervenants','Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Total','Part']);
+  const lsy=(vals,fort,pct)=>{const r=sy.addRow(vals);for(let i=1;i<=9;i++){const c=r.getCell(i);c.font=F();c.border=cadre;c.alignment={vertical:'middle',horizontal:i>1?'right':'left',indent:i===1?1:0};if(i>2)c.numFmt=pct&&i===9?'0%':FMT;if(fort){c.font=F({bold:true,color:{argb:BLANC}});c.fill=plein(PLUM)}}return r};
+  sy.getCell('A3').value='Par projet';sy.getCell('A3').font=F({bold:true,color:{argb:PLUM}});entete(4,['Projet','Intervenants','Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Jours Hypercare','Total','Part']);
   const totG=projets.reduce((x,b)=>x+b.total,0)||1;
-  projets.forEach(b=>lsy([b.titre,b.lignes.length,som(b,'dev'),som(b,'mes'),som(b,'pil'),som(b,'pmo'),b.total,b.total/totG],false,true));
-  if(projets.length)lsy(['Total facturable','',projets.reduce((x,b)=>x+som(b,'dev'),0),projets.reduce((x,b)=>x+som(b,'mes'),0),projets.reduce((x,b)=>x+som(b,'pil'),0),projets.reduce((x,b)=>x+som(b,'pmo'),0),projets.reduce((x,b)=>x+b.total,0),1],true,true);
+  projets.forEach(b=>lsy([b.titre,b.lignes.length,som(b,'dev'),som(b,'mes'),som(b,'pil'),som(b,'pmo'),som(b,'hyp'),b.total,b.total/totG],false,true));
+  if(projets.length)lsy(['Total facturable','',projets.reduce((x,b)=>x+som(b,'dev'),0),projets.reduce((x,b)=>x+som(b,'mes'),0),projets.reduce((x,b)=>x+som(b,'pil'),0),projets.reduce((x,b)=>x+som(b,'pmo'),0),projets.reduce((x,b)=>x+som(b,'hyp'),0),projets.reduce((x,b)=>x+b.total,0),1],true,true);
   sy.addRow([]);const rI=sy.rowCount+1;sy.getCell('A'+rI).value='Par intervenant';sy.getCell('A'+rI).font=F({bold:true,color:{argb:PLUM}});
-  entete(rI+1,['Intervenant','Service','Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Total facturable','Congés / R&D']);
-  const P={};const pers=(l)=>P[l.nom]=P[l.nom]||{s:l.service,d:0,m:0,p:0,o:0,h:0};
-  projets.forEach(b=>b.lignes.forEach(l=>{const x=pers(l);x.d+=l.dev||0;x.m+=l.mes||0;x.p+=l.pil||0;x.o+=l.pmo||0}));autres.forEach(b=>b.lignes.forEach(l=>{pers(l).h+=l.total}));
-  Object.keys(P).sort((a,b)=>a.localeCompare(b)).forEach(n=>{const x=P[n];const r=lsy([n,x.s,x.d,x.m,x.p,x.o,x.d+x.m+x.p+x.o,x.h]);r.getCell(2).alignment={vertical:'middle',horizontal:'left',indent:1}});
+  entete(rI+1,['Intervenant','Service','Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Jours Hypercare','Total facturable','Congés / R&D']);
+  const P={};const pers=(l)=>P[l.nom]=P[l.nom]||{s:l.service,d:0,m:0,p:0,o:0,y:0,h:0};
+  projets.forEach(b=>b.lignes.forEach(l=>{const x=pers(l);x.d+=l.dev||0;x.m+=l.mes||0;x.p+=l.pil||0;x.o+=l.pmo||0;x.y+=l.hyp||0}));autres.forEach(b=>b.lignes.forEach(l=>{pers(l).h+=l.total}));
+  Object.keys(P).sort((a,b)=>a.localeCompare(b)).forEach(n=>{const x=P[n];const r=lsy([n,x.s,x.d,x.m,x.p,x.o,x.y,x.d+x.m+x.p+x.o+x.y,x.h]);r.getCell(2).alignment={vertical:'middle',horizontal:'left',indent:1}});
   return wb}
 async function restExport(type){
   const m=ui.restMois||moisPrecedent();const B=restitution(m,peutPleo?ui.restVisibles!==false:false);if(!B.length)return;
   const ML=moisLabel(m).replace(/^./,c=>c.toUpperCase());const titre='Suivi des prestations — Harington Tech (classé par projet) — '+ML;const nomF='Suivi des prestations Harington - '+ML;
-  const lignes=[];B.forEach(b=>{lignes.push({g:true,c:[b.titre,'','','','','',b.total]});b.lignes.forEach(l=>lignes.push({c:[l.nom,l.service,l.dev||'',l.mes||'',l.pil||'',l.pmo||'',l.total]}))});
+  const lignes=[];B.forEach(b=>{lignes.push({g:true,c:[b.titre,'','','','','','',b.total]});b.lignes.forEach(l=>lignes.push({c:[l.nom,l.service,l.dev||'',l.mes||'',l.pil||'',l.pmo||'',l.hyp||'',l.total]}))});
   if(type==='xlsx'){let EX;try{toast('Préparation du fichier Excel…');if(!window.ExcelJS)await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');EX=window.ExcelJS}catch(e){toast('Export Excel indisponible : '+e.message);return}
     const wb=classeurRestitution(EX,B,m);const buf=await wb.xlsx.writeBuffer();
     const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const lien=document.createElement('a');lien.href=url;lien.download=nomF+'.xlsx';document.body.appendChild(lien);lien.click();lien.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);return}
@@ -1443,8 +1444,8 @@ async function restExport(type){
   const doc=new JS({unit:'mm',format:'a4'});const W=210,M=14;const NAVY=[33,50,78];
   doc.setFillColor(...NAVY);doc.rect(0,0,W,26,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text('Suivi des prestations',M,12);
   doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(t('Harington Tech · classé par projet · '+ML+' · édité le '+new Date().toLocaleDateString('fr-FR')),M,20);
-  doc.autoTable({startY:33,head:[['Intervenant','Service',...['Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Nb jours effectués'].map(x=>({content:x,styles:{halign:'right'}}))]],body:lignes.map(l=>l.g?[{content:t(l.c[0]),colSpan:6,styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247]}},{content:n(l.c[6]),styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247],halign:'right'}}]:[t(l.c[0]),t(l.c[1]),n(l.c[2]),n(l.c[3]),n(l.c[4]),n(l.c[5]),n(l.c[6])]),
-    styles:{fontSize:9,cellPadding:2,textColor:[27,28,28]},headStyles:{fillColor:NAVY,textColor:255},columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right',fontStyle:'bold'}},margin:{left:M,right:M}});
+  doc.autoTable({startY:33,head:[['Intervenant','Service',...['Jours DEV','Jours MES','Jours Pilotage','Jours PMO','Jours Hypercare','Nb jours effectués'].map(x=>({content:x,styles:{halign:'right'}}))]],body:lignes.map(l=>l.g?[{content:t(l.c[0]),colSpan:7,styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247]}},{content:n(l.c[7]),styles:{fontStyle:'bold',textColor:NAVY,fillColor:[241,244,247],halign:'right'}}]:[t(l.c[0]),t(l.c[1]),n(l.c[2]),n(l.c[3]),n(l.c[4]),n(l.c[5]),n(l.c[6]),n(l.c[7])]),
+    styles:{fontSize:9,cellPadding:2,textColor:[27,28,28]},headStyles:{fillColor:NAVY,textColor:255},columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'},7:{halign:'right',fontStyle:'bold'}},margin:{left:M,right:M}});
   doc.save(nomF+'.pdf')}
 function vRegles(){
   const R=S.regles,P=R.profils||DEFAULT_REGLES.profils,E=Object.assign({},DEFAULT_REGLES.estimations,R.estimations||{});
@@ -1540,7 +1541,7 @@ function suggestion(cat,cp){
   if(cat==='Hôtel (au réel)')return {d:'',aide:'À écarter si le barème du jour couvre déjà l\'hébergement'};
   return {d:'',aide:'Catégorie à contrôler avant de décider'}}
 // Jours de présence sur projet (développement, mise en service, pilotage, déplacement) d'une ressource, tous mois confondus
-function presencesDe(rid){const P=[];list('calendrier').filter(x=>x.ressourceId===rid&&x.jours).forEach(c=>Object.entries(c.jours).forEach(([d,v])=>{const x=pj(v);if(x&&['dev','mes','pil','pmo','depl'].includes(x.t))P.push({d,pid:c.projetId,t:x.t})}));return P}
+function presencesDe(rid){const P=[];list('calendrier').filter(x=>x.ressourceId===rid&&x.jours).forEach(c=>Object.entries(c.jours).forEach(([d,v])=>{const x=pj(v);if(x&&['dev','mes','pil','pmo','hyp','depl'].includes(x.t))P.push({d,pid:c.projetId,t:x.t})}));return P}
 const ecartJours=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
 const MOIS_COURT=m=>moisLabel(m).split(' ')[0];
 function projetPour(rid,iso){if(!rid||!iso)return {pid:'',via:''};
@@ -1550,7 +1551,7 @@ function projetPour(rid,iso){if(!rid||!iso)return {pid:'',via:''};
   if(!jour.length&&P.length){let best=null;P.forEach(x=>{const e=ecartJours(iso,x.d);if(Math.abs(e)>3)return;const sc=Math.abs(e)*2+(e<0?1:0);if(!best||sc<best.sc)best={sc,x,e,l:[x.pid]};else if(sc===best.sc&&!best.l.includes(x.pid))best.l.push(x.pid)});
     if(best&&best.l.length===1){const m=best.x.d.slice(0,7);return {pid:best.x.pid,mois:m,via:'présent le '+dateFr(best.x.d).slice(0,5)+(m!==iso.slice(0,7)?' → '+MOIS_COURT(m):'')}}}
   const aff=list('affectations').filter(a=>a.ressourceId===rid);const ps=[...new Set(aff.map(a=>a.projetId))].map(id=>byId('projets',id)).filter(Boolean);
-  const dansPhase=ps.filter(p=>aff.some(a=>a.projetId===p.id&&((a.phase==='pil'||a.phase==='pmo')?((p.devDebut||p.mesDebut)&&iso>=(p.devDebut||p.mesDebut)&&iso<=(p.mesFin||p.devFin||iso)):a.phase==='mes'?(p.mesDebut&&p.mesFin&&iso>=p.mesDebut&&iso<=p.mesFin):(p.devDebut&&p.devFin&&iso>=p.devDebut&&iso<=p.devFin))));
+  const dansPhase=ps.filter(p=>aff.some(a=>a.projetId===p.id&&(a.phase==='hyp'?((p.mesDebut||p.devDebut)&&iso>=(p.mesDebut||p.devDebut)):(a.phase==='pil'||a.phase==='pmo')?((p.devDebut||p.mesDebut)&&iso>=(p.devDebut||p.mesDebut)&&iso<=(p.mesFin||p.devFin||iso)):a.phase==='mes'?(p.mesDebut&&p.mesFin&&iso>=p.mesDebut&&iso<=p.mesFin):(p.devDebut&&p.devFin&&iso>=p.devDebut&&iso<=p.devFin))));
   if(dansPhase.length===1)return {pid:dansPhase[0].id,via:'dates de phase'};
   if(dansPhase.length>1){const mes=dansPhase.filter(p=>p.mesDebut&&iso>=p.mesDebut&&iso<=p.mesFin);if(mes.length===1)return {pid:mes[0].id,via:'mise en service'}}
   const ouverts=ps.filter(p=>!p.cloture);if(ouverts.length===1)return {pid:ouverts[0].id,via:'seule affectation'};
@@ -1744,7 +1745,7 @@ function formAff(pid,a){
   const p=byId('projets',pid);
   openForm(a?'Modifier l\'affectation':'Affecter une ressource',[
     {k:'ressourceId',l:'Ressource',type:'select',opts:list('ressources').filter(r=>estActif(r)||(a&&a.ressourceId===r.id)).sort((x,y)=>x.nom.localeCompare(y.nom)).map(r=>[r.id,(r.code?r.code+' · ':'')+r.nom]),req:true},
-    {k:'phase',l:'Type de prestation',type:'select',opts:[['dev','Développement'],['mes','Mise en service sur site'],['pil','Pilotage (Tech lead)'],['pmo','PMO']],def:'dev'},
+    {k:'phase',l:'Type de prestation',type:'select',opts:[['dev','Développement'],['mes','Mise en service sur site'],['pil','Pilotage (Tech lead)'],['pmo','PMO'],['hyp','Hypercare']],def:'dev'},
     {k:'joursPrevus',l:'Jours prévus',type:'number',req:true,def:a?'':workdays(p.devDebut,p.devFin)||''},
     {k:'tjm',l:'TJM spécifique (vide = TJM de la ressource)',type:'number'}
   ],a,async o=>{if(o.phase==='pil'&&!estTechLead(o.ressourceId)){document.getElementById('frmErr').textContent='Le pilotage est réservé aux ressources de profil Tech lead.';return false}
