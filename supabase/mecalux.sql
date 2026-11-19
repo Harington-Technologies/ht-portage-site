@@ -416,3 +416,19 @@ alter table public.mecalux_affectations drop constraint mecalux_affectations_pha
 alter table public.mecalux_affectations add constraint mecalux_affectations_phase_check check (phase in ('dev','mes','pil','pmo','hyp'));
 alter table public.mecalux_temps drop constraint mecalux_temps_phase_check;
 alter table public.mecalux_temps add constraint mecalux_temps_phase_check check (phase in ('dev','mes','pil','pmo','hyp'));
+
+-- ---------- Frais : auteur de la saisie (renseigné par la base, non modifiable) ----------
+alter table public.mecalux_frais add column if not exists cree_par text, add column if not exists cree_le timestamptz;
+create or replace function public.mecalux_frais_auteur() returns trigger language plpgsql set search_path = public as $$
+declare j jsonb := coalesce(auth.jwt(), '{}'::jsonb); nom text;
+begin
+  if tg_op = 'INSERT' then
+    nom := nullif(btrim(coalesce(j->'user_metadata'->>'prenom','') || ' ' || coalesce(j->'user_metadata'->>'nom','')), '');
+    new.cree_par := coalesce(nom, j->>'email');
+    new.cree_le := now();
+  else
+    new.cree_par := old.cree_par; new.cree_le := old.cree_le;
+  end if;
+  return new;
+end $$;
+create trigger mecalux_frais_auteur before insert or update on public.mecalux_frais for each row execute function public.mecalux_frais_auteur();
