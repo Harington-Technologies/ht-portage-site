@@ -410,3 +410,9 @@ alter table public.mecalux_temps add constraint mecalux_temps_phase_check check 
 -- ---------- Frais : statut « à vérifier » (non compté) ----------
 alter table public.mecalux_frais drop constraint mecalux_frais_statut;
 alter table public.mecalux_frais add constraint mecalux_frais_statut check (statut is null or statut in ('valide','ecarte','averifier'));
+
+-- ---------- Type de prestation Hypercare ----------
+alter table public.mecalux_affectations drop constraint mecalux_affectations_phase_check;
+alter table public.mecalux_affectations add constraint mecalux_affectations_phase_check check (phase in ('dev','mes','pil','pmo','hyp'));
+alter table public.mecalux_temps drop constraint mecalux_temps_phase_check;
+alter table public.mecalux_temps add constraint mecalux_temps_phase_check check (phase in ('dev','mes','pil','pmo','hyp'));
