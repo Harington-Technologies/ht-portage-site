@@ -406,3 +406,7 @@ alter table public.mecalux_temps add constraint mecalux_temps_phase_check check 
 -- Déclencheur mecalux_pf_garde : statut, BDC, pièces et numéro de facture inchangeables hors circuit ; lignes figées hors brouillon.
 -- Déclencheur notify_mecalux_pf : AFTER INSERT mecalux_pf_evenements → fonction mecalux-acces (mêmes en-têtes que notify_mecalux_demandes,
 --   dont x-webhook-secret = <WEBHOOK_SECRET>) → e-mails Resend aux personnes de l'étape, avec la préfacture, le BDC ou la facture en pièce jointe.
+
+-- ---------- Frais : statut « à vérifier » (non compté) ----------
+alter table public.mecalux_frais drop constraint mecalux_frais_statut;
+alter table public.mecalux_frais add constraint mecalux_frais_statut check (statut is null or statut in ('valide','ecarte','averifier'));
