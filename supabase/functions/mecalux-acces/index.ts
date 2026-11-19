@@ -111,7 +111,7 @@ async function etapePrefacture(ev) {
       bouton = { texte: "Vérifier la préfacture", url: lien }; break;
     case "adv_renvoyer":
       to = prep; cc = adv; titre = "Préfacture à corriger";
-      corps = P("L'ADV Harington a renvoyé la préfacture pour correction.") + resume + com; bouton = { texte: "Corriger la préfacture", url: lien }; break;
+      corps = P("Le Responsable ADV Harington a renvoyé la préfacture pour correction.") + resume + com; bouton = { texte: "Corriger la préfacture", url: lien }; break;
     case "adv_valider":
       to = em(advM, cpM); cc = em(adv, prep); titre = "Préfacture Harington pour validation";
       corps = P("Bonjour,") + P(`Veuillez trouver ci-joint la préfacture Harington de ${esc(periode)}.`) + resume + com +
