@@ -395,3 +395,14 @@ alter table public.mecalux_affectations drop constraint mecalux_affectations_pha
 alter table public.mecalux_affectations add constraint mecalux_affectations_phase_check check (phase in ('dev','mes','pil','pmo'));
 alter table public.mecalux_temps drop constraint mecalux_temps_phase_check;
 alter table public.mecalux_temps add constraint mecalux_temps_phase_check check (phase in ('dev','mes','pil','pmo'));
+
+-- ---------- Circuit de validation des préfactures (migration mecalux_circuit_prefactures) ----------
+-- Projets : cp_mecalux_prenom, cp_mecalux_nom, cp_mecalux_email, cp_harington_id (ressource).
+-- Préfactures : fichiers jsonb {pdf, bdc, facture}, numero_facture ; statuts Brouillon → À vérifier ADV → Envoyée à Mecalux → BDC reçu → Facturée.
+-- mecalux_circuit (role preparation | adv | adv_mecalux, nom, email) : lecture membres, écriture admin.
+-- mecalux_pf_action(p_id, p_action, p_commentaire, p_bdc, p_fichier, p_numero) : seule voie pour changer le statut
+--   soumettre (Harington) · adv_valider / adv_renvoyer (ADV Harington ou admin) · mecalux_valider / mecalux_refuser (ADV Mecalux ou admin)
+--   facturer (ADV Harington ou admin) · rouvrir (admin). Chaque étape est journalisée dans mecalux_pf_evenements.
+-- Déclencheur mecalux_pf_garde : statut, BDC, pièces et numéro de facture inchangeables hors circuit ; lignes figées hors brouillon.
+-- Déclencheur notify_mecalux_pf : AFTER INSERT mecalux_pf_evenements → fonction mecalux-acces (mêmes en-têtes que notify_mecalux_demandes,
+--   dont x-webhook-secret = <WEBHOOK_SECRET>) → e-mails Resend aux personnes de l'étape, avec la préfacture, le BDC ou la facture en pièce jointe.

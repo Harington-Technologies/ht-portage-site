@@ -7,6 +7,7 @@
 //   POST { action: "retirer", email }                              → retire l'accès et supprime le compte s'il a été créé pour le pilotage (administrateur)
 //   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
+//   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_pf_evenements → e-mail du circuit des préfactures aux bonnes personnes
 // Secrets partagés du projet : RESEND_API_KEY, NOTIFY_FROM, WEBHOOK_SECRET. « Verify JWT » désactivé.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -47,12 +48,12 @@ const texte = (html: string) => html.replace(/<(style|title|head)[\s\S]*?<\/\1>/
   .replace(/<\/(p|h1|tr|table)>|<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">")
   .split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
 
-async function envoyer(to: string[], sujet: string, html: string) {
+async function envoyer(to: string[], sujet: string, html: string, extra: { cc?: string[]; attachments?: { filename: string; content: string }[] } = {}) {
   const from = (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: `Pilotage Mecalux <${from}>`, to, subject: sujet, html, text: texte(html) }),
+    body: JSON.stringify({ from: `Pilotage Mecalux <${from}>`, to, subject: sujet, html, text: texte(html), ...(extra.cc?.length ? { cc: extra.cc } : {}), ...(extra.attachments?.length ? { attachments: extra.attachments } : {}) }),
   });
   if (!r.ok) { console.error("Resend", r.status, await r.text()); return false; }
   return true;
@@ -71,6 +72,72 @@ function cors(req: Request) {
   return { "Access-Control-Allow-Origin": ORIGINES.includes(o) ? o : ORIGINES[0], "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS", Vary: "Origin" };
 }
 const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors(req), "Content-Type": "application/json" } });
+
+// ---------- Circuit des préfactures (déclencheur) → e-mail à chaque étape ----------
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const eur = (n) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(n) || 0);
+async function pieceJointe(chemin: string, nom: string) {
+  if (!chemin) return null;
+  const { data, error } = await admin.storage.from("mecalux-justifs").download(chemin);
+  if (error || !data) { console.error("pièce", chemin, error?.message); return null; }
+  const o = new Uint8Array(await data.arrayBuffer()); let bin = ""; for (let i = 0; i < o.length; i += 0x8000) bin += String.fromCharCode(...o.subarray(i, i + 0x8000));
+  return { filename: nom, content: btoa(bin) };
+}
+async function etapePrefacture(ev) {
+  const { data: pf } = await admin.from("mecalux_prefactures").select("*").eq("id", ev.pf_id).maybeSingle();
+  if (!pf) return;
+  const { data: p } = await admin.from("mecalux_projets").select("*").eq("id", pf.projet_id).maybeSingle();
+  const { data: circ } = await admin.from("mecalux_circuit").select("role,nom,email");
+  const C = Object.fromEntries((circ ?? []).map((x) => [x.role, x]));
+  let cpH = null;
+  if (p?.cp_harington_id) { const { data: r } = await admin.from("mecalux_ressources").select("nom,email").eq("id", p.cp_harington_id).maybeSingle(); cpH = r; }
+  const ok = (e) => EMAIL_OK.test(String(e ?? "").trim());
+  const em = (...l) => [...new Set(l.flat().map((e) => String(e ?? "").trim().toLowerCase()).filter(ok))];
+  const adv = em(C.adv?.email), advM = em(C.adv_mecalux?.email), prep = em(C.preparation?.email, cpH?.email), cpM = em(p?.cp_mecalux_email);
+  const [an, mo] = String(pf.mois).split("-"); const periode = `${MOIS[+mo - 1]} ${an}`;
+  const total = (pf.lignes ?? []).reduce((x, l) => x + (Number(l.montant) || 0), 0);
+  const projet = [p?.client, p?.nom].filter(Boolean).join(" · ") + (p?.site ? ` (${p.site})` : "");
+  const lien = SITE + "#prefacture-" + pf.id;
+  const com = ev.commentaire ? P(`<b>Commentaire :</b> ${esc(ev.commentaire)}`) : "";
+  const resume = `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;font-size:14px"><tr><td style="color:#6B7385;padding:3px 14px 3px 0">Projet</td><td><b>${esc(projet)}</b></td></tr><tr><td style="color:#6B7385;padding:3px 14px 3px 0">Période</td><td>${esc(periode)}</td></tr><tr><td style="color:#6B7385;padding:3px 14px 3px 0">Montant HT</td><td><b>${esc(eur(total))}</b></td></tr>${pf.bdc ? `<tr><td style="color:#6B7385;padding:3px 14px 3px 0">Bon de commande</td><td><b>${esc(pf.bdc)}</b></td></tr>` : ""}${pf.numero_facture ? `<tr><td style="color:#6B7385;padding:3px 14px 3px 0">Facture</td><td><b>${esc(pf.numero_facture)}</b></td></tr>` : ""}</table>`;
+  const nomF = (t) => `${t} ${String(p?.client ?? "")} ${String(p?.site ?? p?.nom ?? "")} ${pf.mois}.pdf`.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ");
+  const F = pf.fichiers ?? {};
+  let to: string[] = [], cc: string[] = [], titre = "", corps = "", bouton = null, pj = [];
+  const sujetBase = `Préfacture ${periode} — ${projet}`;
+  switch (ev.action) {
+    case "soumettre":
+      to = adv; cc = prep; titre = "Préfacture à vérifier";
+      corps = P(`Bonjour${C.adv?.nom ? " " + esc(C.adv.nom) : ""},`) + P("Une préfacture est prête : merci de la vérifier avant envoi à Mecalux.") + resume + com;
+      bouton = { texte: "Vérifier la préfacture", url: lien }; break;
+    case "adv_renvoyer":
+      to = prep; cc = adv; titre = "Préfacture à corriger";
+      corps = P("L'ADV Harington a renvoyé la préfacture pour correction.") + resume + com; bouton = { texte: "Corriger la préfacture", url: lien }; break;
+    case "adv_valider":
+      to = em(advM, cpM); cc = em(adv, prep); titre = "Préfacture Harington pour validation";
+      corps = P("Bonjour,") + P(`Veuillez trouver ci-joint la préfacture Harington de ${esc(periode)}.`) + resume + com +
+        P(`${C.adv_mecalux?.nom ? esc(C.adv_mecalux.nom) + ", merci" : "Merci"} de la valider dans le pilotage en indiquant le numéro du bon de commande, ou de la refuser avec un commentaire.`);
+      bouton = { texte: "Valider la préfacture", url: lien }; pj = [await pieceJointe(F.pdf, nomF("Préfacture"))]; break;
+    case "mecalux_valider":
+      to = adv; cc = prep; titre = "Bon de commande reçu";
+      corps = P(`Bonjour${C.adv?.nom ? " " + esc(C.adv.nom) : ""},`) + P("Mecalux a validé la préfacture et transmis le bon de commande : vous pouvez facturer.") + resume + com;
+      bouton = { texte: "Facturer", url: lien }; pj = [await pieceJointe(F.bdc, nomF("BDC " + (pf.bdc ?? "")))]; break;
+    case "mecalux_refuser":
+      to = adv; cc = prep; titre = "Préfacture refusée par Mecalux";
+      corps = P("Mecalux a refusé la préfacture.") + resume + com; bouton = { texte: "Voir la préfacture", url: lien }; break;
+    case "facturer":
+      to = em(advM, cpM); cc = em(adv, prep); titre = "Facture Harington";
+      corps = P("Bonjour,") + P(`Veuillez trouver ci-joint la facture Harington correspondant à la préfacture de ${esc(periode)}.`) + resume + com;
+      pj = [await pieceJointe(F.facture, nomF("Facture " + (pf.numero_facture ?? "")))]; break;
+    case "rouvrir":
+      to = prep; cc = adv; titre = "Préfacture rouverte";
+      corps = P("La préfacture a été remise en brouillon.") + resume + com; bouton = { texte: "Voir la préfacture", url: lien }; break;
+    default: return;
+  }
+  cc = cc.filter((e) => !to.includes(e));
+  if (!to.length) { to = cc.length ? cc : await admins(); cc = []; }
+  if (!to.length) return;
+  await envoyer(to, `${titre} — ${sujetBase}`, gabarit(titre, corps, bouton ?? undefined), { cc, attachments: pj.filter(Boolean) });
+}
 
 // ---------- Demande créée (déclencheur) → e-mail aux administrateurs ----------
 async function nouvelleDemande(d) {
@@ -146,6 +213,9 @@ Deno.serve(async (req) => {
     const p = await req.json().catch(() => null);
     if (p?.table === "mecalux_demandes" && p?.type === "INSERT" && p.record) {
       try { await nouvelleDemande(p.record); } catch (e) { console.error(e); }
+    }
+    if (p?.table === "mecalux_pf_evenements" && p?.type === "INSERT" && p.record) {
+      try { await etapePrefacture(p.record); } catch (e) { console.error(e); }
     }
     return new Response("OK");
   }
