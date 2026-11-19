@@ -190,6 +190,7 @@ const CAT_FRAIS=['Forfait hôtel','Hôtel (au réel)','Forfait repas','Per diem'
 const CAT_FORFAIT=['Forfait hôtel','Forfait repas','Per diem','Voiture Harington','Forfait location voiture'];
 // une dépense « à vérifier » reste visible mais ne compte ni dans les totaux ni dans la préfacture
 const fraisCompte=f=>f.statut!=='ecarte'&&f.statut!=='averifier';
+const CAT_GROUPEES=['Carburant','Péages','Péage','Parking']; // regroupées sur une ligne par catégorie dans la préfacture
 const CAT_JOUR=['Hôtel (au réel)','Location voiture','Voiture Harington']; // saisis en prix par jour × jours travaillés
 const MOIS_FR=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const MOIS_LONG=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -290,7 +291,12 @@ function pfLines(pid,mois){
     majBaremes();const c=cals.find(x=>x.ressourceId===rid);if(c){const n={};Object.entries(c.baremes).forEach(([iso,b])=>{if(BAREMES_J[b]&&baremeCompte(iso,c.jours))n[b]=(n[b]||0)+1});
       ORDRE_B.filter(b=>n[b]).forEach(b=>{const mb=montantBareme(b);lines.push({type:'bareme',collab,libelle:'Barème '+codeB(b)+' · '+BAREMES_J[b].nom+marge,qte:n[b],unite:'j',pu:mb.v*m,montant:n[b]*mb.v*m})})}
     // frais réels détaillés : par jour (jours × prix) ou une ligne par dépense (date, marchand ou note)
-    fr.filter(f=>(f.ressourceId||'')===rid).sort((a,b)=>((a.categorie||'')+(a.date||''))>((b.categorie||'')+(b.date||''))?1:-1).forEach(f=>{const cat=f.categorie||'Divers';
+    // petites dépenses (carburant, péages, parking) : une seule ligne par catégorie et par collaborateur
+    const frR=fr.filter(f=>(f.ressourceId||'')===rid);
+    CAT_GROUPEES.forEach(cat=>{const G=frR.filter(f=>f.categorie===cat&&!(f.parJour&&num(f.jours)));if(!G.length)return;const tot=G.reduce((x,f)=>x+num(f.montant),0);const ds=G.map(f=>f.date).filter(Boolean).sort();
+      const per=ds.length?(ds[0]===ds[ds.length-1]?' · '+dateFr(ds[0]).replace(/ \d{4}$/,''):' · du '+dateFr(ds[0]).replace(/ \d{4}$/,'')+' au '+dateFr(ds[ds.length-1]).replace(/ \d{4}$/,'')):'';
+      lines.push({type:'frais',collab,libelle:cat+' · '+G.length+' dépense'+(G.length>1?'s':'')+per+marge,qte:1,unite:'',pu:tot*m,montant:tot*m})});
+    frR.filter(f=>!(CAT_GROUPEES.includes(f.categorie)&&!(f.parJour&&num(f.jours)))).sort((a,b)=>((a.categorie||'')+(a.date||''))>((b.categorie||'')+(b.date||''))?1:-1).forEach(f=>{const cat=f.categorie||'Divers';
       if(f.parJour&&num(f.jours))lines.push({type:'frais',collab,libelle:cat+marge,qte:num(f.jours),unite:'j',pu:num(f.prixJour)*m,montant:num(f.montant)*m});
       else{const det=[f.date?dateFr(f.date).replace(/ \d{4}$/,''):'',libMarchand(f)].filter(Boolean).join(' · ');lines.push({type:'frais',collab,libelle:cat+(det?' · '+det:'')+marge,qte:1,unite:'',pu:num(f.montant)*m,montant:num(f.montant)*m})}});
   });
