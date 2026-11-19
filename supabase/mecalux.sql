@@ -389,3 +389,9 @@ create policy "prefactures_droit" on public.mecalux_prefactures as restrictive f
 create policy "estimations_droit" on public.mecalux_estimations as restrictive for all to authenticated
   using (public.mecalux_droit('calculateur')) with check (public.mecalux_droit('calculateur'));
 alter publication supabase_realtime add table public.mecalux_droits;
+
+-- ---------- Type de prestation PMO ----------
+alter table public.mecalux_affectations drop constraint mecalux_affectations_phase_check;
+alter table public.mecalux_affectations add constraint mecalux_affectations_phase_check check (phase in ('dev','mes','pil','pmo'));
+alter table public.mecalux_temps drop constraint mecalux_temps_phase_check;
+alter table public.mecalux_temps add constraint mecalux_temps_phase_check check (phase in ('dev','mes','pil','pmo'));
