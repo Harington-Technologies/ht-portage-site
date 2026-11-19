@@ -49,6 +49,7 @@ h3{margin:0;font-size:15px;font-weight:700;color:var(--navy)}
 .btn.d{background:#fff;color:var(--bad);border:1.5px solid #E2B5B9}
 .btn.sm{font-size:13px;padding:6px 12px;min-height:32px}
 .tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th.jc,.tbl td.jc{width:28px;min-width:28px;max-width:28px;padding:2px 1px;text-align:center;letter-spacing:0;font-size:11px}.tbl td.jc .cb{margin:0 auto}
 .tbl th{text-align:left;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:10px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
 .tbl td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 .tbl tr:last-child td{border-bottom:0}
@@ -746,16 +747,16 @@ function vActiviteMois(){const m=/^\d{4}-\d{2}$/.test(ui.actMois||'')?ui.actMois
     '<p class="small muted" style="margin:0">D\'après la saisie mensuelle. Une ligne par projet ; couleur et lettre = type de journée. '+jo+' jours ouvrés.</p>';
   if(!rs.length)return h+'<div class="empty">Rien de saisi pour '+moisLabel(m)+'.</div></section>';
   // une ligne par projet pour chaque collaborateur
-  const th='<th style="position:sticky;left:0;background:var(--card,#fff);z-index:1">Collaborateur</th><th style="min-width:150px">Projet</th>'+J.map(j=>'<th class="n" style="padding:4px 1px;'+(j.we||j.ferie?'color:var(--muted);':'')+'font-size:11px" title="'+esc(j.ferie||'')+'">'+'LMMJVSD'[(j.w+6)%7]+'<br>'+j.d+'</th>').join('')+'<th class="n">Jours</th>';
-  const vide=j=>'<td style="padding:2px 1px"><div class="cb'+(j.we?' we':'')+(j.ferie?' fe':'')+'" style="width:24px;height:26px;cursor:default;opacity:.55"></div></td>';
+  const th='<th style="position:sticky;left:0;background:var(--card,#fff);z-index:1">Collaborateur</th><th style="min-width:150px">Projet</th>'+J.map(j=>'<th class="jc" style="'+(j.we||j.ferie?'color:var(--muted);':'')+'" title="'+esc(j.ferie||'')+'">'+'LMMJVSD'[(j.w+6)%7]+'<br>'+j.d+'</th>').join('')+'<th class="n">Jours</th>';
+  const vide=j=>'<td class="jc"><div class="cb'+(j.we?' we':'')+(j.ferie?' fe':'')+'" style="width:24px;height:26px;cursor:default;opacity:.55"></div></td>';
   let corps='';
   rs.forEach(r=>{const cs=cals.filter(c=>c.ressourceId===r.id).sort((a,b)=>libP(a.projetId).localeCompare(libP(b.projetId)));const n=Math.max(1,cs.length);
     const nomC='<td rowspan="'+n+'" style="font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--card,#fff);z-index:1;vertical-align:top;border-top:2px solid var(--line2)">'+(r.code?'<span class="pill" style="margin-right:6px">'+esc(r.code)+'</span>':'')+esc(r.nom)+'</td>';
     if(!cs.length){corps+='<tr>'+nomC+'<td class="small muted" style="border-top:2px solid var(--line2)">Rien de saisi</td>'+J.map(vide).join('')+'<td class="n muted" style="border-top:2px solid var(--line2)">0</td></tr>';return}
     cs.forEach((c,i)=>{const bt=i===0?'border-top:2px solid var(--line2);':'';let tot=0;
       corps+='<tr>'+(i===0?nomC:'')+'<td class="small" style="'+bt+'white-space:nowrap"><a href="#projet-'+c.projetId+'" style="color:var(--navy);font-weight:600">'+esc(libP(c.projetId))+'</a></td>'+
-        J.map(j=>{const x=pj(c.jours[j.iso]);if(!x)return vide(j).replace('<td style="','<td style="'+bt);tot+=x.q;const T=TYPES_J[x.t]||{};
-          return '<td style="'+bt+'padding:2px 1px"><div class="cb'+(j.we?' we':'')+(j.ferie?' fe':'')+' t-'+x.t+(x.demi?' demi':'')+'" style="width:24px;height:26px;cursor:default;display:flex;align-items:center;justify-content:center;font-size:10px" title="'+esc(dateFr(j.iso)+' · '+(T.nom||'')+(x.demi?' (demi-journée)':''))+'">'+esc(T.c||'')+'</div></td>'}).join('')+
+        J.map(j=>{const x=pj(c.jours[j.iso]);if(!x)return vide(j).replace('<td class="jc">','<td class="jc" style="'+bt+'">');tot+=x.q;const T=TYPES_J[x.t]||{};
+          return '<td class="jc" style="'+bt+'"><div class="cb'+(j.we?' we':'')+(j.ferie?' fe':'')+' t-'+x.t+(x.demi?' demi':'')+'" style="width:24px;height:26px;cursor:default;display:flex;align-items:center;justify-content:center;font-size:10px" title="'+esc(dateFr(j.iso)+' · '+(T.nom||'')+(x.demi?' (demi-journée)':''))+'">'+esc(T.c||'')+'</div></td>'}).join('')+
         '<td class="n" style="'+bt+'font-weight:700">'+nf(tot)+'</td></tr>'})});
   h+='<div class="scroll"><table class="tbl" style="table-layout:auto"><thead><tr>'+th+'</tr></thead><tbody>'+corps+'</tbody></table></div>';
   h+='<div class="row small" style="flex-wrap:wrap;gap:10px">'+Object.entries(TYPES_J).map(([k,t])=>'<span class="row" style="gap:5px"><span class="cb t-'+k+'" style="width:18px;height:18px;display:inline-block;cursor:default"></span>'+esc(t.nom)+'</span>').join('')+'</div>';
