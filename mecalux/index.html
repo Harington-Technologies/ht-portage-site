@@ -383,7 +383,7 @@ const TABLES={
   projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','visible_mecalux','notes','cp_mecalux_prenom','cp_mecalux_nom','cp_mecalux_email','cp_harington_id','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
-  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','par_jour','prix_jour','jours','jours_auto','justifs','pleo_receipt','import_id','source','statut','motif','pleo_ref','marchand','categorie_pleo','perso','maj_le'],
+  frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','par_jour','prix_jour','jours','jours_auto','justifs','pleo_receipt','import_id','source','statut','motif','pleo_ref','marchand','categorie_pleo','perso','types_jours','maj_le'],
   estimations:['id','projet_id','ressource_id','libelle','params','detail','total_frais','trajet','refac','maj_le'],
   prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','fichiers','numero_facture','maj_le'],
   calendrier:['id','projet_id','ressource_id','mois','jours','baremes','resume','valide','valide_le','maj_le'],
@@ -881,9 +881,12 @@ const SANS_HEBERGEMENT=['pil'];
 const SANS_HOTEL=['pil','dev']; // hôtel au réel : ni pilotage ni développement
 function joursLocationCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!SANS_HEBERGEMENT.includes(j.t)&&(!TYPES_J[j.t].nonTravaille||j.t==='depl')&&j.q>0?1:0)},0)}
 function joursTravHorsPil(pid,rid,m,exclus){exclus=exclus||SANS_HEBERGEMENT;const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille&&!exclus.includes(j.t)?j.q:0)},0)}
-function joursFraisCal(pid,rid,m,cat){if(cat==='Location voiture')return joursLocationCal(pid,rid,m);if(cat==='Hôtel (au réel)')return joursTravHorsPil(pid,rid,m,SANS_HOTEL)+joursDeplWeekend(pid,rid,m);return joursTravCal(pid,rid,m)}
+// frais par jour : décompte du calendrier par type de journée ; on choisit les types à retenir (par défaut selon la catégorie)
+function typesJoursDefaut(cat){if(cat==='Hôtel (au réel)')return ['mes','pmo','hyp','depl'];if(cat==='Location voiture')return ['dev','mes','pmo','hyp','depl'];return Object.keys(TYPES_J).filter(k=>!TYPES_J[k].nonTravaille)}
+function decompteCal(pid,rid,m,cat){const c=calOf(pid,rid,m);const o={};if(!c||!c.jours)return o;const entier=cat==='Location voiture';Object.values(c.jours).forEach(v=>{const j=pj(v);if(!j||!TYPES_J[j.t]||!(j.q>0))return;o[j.t]=(o[j.t]||0)+(entier?1:j.q)});return o}
+function joursFraisCal(pid,rid,m,cat,types){const D=decompteCal(pid,rid,m,cat);const T=Array.isArray(types)&&types.length?types:typesJoursDefaut(cat);return T.reduce((x,t)=>x+(D[t]||0),0)}
 function joursTravCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille?j.q:0)},0)}
-async function majFraisParJour(pid,rid,m){for(const f of list('frais').filter(x=>x.parJour&&x.joursAuto!==false&&x.projetId===pid&&x.ressourceId===rid&&x.mois===m)){const n=joursFraisCal(pid,rid,m,f.categorie);const mt=Math.round(num(f.prixJour)*n*100)/100;if(num(f.montant)!==mt||num(f.jours)!==n)await save('frais',f.id,Object.assign({},f,{montant:mt,jours:n}))}}
+async function majFraisParJour(pid,rid,m){for(const f of list('frais').filter(x=>x.parJour&&x.joursAuto!==false&&x.projetId===pid&&x.ressourceId===rid&&x.mois===m)){const n=joursFraisCal(pid,rid,m,f.categorie,f.typesJours);const mt=Math.round(num(f.prixJour)*n*100)/100;if(num(f.montant)!==mt||num(f.jours)!==n)await save('frais',f.id,Object.assign({},f,{montant:mt,jours:n}))}}
 async function saveCal(pid,rid,m,jours,extra){
   const cur=calOf(pid,rid,m)||{};jours=jours||cur.jours||{};const baremes=(extra&&extra.baremes)||cur.baremes||{};
   const r=resumeJours(jours,m);r.baremes=resumeBaremes(baremes,jours);
@@ -1822,7 +1825,8 @@ function formFrais(f){
     '<div id="pj" style="grid-column:1/-1;display:none;background:var(--bg);border-radius:12px;padding:12px 14px"><div class="formgrid">'+
       '<label class="f">Prix par jour (€)<input type="number" step="0.01" min="0" name="prixJour" value="'+esc(v.prixJour!=null?v.prixJour:'')+'"></label>'+
       '<label class="f">Jours<input type="number" step="0.5" min="0" name="jours" value="'+esc(v.jours!=null?v.jours:'')+'"></label></div>'+
-      '<label class="row small" style="font-weight:600;margin-top:8px"><input type="checkbox" name="joursAuto"'+(v.joursAuto!==false?' checked':'')+'> <span id="pjAuto"></span></label></div>'+
+      '<label class="row small" style="font-weight:600;margin-top:8px"><input type="checkbox" name="joursAuto"'+(v.joursAuto!==false?' checked':'')+'> <span id="pjAuto"></span></label>'+
+      '<div id="pjTypes" class="small" style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px"></div></div>'+
     '<label class="f">Montant TTC (€)<input type="number" step="0.01" min="0" name="montant" value="'+esc(v.montant!=null?v.montant:'')+'"></label>'+
     '<label class="f" style="grid-column:1/-1">Détail<input name="note" value="'+esc(v.note||'')+'" placeholder="Péage A7, hôtel Ibis Lyon…"></label>'+
     cb('refacturable','Refacturable à Mecalux',v.refacturable!==false)+cb('justif','Justificatif détaillé fourni (obligatoire pour les frais au réel)',v.justif)+
@@ -1832,11 +1836,15 @@ function formFrais(f){
     '<p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(f?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
   document.getElementById('dlgBody').innerHTML=h;const fm=document.getElementById('frm');const E=fm.elements;
   const pidF=()=>E.projetId?E.projetId.value:pid;const moisF=()=>E.moisRat&&E.moisRat.value?E.moisRat.value:(E.date.value||m).slice(0,7);
-  const nCal=()=>joursFraisCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value);const nWe=()=>CAT_AVEC_DEPL.includes(E.categorie.value)?(E.categorie.value==='Location voiture'?Object.values((calOf(pidF(),E.ressourceId.value,moisF())||{}).jours||{}).filter(v=>{const j=pj(v);return j&&j.t==='depl'}).length:joursDeplWeekend(pidF(),E.ressourceId.value,moisF())):0;
+  let typesSel=Array.isArray(v.typesJours)&&v.typesJours.length?v.typesJours.slice():null;const typesF=()=>typesSel||typesJoursDefaut(E.categorie.value);
+  const nCal=()=>joursFraisCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value,typesF());
+  function majTypes(){const D=decompteCal(pidF(),E.ressourceId.value,moisF(),E.categorie.value);const T=typesF();const ks=Object.keys(TYPES_J).filter(k=>D[k]);
+    document.getElementById('pjTypes').innerHTML=ks.length?'<span class="muted" style="width:100%">Jours du calendrier à retenir'+(E.categorie.value==='Location voiture'?' (à la journée entière)':'')+' :</span>'+ks.map(k=>'<label class="row" style="gap:5px;font-weight:600"><input type="checkbox" data-tj="'+k+'"'+(T.includes(k)?' checked':'')+'><span class="cb t-'+k+'" style="width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;cursor:default">'+esc(TYPES_J[k].c)+'</span>'+esc(TYPES_J[k].nom)+' : '+nf(D[k]||0)+' j</label>').join(''):'<span class="muted">Rien de saisi ce mois-ci pour ce collaborateur sur ce projet.</span>'}const nWe=()=>CAT_AVEC_DEPL.includes(E.categorie.value)?(E.categorie.value==='Location voiture'?Object.values((calOf(pidF(),E.ressourceId.value,moisF())||{}).jours||{}).filter(v=>{const j=pj(v);return j&&j.t==='depl'}).length:joursDeplWeekend(pidF(),E.ressourceId.value,moisF())):0;
   function maj(evtName){const parJour=CAT_JOUR.includes(E.categorie.value);document.getElementById('pj').style.display=parJour?'':'none';
     if(!parJour){E.montant.readOnly=false;return}
     if(evtName==='categorie'&&E.categorie.value==='Voiture Harington'&&!E.prixJour.value)E.prixJour.value=num(S.regles.voitureHarington)||45;
-    const n=nCal();const we=nWe();document.getElementById('pjAuto').textContent=(E.categorie.value==='Location voiture'?'Reprendre les jours du calendrier hors pilotage, à la journée entière : ':E.categorie.value==='Hôtel (au réel)'?'Reprendre les jours du calendrier hors développement et pilotage : ':'Reprendre les jours travaillés du calendrier : ')+nf(n)+' j'+(we?' (dont '+nf(we)+' j de déplacement)':'')+(n?'':' (rien de saisi ce mois-ci pour ce collaborateur sur ce projet)');
+    if(evtName==='categorie'&&!(f&&f.categorie===E.categorie.value&&Array.isArray(f.typesJours)&&f.typesJours.length))typesSel=null;
+    majTypes();const n=nCal();document.getElementById('pjAuto').textContent='Reprendre les jours cochés du calendrier : '+nf(n)+' j';document.getElementById('pjTypes').style.opacity=E.joursAuto.checked?'':'.5';
     if(E.joursAuto.checked)E.jours.value=n;E.jours.readOnly=E.joursAuto.checked;
     E.montant.readOnly=true;E.montant.value=Math.round(num(E.prixJour.value)*num(E.jours.value)*100)/100}
   let garder=Array.isArray(v.justifs)?v.justifs.slice():[];const retires=[];
@@ -1846,10 +1854,11 @@ function formFrais(f){
   // changement de projet : liste des ressources du projet choisi, la ressource actuelle reste disponible
   if(E.projetId)E.projetId.addEventListener('change',()=>{const cur=E.ressourceId.value;E.ressourceId.innerHTML=resDe(E.projetId.value,cur).map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===cur?' selected':'')+'>'+esc(x[1])+'</option>').join('')});
   if(E.moisRat)E.date.addEventListener('change',()=>{if(E.date.value&&f&&E.moisRat.value===(f.mois||''))E.moisRat.value=E.date.value.slice(0,7)});
-  fm.addEventListener('input',e=>maj(e.target.name));fm.addEventListener('change',e=>maj(e.target.name));maj('categorie');
+  fm.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.tj){typesSel=[...fm.querySelectorAll('[data-tj]')].filter(x=>x.checked).map(x=>x.dataset.tj);if(!E.joursAuto.checked){E.joursAuto.checked=true}maj('types')}},true);
+  fm.addEventListener('input',e=>maj(e.target.name));fm.addEventListener('change',e=>maj(e.target.name));maj('init');
   dlg._save=async()=>{const o={};['date','ressourceId','categorie','note','statut','motif'].forEach(k=>o[k]=E[k].value.trim());['refacturable','justif','dejaFacture'].forEach(k=>o[k]=E[k].checked);
     o.parJour=CAT_JOUR.includes(o.categorie);
-    if(o.parJour){o.prixJour=num(E.prixJour.value);o.joursAuto=E.joursAuto.checked;o.jours=num(E.jours.value);o.montant=Math.round(o.prixJour*o.jours*100)/100;
+    if(o.parJour){o.prixJour=num(E.prixJour.value);o.joursAuto=E.joursAuto.checked;o.typesJours=typesF().slice();o.jours=num(E.jours.value);o.montant=Math.round(o.prixJour*o.jours*100)/100;
       if(!o.prixJour){document.getElementById('frmErr').textContent='Indiquez le prix par jour.';E.prixJour.focus();return}}
     else{o.prixJour='';o.jours='';o.joursAuto=true;o.montant=E.montant.value===''?'':num(E.montant.value);if(o.montant===''){document.getElementById('frmErr').textContent='« Montant TTC » est obligatoire.';E.montant.focus();return}}
     if(o.dejaFacture||o.statut==='ecarte')o.refacturable=false;const mois=E.moisRat&&/^\d{4}-\d{2}$/.test(E.moisRat.value)?E.moisRat.value:(o.date||m).slice(0,7);const pidN=E.projetId&&E.projetId.value?E.projetId.value:pid;

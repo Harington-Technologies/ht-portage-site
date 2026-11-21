@@ -432,3 +432,6 @@ begin
   return new;
 end $$;
 create trigger mecalux_frais_auteur before insert or update on public.mecalux_frais for each row execute function public.mecalux_frais_auteur();
+
+-- ---------- Frais par jour : types de journée retenus (hôtel, location…) ----------
+alter table public.mecalux_frais add column if not exists types_jours jsonb;
