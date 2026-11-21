@@ -1855,7 +1855,9 @@ function formFrais(f){
   if(E.projetId)E.projetId.addEventListener('change',()=>{const cur=E.ressourceId.value;E.ressourceId.innerHTML=resDe(E.projetId.value,cur).map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===cur?' selected':'')+'>'+esc(x[1])+'</option>').join('')});
   if(E.moisRat)E.date.addEventListener('change',()=>{if(E.date.value&&f&&E.moisRat.value===(f.mois||''))E.moisRat.value=E.date.value.slice(0,7)});
   fm.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.tj){typesSel=[...fm.querySelectorAll('[data-tj]')].filter(x=>x.checked).map(x=>x.dataset.tj);if(!E.joursAuto.checked){E.joursAuto.checked=true}maj('types')}},true);
-  fm.addEventListener('input',e=>maj(e.target.name));fm.addEventListener('change',e=>maj(e.target.name));maj('init');
+  // les cases des types de journée sont gérées à part : ne pas redessiner la liste pendant le clic (sinon la case cochée est remplacée avant son « change »)
+  const horsTypes=e=>!(e.target.dataset&&e.target.dataset.tj);
+  fm.addEventListener('input',e=>{if(horsTypes(e))maj(e.target.name)});fm.addEventListener('change',e=>{if(horsTypes(e))maj(e.target.name)});maj('init');
   dlg._save=async()=>{const o={};['date','ressourceId','categorie','note','statut','motif'].forEach(k=>o[k]=E[k].value.trim());['refacturable','justif','dejaFacture'].forEach(k=>o[k]=E[k].checked);
     o.parJour=CAT_JOUR.includes(o.categorie);
     if(o.parJour){o.prixJour=num(E.prixJour.value);o.joursAuto=E.joursAuto.checked;o.typesJours=typesF().slice();o.jours=num(E.jours.value);o.montant=Math.round(o.prixJour*o.jours*100)/100;
