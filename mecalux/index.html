@@ -1854,7 +1854,7 @@ function formFrais(f){
   // changement de projet : liste des ressources du projet choisi, la ressource actuelle reste disponible
   if(E.projetId)E.projetId.addEventListener('change',()=>{const cur=E.ressourceId.value;E.ressourceId.innerHTML=resDe(E.projetId.value,cur).map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===cur?' selected':'')+'>'+esc(x[1])+'</option>').join('')});
   if(E.moisRat)E.date.addEventListener('change',()=>{if(E.date.value&&f&&E.moisRat.value===(f.mois||''))E.moisRat.value=E.date.value.slice(0,7)});
-  fm.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.tj){typesSel=[...fm.querySelectorAll('[data-tj]')].filter(x=>x.checked).map(x=>x.dataset.tj);if(!E.joursAuto.checked){E.joursAuto.checked=true}maj('types')}},true);
+  fm.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.tj){{const vis=[...fm.querySelectorAll('[data-tj]')];const caches=typesF().filter(t=>!vis.some(x=>x.dataset.tj===t));typesSel=vis.filter(x=>x.checked).map(x=>x.dataset.tj).concat(caches)}if(!E.joursAuto.checked){E.joursAuto.checked=true}maj('types')}},true);
   // les cases des types de journée sont gérées à part : ne pas redessiner la liste pendant le clic (sinon la case cochée est remplacée avant son « change »)
   const horsTypes=e=>!(e.target.dataset&&e.target.dataset.tj);
   fm.addEventListener('input',e=>{if(horsTypes(e))maj(e.target.name)});fm.addEventListener('change',e=>{if(horsTypes(e))maj(e.target.name)});maj('init');
