@@ -878,9 +878,10 @@ const CAT_AVEC_DEPL=['Hôtel (au réel)','Location voiture']; // les jours de d�
 // Location de voiture : facturée à la journée entière (une demi-journée travaillée ou de déplacement compte pour un jour)
 // jours de pilotage exclus de l'hôtel et de la location de voiture
 const SANS_HEBERGEMENT=['pil'];
+const SANS_HOTEL=['pil','dev']; // hôtel au réel : ni pilotage ni développement
 function joursLocationCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!SANS_HEBERGEMENT.includes(j.t)&&(!TYPES_J[j.t].nonTravaille||j.t==='depl')&&j.q>0?1:0)},0)}
-function joursTravHorsPil(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille&&!SANS_HEBERGEMENT.includes(j.t)?j.q:0)},0)}
-function joursFraisCal(pid,rid,m,cat){if(cat==='Location voiture')return joursLocationCal(pid,rid,m);if(cat==='Hôtel (au réel)')return joursTravHorsPil(pid,rid,m)+joursDeplWeekend(pid,rid,m);return joursTravCal(pid,rid,m)}
+function joursTravHorsPil(pid,rid,m,exclus){exclus=exclus||SANS_HEBERGEMENT;const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille&&!exclus.includes(j.t)?j.q:0)},0)}
+function joursFraisCal(pid,rid,m,cat){if(cat==='Location voiture')return joursLocationCal(pid,rid,m);if(cat==='Hôtel (au réel)')return joursTravHorsPil(pid,rid,m,SANS_HOTEL)+joursDeplWeekend(pid,rid,m);return joursTravCal(pid,rid,m)}
 function joursTravCal(pid,rid,m){const c=calOf(pid,rid,m);if(!c||!c.jours)return 0;return Object.values(c.jours).reduce((x,v)=>{const j=pj(v);return x+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille?j.q:0)},0)}
 async function majFraisParJour(pid,rid,m){for(const f of list('frais').filter(x=>x.parJour&&x.joursAuto!==false&&x.projetId===pid&&x.ressourceId===rid&&x.mois===m)){const n=joursFraisCal(pid,rid,m,f.categorie);const mt=Math.round(num(f.prixJour)*n*100)/100;if(num(f.montant)!==mt||num(f.jours)!==n)await save('frais',f.id,Object.assign({},f,{montant:mt,jours:n}))}}
 async function saveCal(pid,rid,m,jours,extra){
@@ -1835,7 +1836,7 @@ function formFrais(f){
   function maj(evtName){const parJour=CAT_JOUR.includes(E.categorie.value);document.getElementById('pj').style.display=parJour?'':'none';
     if(!parJour){E.montant.readOnly=false;return}
     if(evtName==='categorie'&&E.categorie.value==='Voiture Harington'&&!E.prixJour.value)E.prixJour.value=num(S.regles.voitureHarington)||45;
-    const n=nCal();const we=nWe();document.getElementById('pjAuto').textContent=(E.categorie.value==='Location voiture'?'Reprendre les jours du calendrier hors pilotage, à la journée entière : ':E.categorie.value==='Hôtel (au réel)'?'Reprendre les jours du calendrier hors pilotage : ':'Reprendre les jours travaillés du calendrier : ')+nf(n)+' j'+(we?' (dont '+nf(we)+' j de déplacement)':'')+(n?'':' (rien de saisi ce mois-ci pour ce collaborateur sur ce projet)');
+    const n=nCal();const we=nWe();document.getElementById('pjAuto').textContent=(E.categorie.value==='Location voiture'?'Reprendre les jours du calendrier hors pilotage, à la journée entière : ':E.categorie.value==='Hôtel (au réel)'?'Reprendre les jours du calendrier hors développement et pilotage : ':'Reprendre les jours travaillés du calendrier : ')+nf(n)+' j'+(we?' (dont '+nf(we)+' j de déplacement)':'')+(n?'':' (rien de saisi ce mois-ci pour ce collaborateur sur ce projet)');
     if(E.joursAuto.checked)E.jours.value=n;E.jours.readOnly=E.joursAuto.checked;
     E.montant.readOnly=true;E.montant.value=Math.round(num(E.prixJour.value)*num(E.jours.value)*100)/100}
   let garder=Array.isArray(v.justifs)?v.justifs.slice():[];const retires=[];
