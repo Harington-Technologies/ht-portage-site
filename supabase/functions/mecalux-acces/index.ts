@@ -8,6 +8,7 @@
 //   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_pf_evenements → e-mail du circuit des préfactures aux bonnes personnes
+//   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_fiche_evenements → fiche hebdomadaire (temps perdus, change requests) : signature du chef de projet Mecalux
 // Secrets partagés du projet : RESEND_API_KEY, NOTIFY_FROM, WEBHOOK_SECRET. « Verify JWT » désactivé.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -139,6 +140,42 @@ async function etapePrefacture(ev) {
   await envoyer(to, `${titre} — ${sujetBase}`, gabarit(titre, corps, bouton ?? undefined), { cc, attachments: pj.filter(Boolean) });
 }
 
+// ---------- Fiche hebdomadaire d'un projet au forfait (déclencheur) ----------
+async function etapeFiche(ev) {
+  const { data: f } = await admin.from("mecalux_fiches").select("*").eq("id", ev.fiche_id).maybeSingle();
+  if (!f) return;
+  const { data: p } = await admin.from("mecalux_projets").select("*").eq("id", f.projet_id).maybeSingle();
+  if (!p) return;
+  let cpH = null;
+  if (p.cp_harington_id) { const { data: r } = await admin.from("mecalux_ressources").select("nom,email").eq("id", p.cp_harington_id).maybeSingle(); cpH = r; }
+  const ok = (e) => EMAIL_OK.test(String(e ?? "").trim());
+  const em = (...l) => [...new Set(l.flat().map((e) => String(e ?? "").trim().toLowerCase()).filter(ok))];
+  const projet = [p.client, p.nom].filter(Boolean).join(" · ") + (p.site ? ` (${p.site})` : "");
+  const sem = String(f.semaine); const n = Number(sem.split("-W")[1]);
+  const A = f.contenu?.aleas ?? [], C = f.contenu?.cr ?? [];
+  const tA = A.reduce((x, a) => x + (Number(a.montant_jours) || 0) + (Number(a.frais) || 0), 0), jA = A.reduce((x, a) => x + (Number(a.jours) || 0), 0);
+  const tC = C.reduce((x, c) => x + (Number(c.impact_montant) || 0), 0);
+  const lien = SITE + "#projet-" + p.id;
+  const resume = `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;font-size:14px"><tr><td style="color:#6B7385;padding:3px 14px 3px 0">Projet</td><td><b>${esc(projet)}</b></td></tr><tr><td style="color:#6B7385;padding:3px 14px 3px 0">Semaine</td><td>${n}</td></tr><tr><td style="color:#6B7385;padding:3px 14px 3px 0">Temps perdus sur site</td><td><b>${A.length}</b> · ${esc(String(jA).replace(".", ","))} j-h · ${esc(eur(tA))}</td></tr><tr><td style="color:#6B7385;padding:3px 14px 3px 0">Change requests</td><td><b>${C.length}</b> · ${esc(eur(tC))}</td></tr></table>`;
+  const detail = (A.length ? P("<b>Temps perdus</b><br>" + A.map((a) => `${esc(a.date_debut)}${a.date_fin !== a.date_debut ? " → " + esc(a.date_fin) : ""} · ${esc(a.cause)} · ${esc(String(a.jours).replace(".", ","))} j-h`).join("<br>")) : "") +
+    (C.length ? P("<b>Change requests</b><br>" + C.map((c) => `${esc(c.numero)} · ${esc(c.titre)} · ${esc(eur(c.impact_montant))}`).join("<br>")) : "");
+  const com = ev.commentaire ? P(`<b>Commentaire :</b> ${esc(ev.commentaire)}`) : "";
+  const harington = em(f.envoyee_par, cpH?.email);
+  if (ev.action === "envoyer") {
+    const to = em(p.cp_mecalux_email); if (!to.length) return;
+    await envoyer(to, `À signer — temps perdus et change requests, semaine ${n} — ${projet}`, gabarit("Fiche de la semaine à valider et signer",
+      P(`Bonjour${p.cp_mecalux_prenom ? " " + esc(p.cp_mecalux_prenom) : ""},`) + P("Harington vous transmet le relevé de la semaine pour ce projet au forfait : temps perdus sur site (équipe présente sans pouvoir travailler) et change requests.") + resume + detail + com +
+      P("Merci de le valider et de le signer dans le pilotage, avec votre compte, ou de le refuser en indiquant le motif."),
+      { texte: "Valider et signer", url: lien }), { cc: harington.filter((e) => !to.includes(e)) });
+  } else if (ev.action === "signer" || ev.action === "refuser") {
+    const to = harington.length ? harington : await admins(); if (!to.length) return;
+    const signe = ev.action === "signer";
+    await envoyer(to, `${signe ? "Signée" : "Refusée"} — fiche semaine ${n} — ${projet}`, gabarit(signe ? "Fiche signée par Mecalux" : "Fiche refusée par Mecalux",
+      P(signe ? `${esc(f.signataire || ev.par_email)} a validé et signé la fiche de la semaine ${n}. Les temps perdus et les change requests sont désormais validés.` : `${esc(ev.par_email)} a refusé la fiche de la semaine ${n}. Corrigez les éléments concernés puis renvoyez-la pour signature.`) + resume + com,
+      { texte: "Voir le projet", url: lien }));
+  }
+}
+
 // ---------- Demande créée (déclencheur) → e-mail aux administrateurs ----------
 async function nouvelleDemande(d) {
   const dest = await admins();
@@ -216,6 +253,9 @@ Deno.serve(async (req) => {
     }
     if (p?.table === "mecalux_pf_evenements" && p?.type === "INSERT" && p.record) {
       try { await etapePrefacture(p.record); } catch (e) { console.error(e); }
+    }
+    if (p?.table === "mecalux_fiche_evenements" && p?.type === "INSERT" && p.record) {
+      try { await etapeFiche(p.record); } catch (e) { console.error(e); }
     }
     return new Response("OK");
   }

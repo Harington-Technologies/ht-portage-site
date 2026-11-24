@@ -165,7 +165,7 @@ dialog::backdrop{background:rgba(33,50,78,.45)}
 (function(){
 "use strict";
 /* ---------- constantes ---------- */
-const COLLS=['projets','ressources','affectations','temps','frais','estimations','prefactures','calendrier','imports','perdiem'];
+const COLLS=['projets','ressources','affectations','temps','frais','estimations','prefactures','calendrier','imports','perdiem','aleas','cr','fiches'];
 /* Barèmes Harington · déplacements Mecalux (livret d'accueil CDC Mecalux) */
 const DEFAULT_REGLES={
   profils:[
@@ -380,7 +380,7 @@ function calcFrais(c){
 /* ---------- persistance : Supabase ---------- */
 const TABLES={
   ressources:['id','code','nom','pays','actif','date_fin','role','ville','profil','tjm_vente','tjm_cout','email','maj_le'],
-  projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','visible_mecalux','notes','cp_mecalux_prenom','cp_mecalux_nom','cp_mecalux_email','cp_harington_id','maj_le'],
+  projets:['id','client','nom','site','distance_km','ref_mecalux','dev_debut','dev_fin','mes_debut','mes_fin','budget_montant','cloture','visible_mecalux','notes','cp_mecalux_prenom','cp_mecalux_nom','cp_mecalux_email','cp_harington_id','mode','forfait_montant','forfait_jours','maj_le'],
   affectations:['id','projet_id','ressource_id','phase','jours_prevus','tjm','maj_le'],
   temps:['id','projet_id','ressource_id','mois','phase','jours','maj_le'],
   frais:['id','projet_id','ressource_id','mois','date','categorie','montant','note','refacturable','justif','deja_facture','par_jour','prix_jour','jours','jours_auto','justifs','pleo_receipt','import_id','source','statut','motif','pleo_ref','marchand','categorie_pleo','perso','types_jours','maj_le'],
@@ -388,7 +388,10 @@ const TABLES={
   prefactures:['id','projet_id','mois','statut','bdc','notes','lignes','historique','fichiers','numero_facture','maj_le'],
   calendrier:['id','projet_id','ressource_id','mois','jours','baremes','resume','valide','valide_le','maj_le'],
   imports:['id','nom','fichier','source','date_debut','date_fin','nb_lignes','total','cree_le','maj_le'],
-  perdiem:['id','ressource_id','mois','jours_mes','taux','depenses_perso','montant','detail','statut','valide_le','valide_par','maj_le']
+  perdiem:['id','ressource_id','mois','jours_mes','taux','depenses_perso','montant','detail','statut','valide_le','valide_par','maj_le'],
+  aleas:['id','projet_id','date_debut','date_fin','semaine','cause','description','consultants','jours','montant_jours','frais','statut','maj_le'],
+  cr:['id','projet_id','numero','titre','description','demandeur','date','semaine','impact_jours','impact_montant','impact_delai','statut','maj_le'],
+  fiches:['id','projet_id','semaine','statut','contenu','envoyee_le','envoyee_par','signee_le','signee_par','signataire','signature','commentaire','historique']
 };
 // MODE DÉVELOPPEMENT : pas de connexion (Cloudflare Turnstile bloque la connexion pour l'instant).
 // Remettre à false et appliquer le bloc « Retour au mode sécurisé » de supabase/mecalux-mode-dev.sql avant la mise en service.
@@ -619,14 +622,126 @@ function vProjets(){
   return h;
 }
 
+/* ---------- projets au forfait : temps perdus sur site, change requests, fiche hebdomadaire signée par le chef de projet Mecalux ---------- */
+const CAUSES_ALEA=['Accès au site impossible','Matériel ou équipement non livré','Attente du client (validation, informations)','Installation non prête (autres corps de métier)','Panne ou intervention d\'un tiers','Intempéries','Autre'];
+const ST_ITEM={brouillon:['Brouillon',''],soumis:['En signature','warn'],valide:['Validé Mecalux','ok'],refuse:['Refusé','bad']};
+const pillItem=s=>{const x=ST_ITEM[s]||ST_ITEM.brouillon;return '<span class="pill '+x[1]+'">'+x[0]+'</span>'};
+function semaineISO(iso){const d=new Date(iso+'T12:00:00Z');const j=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-j+3);const a=d.getUTCFullYear();const p=new Date(Date.UTC(a,0,4));const n=1+Math.round(((d-p)/864e5-3+((p.getUTCDay()+6)%7))/7);return a+'-W'+String(n).padStart(2,'0')}
+function lundiSemaine(sem){const [a,w]=sem.split('-W').map(Number);const p=new Date(Date.UTC(a,0,4));const l=new Date(p);l.setUTCDate(p.getUTCDate()-((p.getUTCDay()+6)%7)+(w-1)*7);return l.toISOString().slice(0,10)}
+function libSemaine(sem){const l=lundiSemaine(sem);const d=new Date(l+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+6);return 'Semaine '+Number(sem.split('-W')[1])+' · du '+dateFr(l).replace(/ \d{4}$/,'')+' au '+dateFr(d.toISOString().slice(0,10))}
+const estForfait=p=>p&&p.mode==='forfait';
+const estCpMecalux=p=>!!(p&&p.cpMecaluxEmail&&moiEmail()===String(p.cpMecaluxEmail).toLowerCase());
+function tjmAlea(pid,rid){return tjmFor(pid,rid,'mes')||tjmFor(pid,rid,'dev')||num((byId('ressources',rid)||{}).tjmVente)}
+function fraisPeriode(pid,rids,d1,d2){return list('frais').filter(f=>f.projetId===pid&&rids.includes(f.ressourceId)&&fraisCompte(f)&&f.date&&f.date>=d1&&f.date<=d2).reduce((x,f)=>x+num(f.montant),0)}
+function bilanForfait(pid){const A=list('aleas').filter(a=>a.projetId===pid),C=list('cr').filter(c=>c.projetId===pid);const v=L=>L.filter(x=>x.statut==='valide');
+  const jc=list('calendrier').filter(c=>c.projetId===pid).reduce((x,c)=>x+Object.values(c.jours||{}).reduce((y,v)=>{const j=pj(v);return y+(j&&TYPES_J[j.t]&&!TYPES_J[j.t].nonTravaille?j.q:0)},0),0);
+  const somA=L=>({j:L.reduce((x,a)=>x+num(a.jours),0),m:L.reduce((x,a)=>x+num(a.montantJours)+num(a.frais),0)}),somC=L=>({j:L.reduce((x,c)=>x+num(c.impactJours),0),m:L.reduce((x,c)=>x+num(c.impactMontant),0)});
+  return {A,C,jc,aT:somA(A),aV:somA(v(A)),cT:somC(C),cV:somC(v(C))}}
+function vForfait(p){const id=p.id,b=bilanForfait(id),H=peutPleo;const F=num(p.forfaitMontant),FJ=num(p.forfaitJours);
+  let h='<section class="kpis">'+kpi('Forfait vendu',F?eur(F):'—',FJ?nf(FJ)+' jours vendus':'jours vendus non renseignés')+kpi('Jours consommés',nf(b.jc),FJ?Math.round(b.jc/FJ*100)+' % des jours vendus':'d\'après la saisie')+
+    kpi('Temps perdus validés',eur(b.aV.m),nf(b.aV.j)+' j · '+nf(b.aT.j)+' j déclarés')+kpi('Change requests validées',eur(b.cV.m),(b.cV.j>=0?'+':'')+nf(b.cV.j)+' j')+kpi('Forfait révisé',F?eur(F+b.cV.m):'—','forfait + change requests validées')+'</section>';
+  // temps perdus
+  h+='<section class="card"><div class="card-h"><h2>Temps perdus sur site</h2>'+(H?'<button class="btn o sm" data-act="newAlea" data-id="'+id+'">+ Déclarer un temps perdu</button>':'')+'</div>'+
+    '<p class="small muted" style="margin:0">Jours où l\'équipe est sur site sans pouvoir travailler : jours-hommes valorisés au TJM de chaque consultant, plus les frais de déplacement de ces jours. Chaque semaine est validée et signée par le chef de projet Mecalux.</p>';
+  h+=b.A.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Dates</th><th>Cause</th><th>Consultants</th><th class="n">Jours</th><th class="n">Jours valorisés</th><th class="n">Frais</th><th class="n">Total</th><th>Statut</th><th></th></tr></thead><tbody>'+
+    b.A.slice().sort((x,y)=>String(y.dateDebut).localeCompare(String(x.dateDebut))).map(a=>{const mod=H&&['brouillon','refuse'].includes(a.statut);return '<tr><td style="white-space:nowrap">'+dateFr(a.dateDebut)+(a.dateFin&&a.dateFin!==a.dateDebut?'<div class="small muted">au '+dateFr(a.dateFin)+'</div>':'')+'</td><td><b>'+esc(a.cause)+'</b>'+(a.description?'<div class="small muted">'+esc(a.description)+'</div>':'')+'</td><td class="small">'+(a.consultants||[]).map(c=>esc((byId('ressources',c.rid)||{}).nom||'?')+' : '+nf(c.jours)+' j').join('<br>')+'</td><td class="n">'+nf(a.jours)+'</td><td class="n">'+eur(a.montantJours)+'</td><td class="n">'+eur(a.frais)+'</td><td class="n" style="font-weight:700">'+eur(num(a.montantJours)+num(a.frais))+'</td><td>'+pillItem(a.statut)+'</td><td class="row" style="justify-content:flex-end">'+(mod?'<button class="btn g sm" data-act="editAlea" data-id="'+a.id+'">Modifier</button>':'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucun temps perdu déclaré.</div>';
+  h+='</section>';
+  // change requests
+  h+='<section class="card"><div class="card-h"><h2>Change requests</h2>'+(H?'<button class="btn o sm" data-act="newCR" data-id="'+id+'">+ Nouvelle change request</button>':'')+'</div>'+
+    '<p class="small muted" style="margin:0">Demandes de modification en cours de projet qui changent le chiffrage : impact en jours, en montant et en délai, validées dans la fiche hebdomadaire signée par le chef de projet Mecalux.</p>';
+  h+=b.C.length?'<div class="scroll"><table class="tbl"><thead><tr><th>N°</th><th>Date</th><th>Demande</th><th>Demandé par</th><th class="n">Jours</th><th class="n">Montant HT</th><th class="n">Délai</th><th>Statut</th><th></th></tr></thead><tbody>'+
+    b.C.slice().sort((x,y)=>String(y.numero).localeCompare(String(x.numero))).map(c=>{const mod=H&&['brouillon','refuse'].includes(c.statut);return '<tr><td style="font-weight:700;white-space:nowrap">'+esc(c.numero)+'</td><td style="white-space:nowrap">'+dateFr(c.date)+'</td><td><b>'+esc(c.titre)+'</b>'+(c.description?'<div class="small muted">'+esc(c.description)+'</div>':'')+'</td><td class="small">'+esc(c.demandeur||'')+'</td><td class="n">'+(num(c.impactJours)>0?'+':'')+nf(c.impactJours)+'</td><td class="n" style="font-weight:700">'+eur(c.impactMontant)+'</td><td class="n">'+(num(c.impactDelai)?(num(c.impactDelai)>0?'+':'')+nf(c.impactDelai)+' j':'—')+'</td><td>'+pillItem(c.statut)+'</td><td class="row" style="justify-content:flex-end">'+(mod?'<button class="btn g sm" data-act="editCR" data-id="'+c.id+'">Modifier</button>':'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Aucune change request.</div>';
+  h+='</section>';
+  // fiches hebdomadaires
+  const sems=[...new Set(b.A.map(a=>a.semaine).concat(b.C.map(c=>c.semaine)))].filter(Boolean).sort().reverse();const cpM=[p.cpMecaluxPrenom,p.cpMecaluxNom].filter(Boolean).join(' ')||p.cpMecaluxEmail||'';
+  h+='<section class="card"><div class="card-h"><h2>Fiches hebdomadaires à signer</h2></div><p class="small muted" style="margin:0">Chaque semaine, les temps perdus et les change requests sont envoyés au chef de projet Mecalux'+(cpM?' ('+esc(cpM)+')':'')+', qui les valide et signe dans le pilotage avec son compte. Une fois signés, ils ne sont plus modifiables.</p>';
+  h+=sems.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Semaine</th><th class="n">Temps perdus</th><th class="n">Change requests</th><th>Signature</th><th></th></tr></thead><tbody>'+sems.map(sem=>{const fi=byId('fiches',id+'_'+sem);const As=b.A.filter(a=>a.semaine===sem),Cs=b.C.filter(c=>c.semaine===sem);const aSigner=[...As,...Cs].some(x=>x.statut!=='valide');
+      const st=!fi?'<span class="pill">Non envoyée</span>':fi.statut==='envoyee'?'<span class="pill warn">En attente de signature</span><div class="small muted">envoyée le '+dateFr(String(fi.envoyeeLe).slice(0,10))+'</div>':fi.statut==='signee'?'<span class="pill ok">Signée</span><div class="small muted">par '+esc(fi.signataire||fi.signeePar)+' le '+dateFr(String(fi.signeeLe).slice(0,10))+'</div>'+(aSigner?'<div class="small" style="color:var(--bad)">Ajouts à faire signer</div>':''):'<span class="pill bad">Refusée</span><div class="small muted">« '+esc(fi.commentaire||'')+' »</div>';
+      const acts=(H&&aSigner&&(!fi||fi.statut!=='envoyee')?'<button class="btn p sm" data-act="ficheEnvoyer" data-id="'+id+'" data-sem="'+sem+'">Envoyer pour signature</button>':'')+(fi&&fi.statut==='envoyee'&&estCpMecalux(p)?'<button class="btn p sm" data-act="ficheSigner" data-id="'+id+'" data-sem="'+sem+'">Valider et signer</button><button class="btn o sm" data-act="ficheRefuser" data-id="'+id+'" data-sem="'+sem+'">Refuser</button>':'')+(fi?'<button class="btn o sm" data-act="fichePdf" data-id="'+id+'" data-sem="'+sem+'">PDF</button>':'');
+      return '<tr><td style="font-weight:600">'+esc(libSemaine(sem))+'</td><td class="n">'+As.length+(As.length?' · '+eur(As.reduce((x,a)=>x+num(a.montantJours)+num(a.frais),0)):'')+'</td><td class="n">'+Cs.length+(Cs.length?' · '+eur(Cs.reduce((x,c)=>x+num(c.impactMontant),0)):'')+'</td><td>'+st+'</td><td class="row" style="justify-content:flex-end;flex-wrap:wrap">'+acts+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Rien à signer pour l\'instant.</div>';
+  if(estCpMecalux(p)&&list('fiches').some(f=>f.projetId===id&&f.statut==='envoyee'))h+='<p class="small" style="margin:0;font-weight:700;color:var(--plum)">Une fiche attend votre signature.</p>';
+  return h+'</section>'}
+function formAlea(pid,a){const p=byId('projets',pid);const rids=[...new Set(list('affectations').filter(x=>x.projetId===pid).map(x=>x.ressourceId).concat(list('calendrier').filter(c=>c.projetId===pid).map(c=>c.ressourceId)))].filter(r=>byId('ressources',r)).sort((x,y)=>byId('ressources',x).nom.localeCompare(byId('ressources',y).nom));
+  const v=a||{dateDebut:new Date().toISOString().slice(0,10),consultants:[]};const J={};(v.consultants||[]).forEach(c=>J[c.rid]=c.jours);
+  let h='<h2>'+(a?'Modifier le temps perdu':'Déclarer un temps perdu sur site')+'</h2><form id="frm" class="formgrid" novalidate>'+
+    '<label class="f">Du<input type="date" name="dateDebut" value="'+esc(v.dateDebut||'')+'"></label><label class="f">Au<input type="date" name="dateFin" value="'+esc(v.dateFin||v.dateDebut||'')+'"></label>'+
+    '<label class="f" style="grid-column:1/-1">Cause<select name="cause">'+CAUSES_ALEA.map(c=>'<option'+(c===v.cause?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label>'+
+    '<label class="f" style="grid-column:1/-1">Description (ce qui s\'est passé, qui a été prévenu chez Mecalux)<textarea name="description" rows="3">'+esc(v.description||'')+'</textarea></label>'+
+    '<div style="grid-column:1/-1"><div class="small" style="font-weight:700;margin-bottom:4px">Consultants bloqués et jours perdus</div><div style="display:grid;grid-template-columns:1fr 110px 110px;gap:6px 10px;align-items:center">'+
+      rids.map(r=>{const R=byId('ressources',r);return '<span>'+esc(R.nom)+'</span><input type="number" step="0.5" min="0" data-ar="'+r+'" value="'+(J[r]!=null?J[r]:'')+'" placeholder="0" aria-label="Jours perdus · '+esc(R.nom)+'"><span class="small muted">TJM '+eur(tjmAlea(pid,r))+'</span>'}).join('')+'</div></div>'+
+    '<label class="f">Frais de déplacement de ces jours (€)<input type="number" step="any" min="0" name="frais" value="'+esc(v.frais!=null?v.frais:'')+'"></label><div class="small" style="align-self:end" id="aleaAide"></div>'+
+    '</form><div class="note i small" id="aleaTotal" style="margin:0"></div><p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p><div class="row">'+(a?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'')+'<span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Enregistrer</button></div>';
+  document.getElementById('dlgBody').innerHTML=h;const fm=document.getElementById('frm'),E=fm.elements;
+  const lire=()=>{const cs=[...fm.querySelectorAll('[data-ar]')].map(x=>({rid:x.dataset.ar,jours:num(x.value)})).filter(c=>c.jours>0);const jours=cs.reduce((x,c)=>x+c.jours,0);const mj=cs.reduce((x,c)=>x+c.jours*tjmAlea(pid,c.rid),0);return {cs,jours,mj}};
+  const maj=()=>{const {cs,jours,mj}=lire();const d1=E.dateDebut.value,d2=E.dateFin.value||d1;const fp=cs.length&&d1?fraisPeriode(pid,cs.map(c=>c.rid),d1,d2):0;
+    document.getElementById('aleaAide').innerHTML=fp?'Frais saisis pour ces consultants sur la période : <b>'+eur2(fp)+'</b> <button class="btn g sm" type="button" id="aleaReprendre">Reprendre</button>':'';const rb=document.getElementById('aleaReprendre');if(rb)rb.onclick=()=>{E.frais.value=Math.round(fp*100)/100;maj()};
+    document.getElementById('aleaTotal').innerHTML='<b>'+nf(jours)+' jour'+(jours>1?'s':'')+'-homme'+(jours>1?'s':'')+'</b> · '+eur(mj)+' + frais '+eur(num(E.frais.value))+' = <b>'+eur(mj+num(E.frais.value))+'</b>'};
+  fm.addEventListener('input',maj);maj();
+  dlg._save=async()=>{const {cs,jours,mj}=lire();const d1=E.dateDebut.value,d2=E.dateFin.value||d1;const err=t=>{document.getElementById('frmErr').textContent=t;return false};
+    if(!d1)return err('Indiquez la date.');if(d2<d1)return err('La date de fin est avant la date de début.');if(!cs.length)return err('Indiquez les jours perdus d\'au moins un consultant.');
+    if(semaineISO(d1)!==semaineISO(d2))return err('Un temps perdu doit tenir dans une même semaine (du lundi au dimanche) : faites une déclaration par semaine.');
+    const o=Object.assign({projetId:pid},a||{},{dateDebut:d1,dateFin:d2,semaine:semaineISO(d1),cause:E.cause.value,description:E.description.value.trim(),consultants:cs,jours,montantJours:Math.round(mj*100)/100,frais:num(E.frais.value),statut:'brouillon'});
+    occupe('Enregistrement…');const ok=await save('aleas',a?a.id:uid('al'),o);libre();if(ok){dlg.close();toast('Temps perdu enregistré : envoyez la semaine pour signature')}};
+  dlg._del=a?async()=>{if(!confirm('Supprimer ce temps perdu ?'))return;dlg.close();await del('aleas',a.id)}:null;dlg.showModal()}
+function formCR(pid,c){const n=list('cr').filter(x=>x.projetId===pid).length;const num_=c?c.numero:'CR-'+String(n+1).padStart(3,'0');const p=byId('projets',pid);
+  openForm(c?'Modifier la change request '+c.numero:'Nouvelle change request',[
+    {k:'numero',l:'Numéro',def:num_,req:true},{k:'date',l:'Date de la demande',type:'date',def:new Date().toISOString().slice(0,10),req:true},
+    {k:'titre',l:'Objet de la demande',req:true,full:true},{k:'description',l:'Description et justification du chiffrage',type:'textarea'},
+    {k:'demandeur',l:'Demandé par (chez Mecalux)',def:[p.cpMecaluxPrenom,p.cpMecaluxNom].filter(Boolean).join(' ')},
+    {k:'impactJours',l:'Impact en jours-hommes (négatif si en moins)',type:'number'},{k:'impactMontant',l:'Impact en € HT',type:'number'},{k:'impactDelai',l:'Impact sur le délai (jours calendaires)',type:'number'}
+  ],c,async o=>{o.impactJours=num(o.impactJours);o.impactMontant=num(o.impactMontant);o.impactDelai=num(o.impactDelai);
+    const ok=await save('cr',c?c.id:uid('cr'),Object.assign({projetId:pid},c||{},o,{semaine:semaineISO(o.date),statut:'brouillon'}));if(ok)toast('Change request enregistrée : envoyez la semaine pour signature');return ok},
+  c?'<button class="btn d sm" type="button" data-dlg="del">Supprimer</button>':'');
+  // les montants négatifs sont permis (change request en moins)
+  document.querySelectorAll('#frm input[type=number]').forEach(x=>x.removeAttribute('min'));
+  dlg._del=c?async()=>{if(!confirm('Supprimer cette change request ?'))return;dlg.close();await del('cr',c.id)}:null}
+async function ficheAction(pid,sem,action,extra){occupe(action==='envoyer'?'Envoi au chef de projet Mecalux…':'Enregistrement…');
+  try{const {error}=await sb.rpc('mecalux_fiche_action',Object.assign({p_projet:pid,p_semaine:sem,p_action:action},extra||{}));if(error)throw error;
+    const [{data:F},{data:A},{data:C}]=await Promise.all([sb.from('mecalux_fiches').select('*').eq('projet_id',pid),sb.from('mecalux_aleas').select('*').eq('projet_id',pid),sb.from('mecalux_cr').select('*').eq('projet_id',pid)]);
+    (F||[]).forEach(r=>S.fiches[r.id]=fromRow(r));(A||[]).forEach(r=>S.aleas[r.id]=fromRow(r));(C||[]).forEach(r=>S.cr[r.id]=fromRow(r));libre();render();
+    toast({envoyer:'Fiche envoyée au chef de projet Mecalux pour signature',signer:'Fiche signée : temps perdus et change requests validés',refuser:'Refus enregistré et transmis à Harington'}[action])}
+  catch(e){libre();toast(String(e.message||e))}}
+function ficheSigner(pid,sem){const p=byId('projets',pid);const b=bilanForfait(pid);const As=b.A.filter(a=>a.semaine===sem&&a.statut==='soumis'),Cs=b.C.filter(c=>c.semaine===sem&&c.statut==='soumis');
+  let h='<h2>Valider et signer · '+esc(libSemaine(sem))+'</h2><p class="small muted" style="margin:0">'+esc(libProjet(p)+(p.site?' — '+p.site:''))+'</p>'+
+    (As.length?'<h3 style="margin:8px 0 0">Temps perdus sur site</h3><ul class="small" style="margin:4px 0;padding-left:18px">'+As.map(a=>'<li><b>'+dateFr(a.dateDebut)+(a.dateFin!==a.dateDebut?' au '+dateFr(a.dateFin):'')+'</b> · '+esc(a.cause)+' · '+nf(a.jours)+' j-h · '+eur(num(a.montantJours)+num(a.frais))+(a.description?'<div class="muted">'+esc(a.description)+'</div>':'')+'</li>').join('')+'</ul>':'')+
+    (Cs.length?'<h3 style="margin:8px 0 0">Change requests</h3><ul class="small" style="margin:4px 0;padding-left:18px">'+Cs.map(c=>'<li><b>'+esc(c.numero)+' · '+esc(c.titre)+'</b> · '+(num(c.impactJours)>0?'+':'')+nf(c.impactJours)+' j · '+eur(c.impactMontant)+(num(c.impactDelai)?' · délai '+(num(c.impactDelai)>0?'+':'')+nf(c.impactDelai)+' j':'')+'</li>').join('')+'</ul>':'')+
+    '<label class="f">Nom et prénom<input id="sigNom" value="'+esc([p.cpMecaluxPrenom,p.cpMecaluxNom].filter(Boolean).join(' '))+'"></label>'+
+    '<div class="small" style="font-weight:700">Signature</div><canvas id="sigPad" width="560" height="170" style="width:100%;max-width:560px;height:170px;border:1px solid var(--line2);border-radius:10px;background:#fff;touch-action:none;cursor:crosshair" aria-label="Zone de signature"></canvas>'+
+    '<div class="row"><button class="btn g sm" type="button" id="sigEff">Effacer</button></div>'+
+    '<label class="row small" style="font-weight:600"><input type="checkbox" id="sigOk"> Je valide, pour Mecalux, les temps perdus et les change requests ci-dessus.</label>'+
+    '<label class="f">Commentaire (facultatif)<textarea id="sigCom" rows="2"></textarea></label><p id="frmErr" class="small" style="color:var(--bad);margin:0" role="alert"></p>'+
+    '<div class="row"><span class="sp"></span><button class="btn o" type="button" data-dlg="close">Annuler</button><button class="btn p" type="button" data-dlg="ok">Signer</button></div>';
+  document.getElementById('dlgBody').innerHTML=h;const cv=document.getElementById('sigPad'),cx=cv.getContext('2d');cx.lineWidth=2.4;cx.lineCap='round';cx.strokeStyle='#1B2A4A';let trace=false,dess=false;
+  const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  cv.addEventListener('pointerdown',e=>{dess=true;cv.setPointerCapture(e.pointerId);const [x,y]=pt(e);cx.beginPath();cx.moveTo(x,y)});
+  cv.addEventListener('pointermove',e=>{if(!dess)return;const [x,y]=pt(e);cx.lineTo(x,y);cx.stroke();trace=true});
+  ['pointerup','pointercancel','pointerleave'].forEach(t=>cv.addEventListener(t,()=>{dess=false}));
+  document.getElementById('sigEff').onclick=()=>{cx.clearRect(0,0,cv.width,cv.height);trace=false};
+  dlg._save=async()=>{const err=t=>{document.getElementById('frmErr').textContent=t};const nom=document.getElementById('sigNom').value.trim();
+    if(!nom)return err('Indiquez votre nom.');if(!trace)return err('Signez dans le cadre.');if(!document.getElementById('sigOk').checked)return err('Cochez la case de validation.');
+    dlg.close();await ficheAction(pid,sem,'signer',{p_signataire:nom,p_signature:cv.toDataURL('image/png'),p_commentaire:document.getElementById('sigCom').value.trim()||null})};
+  dlg.showModal()}
+async function fichePdf(pid,sem){let JS;try{toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){toast(e.message);return}
+  const p=byId('projets',pid),fi=byId('fiches',pid+'_'+sem);const C=(fi&&fi.contenu)||{};const doc=new JS({unit:'mm',format:'a4'});const NAVY=[33,50,78];
+  doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...NAVY);doc.text('Fiche hebdomadaire · temps perdus et change requests',14,18);
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(60);doc.text([libProjet(p)+(p.site?' — '+p.site:''),libSemaine(sem),'Forfait'+(num(p.forfaitMontant)?' : '+eur(p.forfaitMontant):'')],14,26);
+  let y=42;const A=C.aleas||[],CR=C.cr||[];
+  if(A.length){doc.autoTable({startY:y,head:[['Dates','Cause','Consultants','Jours','Valorisation','Frais','Total']],body:A.map(a=>[dateFr(a.date_debut)+(a.date_fin!==a.date_debut?' au '+dateFr(a.date_fin):''),a.cause+(a.description?'\n'+a.description:''),(a.consultants||[]).map(c=>((byId('ressources',c.rid)||{}).nom||'?')+' : '+nf(c.jours)+' j').join('\n'),nf(a.jours),eur(a.montant_jours),eur(a.frais),eur(num(a.montant_jours)+num(a.frais))]),styles:{fontSize:8},headStyles:{fillColor:NAVY},columnStyles:{3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right',fontStyle:'bold'}}});y=doc.lastAutoTable.finalY+8}
+  if(CR.length){doc.autoTable({startY:y,head:[['N°','Date','Objet','Demandé par','Jours','Montant HT','Délai']],body:CR.map(c=>[c.numero,dateFr(c.date),c.titre+(c.description?'\n'+c.description:''),c.demandeur||'',nf(c.impact_jours),eur(c.impact_montant),num(c.impact_delai)?nf(c.impact_delai)+' j':'—']),styles:{fontSize:8},headStyles:{fillColor:NAVY},columnStyles:{4:{halign:'right'},5:{halign:'right',fontStyle:'bold'},6:{halign:'right'}}});y=doc.lastAutoTable.finalY+8}
+  if(y>240){doc.addPage();y=20}
+  doc.setFontSize(10);doc.setTextColor(30);doc.setFont('helvetica','bold');doc.text('Validation Mecalux',14,y);doc.setFont('helvetica','normal');
+  if(fi&&fi.statut==='signee'){doc.text(['Signé par '+(fi.signataire||'')+' ('+(fi.signeePar||'')+')','le '+new Date(fi.signeeLe).toLocaleString('fr-FR')].concat(fi.commentaire?['Commentaire : '+fi.commentaire]:[]),14,y+6);try{doc.addImage(fi.signature,'PNG',120,y-2,70,21)}catch(e){}}
+  else doc.text(fi?(fi.statut==='refusee'?'Refusée : '+(fi.commentaire||''):'En attente de signature (envoyée le '+dateFr(String(fi.envoyeeLe).slice(0,10))+')'):'Non envoyée',14,y+6);
+  doc.save(('Fiche '+(p.site||p.nom)+' '+sem).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\- ]+/g,'')+'.pdf')}
 function vProjet(id){
   const p=byId('projets',id);if(!p)return head('Projet','Projet introuvable')+'<a href="#projets">Retour aux projets</a>';
   const s=projStats(id);
   const aff=list('affectations').filter(a=>a.projetId===id);
   const est=list('estimations').filter(e=>e.projetId===id);
   let h='<a href="#projets" class="small" style="font-weight:600">← Projets</a>'+head(p.client,p.nom,'<button class="btn o" data-act="editProjet" data-id="'+id+'">Modifier</button><a class="btn p" href="#calculateur" data-calcproj="'+id+'">Estimer des frais</a>');
-  h+='<section class="card"><div class="card-h"><div class="row">'+phasePill(p)+pillVisibilite(p)+(peutPleo?'<button class="btn o sm" data-act="basculerVisibilite" data-id="'+id+'">'+(p.visibleMecalux?'Rendre interne':'Rendre visible par Mecalux')+'</button>':'')+(p.refMecalux?'<span class="pill">Réf. Mecalux '+esc(p.refMecalux)+'</span>':'')+'</div>'+delai(p)+'</div><dl class="dl"><div><dt>Site</dt><dd>'+esc(p.site||'—')+'</dd></div><div><dt>Distance (aller)</dt><dd>'+(p.distanceKm?nf(p.distanceKm)+' km':'—')+'</dd></div><div><dt>Développement</dt><dd>'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</dd></div><div><dt>Mise en service</dt><dd>'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</dd></div><div><dt>Jours ouvrés sur site</dt><dd>'+(workdays(p.mesDebut,p.mesFin)||'—')+'</dd></div></dl>'+(p.notes?'<div class="note i">'+esc(p.notes)+'</div>':'')+'</section>';
+  h+='<section class="card"><div class="card-h"><div class="row">'+phasePill(p)+(estForfait(p)?'<span class="pill" style="background:#FBEFE3;color:#8A4A12">Forfait</span>':'')+pillVisibilite(p)+(peutPleo?'<button class="btn o sm" data-act="basculerVisibilite" data-id="'+id+'">'+(p.visibleMecalux?'Rendre interne':'Rendre visible par Mecalux')+'</button>':'')+(p.refMecalux?'<span class="pill">Réf. Mecalux '+esc(p.refMecalux)+'</span>':'')+'</div>'+delai(p)+'</div><dl class="dl"><div><dt>Site</dt><dd>'+esc(p.site||'—')+'</dd></div><div><dt>Distance (aller)</dt><dd>'+(p.distanceKm?nf(p.distanceKm)+' km':'—')+'</dd></div><div><dt>Développement</dt><dd>'+dateFr(p.devDebut)+' → '+dateFr(p.devFin)+'</dd></div><div><dt>Mise en service</dt><dd>'+dateFr(p.mesDebut)+' → '+dateFr(p.mesFin)+'</dd></div><div><dt>Jours ouvrés sur site</dt><dd>'+(workdays(p.mesDebut,p.mesFin)||'—')+'</dd></div></dl>'+(p.notes?'<div class="note i">'+esc(p.notes)+'</div>':'')+'</section>';
   h+='<section class="kpis">'+kpi('Prestations prévues',eur(s.montPrev),nf(s.joursPrev)+' jours')+kpi('Frais estimés',eur(s.fraisPrev),est.length+' estimation'+(est.length>1?'s':''))+kpi('Total prévu',eur(s.totalPrev),p.budgetMontant?'budget client '+eur(num(p.budgetMontant)):'prestations + frais')+kpi('Réalisé',eur(s.totalReal),nf(s.joursReal)+' j · '+eur(s.fraisReal)+' de frais')+'</section>';
+  if(estForfait(p))h+=vForfait(p);
   // affectations
   h+='<section class="card"><div class="card-h"><h2>Ressources affectées</h2><button class="btn o sm" data-act="newAff" data-id="'+id+'">+ Affecter une ressource</button></div>';
   if(!aff.length)h+='<div class="empty">Aucune ressource affectée.</div>';
@@ -1772,6 +1887,8 @@ function formProjet(p){
     {k:'devDebut',l:'Début développement',type:'date'},{k:'devFin',l:'Fin développement',type:'date'},
     {k:'mesDebut',l:'Début mise en service',type:'date'},{k:'mesFin',l:'Fin mise en service',type:'date'},
     {k:'budgetMontant',l:'Budget client (€ HT, facultatif)',type:'number'},
+    {k:'mode',l:'Mode de facturation',type:'select',opts:[['regie','Régie (au temps passé)'],['forfait','Forfait']],def:'regie'},
+    {k:'forfaitMontant',l:'Forfait : montant vendu (€ HT)',type:'number'},{k:'forfaitJours',l:'Forfait : jours-hommes vendus',type:'number'},
     {k:'cpHaringtonId',l:'Chef de projet Harington',type:'select',opts:[['','—'],...list('ressources').filter(r=>r.actif!==false||(p&&p.cpHaringtonId===r.id)).sort((a,b)=>(estTechLead(b.id)-estTechLead(a.id))||a.nom.localeCompare(b.nom)).map(r=>[r.id,r.nom+(r.role?' · '+r.role:'')+(r.email?'':' (sans e-mail)')])]},
     {k:'cpMecaluxPrenom',l:'Chef de projet Mecalux · prénom'},{k:'cpMecaluxNom',l:'Chef de projet Mecalux · nom'},
     {k:'cpMecaluxEmail',l:'Chef de projet Mecalux · e-mail',type:'email',full:true,ph:'prenom.nom@mecalux.com'},
@@ -2067,6 +2184,14 @@ document.addEventListener('click',async e=>{
     case'circuitSave':{const rows=[];for(const [k] of ROLES_CIRCUIT){const nom=(document.querySelector('[data-circ-nom="'+k+'"]')||{}).value||'';const em=((document.querySelector('[data-circ-email="'+k+'"]')||{}).value||'').trim().toLowerCase();if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail invalide : '+em);return}rows.push({role:k,nom:nom.trim()||null,email:em||null,maj_le:new Date().toISOString()})}
       occupe('Enregistrement…');const {error}=await sb.from('mecalux_circuit').upsert(rows);libre();if(error){handleErr(error);break}rows.forEach(r=>S.circuit[r.role]={nom:r.nom||'',email:r.email||''});toast('Circuit des préfactures enregistré');break}
     case'pfEtape':await pfEtape(b.dataset.k,b.dataset.v);break;
+    case'newAlea':formAlea(b.dataset.id);break;
+    case'editAlea':{const a=byId('aleas',b.dataset.id);if(a)formAlea(a.projetId,a);break}
+    case'newCR':formCR(b.dataset.id);break;
+    case'editCR':{const c=byId('cr',b.dataset.id);if(c)formCR(c.projetId,c);break}
+    case'ficheEnvoyer':{const p=byId('projets',b.dataset.id);if(!confirm('Envoyer la '+libSemaine(b.dataset.sem).toLowerCase()+' au chef de projet Mecalux'+(p&&p.cpMecaluxEmail?' ('+p.cpMecaluxEmail+')':'')+' pour signature ? Les temps perdus et change requests de la semaine ne seront plus modifiables.'))break;await ficheAction(b.dataset.id,b.dataset.sem,'envoyer');break}
+    case'ficheSigner':ficheSigner(b.dataset.id,b.dataset.sem);break;
+    case'ficheRefuser':{const pid=b.dataset.id,sem=b.dataset.sem;openForm('Refuser la fiche · '+libSemaine(sem),[{k:'motif',l:'Motif du refus (transmis à Harington)',type:'textarea'}],{},async o=>{if(!o.motif){document.getElementById('frmErr').textContent='Indiquez le motif.';return false}await ficheAction(pid,sem,'refuser',{p_commentaire:o.motif})});break}
+    case'fichePdf':await fichePdf(b.dataset.id,b.dataset.sem);break;
     case'pfFichier':{const ch=b.dataset.v;occupe('Ouverture…');const {data,error}=await sb.storage.from(BUCKET_J).createSignedUrl(ch,3600);libre();if(error||!data){toast('Fichier indisponible');break}visionneuse(b.dataset.n||'Document',[{nom:b.dataset.n||'document.pdf',url:data.signedUrl}]);break}
     case'pfCsv':dl(pfFile(b.dataset.k)+'.csv',pfCsv(b.dataset.k));break;
     case'pfPdf':pfPdf(b.dataset.k);break;
