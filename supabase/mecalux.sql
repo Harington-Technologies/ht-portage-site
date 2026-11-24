@@ -435,3 +435,14 @@ create trigger mecalux_frais_auteur before insert or update on public.mecalux_fr
 
 -- ---------- Frais par jour : types de journée retenus (hôtel, location…) ----------
 alter table public.mecalux_frais add column if not exists types_jours jsonb;
+
+-- ---------- Projets au forfait : temps perdus, change requests, fiche hebdomadaire signée (migrations mecalux_forfait_aleas_cr, mecalux_fiche_complement) ----------
+-- mecalux_projets : mode (regie | forfait), forfait_montant, forfait_jours.
+-- mecalux_aleas : temps perdus sur site (dates d'une même semaine ISO, cause, consultants [{rid, jours}], jours, montant_jours = jours × TJM, frais, statut).
+-- mecalux_cr : change requests (numéro, objet, demandeur, impact jours / € HT / délai, statut).
+-- Statuts brouillon → soumis → valide | refuse ; Harington écrit seulement en brouillon ou refusé (RLS), le reste passe par la fonction.
+-- mecalux_fiches : une fiche par projet et par semaine (contenu figé à l'envoi, signature PNG, signataire, date, commentaire, historique).
+-- mecalux_fiche_action(p_projet, p_semaine, p_action, p_signataire, p_signature, p_commentaire) :
+--   envoyer (Harington ; projet visible par Mecalux et e-mail du chef de projet Mecalux renseigné),
+--   signer / refuser (uniquement le compte dont l'e-mail est celui du chef de projet Mecalux du projet).
+-- Déclencheur notify_mecalux_fiche : INSERT mecalux_fiche_evenements → fonction mecalux-acces (mêmes en-têtes que notify_mecalux_demandes) → e-mails.
