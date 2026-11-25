@@ -5,7 +5,7 @@
 //   POST { action: "decider", d, decision, role? }                        → valide ou refuse (administrateur connecté avec double authentification) ;
 //                                                                      un refus supprime le compte s'il a été créé pour le pilotage (jamais un compte HT Portage)
 //   POST { action: "retirer", email }                              → retire l'accès et supprime le compte s'il a été créé pour le pilotage (administrateur)
-//   POST { action: "partager_prefactures", a: [emails], fichiers: [{chemin, nom}], mois, message? } → envoie les PDF des préfactures
+//   POST { action: "partager_prefactures", a: [emails], fichiers: [{chemin, nom}], mois, message? } → envoie les préfactures (PDF) et la restitution (Excel)
 //                                                                      à des membres de l'équipe (membre Harington connecté avec double authentification)
 //   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
@@ -234,9 +234,10 @@ async function partagerPrefactures(req: Request, b) {
   const pj = []; let taille = 0;
   for (const f of fichiers) {
     const chemin = String(f?.chemin ?? "");
-    if (!/^prefactures\/partage\/[\w-]+\/[\w.-]+\.pdf$/.test(chemin)) return json(req, { erreur: "Fichier refusé." }, 400);
+    if (!/^prefactures\/partage\/[\w-]+\/[\w.-]+\.(pdf|xlsx)$/.test(chemin)) return json(req, { erreur: "Fichier refusé." }, 400);
     const nom = String(f?.nom ?? "prefacture.pdf").replace(/[\\/:*?"<>|]+/g, " ").slice(0, 120);
-    const x = await pieceJointe(chemin, /\.pdf$/i.test(nom) ? nom : nom + ".pdf");
+    const ext = chemin.endsWith(".xlsx") ? ".xlsx" : ".pdf";
+    const x = await pieceJointe(chemin, nom.toLowerCase().endsWith(ext) ? nom : nom + ext);
     if (!x) return json(req, { erreur: "Fichier introuvable : " + nom }, 400);
     taille += x.content.length; if (taille > 30_000_000) return json(req, { erreur: "Pièces jointes trop lourdes : envoyez moins de préfactures à la fois." }, 400);
     pj.push(x);
@@ -245,10 +246,10 @@ async function partagerPrefactures(req: Request, b) {
   const qui = par.nom || par.email;
   const message = String(b.message ?? "").trim().slice(0, 2000);
   const de = periode ? (/^[aeiouyàâéèêîôû]/i.test(periode) ? " d'" : " de ") + periode : "";
-  const nbPf = pj.filter((x) => !/^00_Synthese/i.test(x.filename)).length, syn = nbPf < pj.length;
+  const nbPf = pj.filter((x) => !/^0\d_/.test(x.filename)).length, syn = pj.some((x) => /^00_Synthese/i.test(x.filename)), rest = pj.some((x) => /^01_Restitution/i.test(x.filename));
   const corps = message
     ? P(esc(message).replace(/\n/g, "<br>"))
-    : P("Bonjour,") + P(`${esc(qui)} vous transmet ${nbPf > 1 ? `les ${nbPf} préfactures` : "la préfacture"}${esc(de)}${syn ? " et leur synthèse" : ""}, en ${pj.length > 1 ? "pièces jointes" : "pièce jointe"}.`) +
+    : P("Bonjour,") + P(`${esc(qui)} vous transmet ${nbPf > 1 ? `les ${nbPf} préfactures` : "la préfacture"}${esc(de)}${syn && rest ? ", leur synthèse et la restitution Mecalux" : syn ? " et leur synthèse" : rest ? " et la restitution Mecalux" : ""}, en ${pj.length > 1 ? "pièces jointes" : "pièce jointe"}.`) +
       `<ul style="margin:0 0 16px;padding-left:20px">${pj.map((x) => `<li>${esc(x.filename)}</li>`).join("")}</ul>` +
       P(`<span style="color:#6B7385;font-size:13px">Documents de travail, non valables comme factures.</span>`);
   const html = gabarit(`Préfactures${de}`, corps, { texte: "Ouvrir le pilotage", url: SITE + "#prefactures" });
