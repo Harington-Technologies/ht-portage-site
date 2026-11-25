@@ -446,3 +446,9 @@ alter table public.mecalux_frais add column if not exists types_jours jsonb;
 --   envoyer (Harington ; projet visible par Mecalux et e-mail du chef de projet Mecalux renseigné),
 --   signer / refuser (uniquement le compte dont l'e-mail est celui du chef de projet Mecalux du projet).
 -- Déclencheur notify_mecalux_fiche : INSERT mecalux_fiche_evenements → fonction mecalux-acces (mêmes en-têtes que notify_mecalux_demandes) → e-mails.
+
+-- ---------- Type de prestation Formation ----------
+alter table public.mecalux_affectations drop constraint mecalux_affectations_phase_check;
+alter table public.mecalux_affectations add constraint mecalux_affectations_phase_check check (phase in ('dev','mes','pil','pmo','hyp','form'));
+alter table public.mecalux_temps drop constraint mecalux_temps_phase_check;
+alter table public.mecalux_temps add constraint mecalux_temps_phase_check check (phase in ('dev','mes','pil','pmo','hyp','form'));
