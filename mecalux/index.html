@@ -2059,6 +2059,31 @@ function formFrais(f){
 }
 
 /* ---------- exports ---------- */
+// page « Saisie des jours » de la préfacture : le calendrier du mois, une ligne par collaborateur
+function pfPdfSaisie(doc,p,m,t){
+  const cals=list('calendrier').filter(c=>c.projetId===p.id&&c.mois===m&&c.jours&&Object.values(c.jours).some(Boolean));if(!cals.length)return;
+  const [y,mo]=m.split('-').map(Number);const N=new Date(y,mo,0).getDate();const fer=new Set(feriesFR(y).map(f=>f[0]));
+  const ds=Array.from({length:N},(_,k)=>m+'-'+String(k+1).padStart(2,'0'));const we=d=>{const w=new Date(d+'T12:00:00').getDay();return w===0||w===6};
+  const rgb=h=>[1,3,5].map(k=>parseInt(h.slice(k,k+2),16));const clair=c=>c.map(v=>Math.round(v+(255-v)*0.55));
+  const NAVY=[33,50,78],MUTED=[74,84,104],W=297,M=10;
+  doc.addPage('a4','landscape');doc.setFillColor(...NAVY);doc.rect(0,0,W,20,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text(t('Saisie des jours · '+p.client+' · '+p.nom),M,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(t(moisLabel(m).replace(/^./,c=>c.toUpperCase())+(p.site?' · '+p.site:'')),M,16.5);
+  const J=['D','L','M','M','J','V','S'];
+  const head=[[{content:'Collaborateur',styles:{halign:'left'}},...ds.map(d=>({content:+d.slice(8)+'\n'+J[new Date(d+'T12:00:00').getDay()],styles:{halign:'center',fillColor:fer.has(d)?[250,228,214]:we(d)?[232,236,242]:[255,255,255]}})),{content:'Détail',styles:{halign:'left'}}]];
+  const cnt={};
+  const body=cals.map(c=>{const r=byId('ressources',c.ressourceId)||{};const tot={};
+    const cells=ds.map(d=>{const ps=pjs(c.jours[d]);if(!ps.length)return{content:'',styles:{fillColor:fer.has(d)?[253,243,236]:we(d)?[244,246,249]:[255,255,255]}};
+      ps.forEach(x=>{tot[x.t]=(tot[x.t]||0)+x.q;cnt[x.t]=(cnt[x.t]||0)+x.q});
+      const txt=ps.map(x=>((TYPES_J[x.t]||{}).c||x.t)+(x.demi?'½':'')).join('\n').replace(/½/g,"'");const col=rgb(COUL_T[ps[0].t]||'#888888');
+      return{content:txt,styles:{fillColor:ps.length>1||ps[0].demi?clair(col):col,textColor:ps.length>1||ps[0].demi?[27,28,28]:[255,255,255],fontStyle:'bold'}}});
+    const det=Object.keys(TYPES_J).filter(k=>tot[k]).map(k=>TYPES_J[k].c+' '+nf(tot[k])).join(' · ');
+    return[{content:t((r.code?r.code+' · ':'')+(r.nom||'?')),styles:{fontStyle:'bold'}},...cells,{content:t(det)}]});
+  doc.autoTable({startY:26,head,body,theme:'grid',styles:{fontSize:6.5,cellPadding:0.8,halign:'center',valign:'middle',lineColor:[220,226,234],lineWidth:0.1,textColor:[27,28,28],minCellHeight:7},
+    headStyles:{fillColor:[255,255,255],textColor:MUTED,fontStyle:'bold',fontSize:6},columnStyles:Object.assign({0:{cellWidth:38,halign:'left',fontSize:7.5},[N+1]:{cellWidth:44,halign:'left',fontSize:7}},...ds.map((_,k)=>({[k+1]:{cellWidth:(W-2*M-82)/N}}))),margin:{left:M,right:M,bottom:14}});
+  let yy=doc.lastAutoTable.finalY+6;doc.setFontSize(7.5);doc.setTextColor(...MUTED);doc.setFont('helvetica','bold');doc.text(t('Légende'),M,yy);doc.setFont('helvetica','normal');
+  let x=M+16;Object.keys(TYPES_J).filter(k=>cnt[k]).forEach(k=>{const lab=t(TYPES_J[k].c+' '+TYPES_J[k].nom+' ('+nf(cnt[k])+' j)');doc.setFillColor(...rgb(COUL_T[k]||'#888888'));doc.rect(x,yy-2.6,3,3,'F');doc.text(lab,x+4.5,yy);x+=doc.getTextWidth(lab)+10;if(x>W-60){x=M+16;yy+=5}});
+  yy+=5;doc.text(t("' = demi-journée · fond gris : samedi et dimanche · fond orangé : jour férié"),M,yy);
+}
 async function pfPdf(key,enBlob){
   let JS;try{if(!enBlob)toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){if(enBlob)throw e;toast(e.message);return}
   const {p,m,pf,L,tot}=pfData(key);const t=v=>String(v==null?'':v).replace(/[  ]/g,' ').replace(/→/g,'->').replace(/½/g,' 1/2');const E2=v=>t(eur2(v));
@@ -2085,7 +2110,8 @@ async function pfPdf(key,enBlob){
     didParseCell:d=>{if(d.section==='head'&&d.column.index>0)d.cell.styles.halign='right'},margin:{left:M,right:M,bottom:16}});
   let y=doc.lastAutoTable.finalY+7;
   if(pf&&pf.notes){doc.setFontSize(9);doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');if(y>270){doc.addPage();y=20}doc.text('Notes',M,y);doc.setFont('helvetica','normal');doc.setTextColor(27,28,28);const ls=doc.splitTextToSize(t(pf.notes),W-2*M);doc.text(ls,M,y+5)}
-  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(...MUTED);doc.text(t('Préfacture '+p.client+' · '+p.nom+' · '+moisLabel(m)+' · document de travail, non valable comme facture'),M,289);doc.text(i+' / '+n,W-M,289,{align:'right'})}
+  pfPdfSaisie(doc,p,m,t);
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);const PW=doc.internal.pageSize.getWidth(),PH=doc.internal.pageSize.getHeight();doc.setFontSize(8);doc.setTextColor(...MUTED);doc.text(t('Préfacture '+p.client+' · '+p.nom+' · '+moisLabel(m)+' · document de travail, non valable comme facture'),M,PH-8);doc.text(i+' / '+n,PW-M,PH-8,{align:'right'})}
   if(enBlob)return doc.output('blob');
   doc.save(pfFile(key).normalize('NFD').replace(/[̀-ͯ]/g,'')+'.pdf');toast('PDF téléchargé');
 }
