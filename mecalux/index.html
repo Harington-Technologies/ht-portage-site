@@ -1123,6 +1123,14 @@ function changed(pf,L){const a=pf.lignes.reduce((x,l)=>x+num(l.montant),0),b=L.r
 const moiEmail=()=>((session&&session.user&&session.user.email)||'').toLowerCase();
 const estCirc=role=>estAdmin||(!!(S.circuit||{})[role]&&(S.circuit[role].email||'').toLowerCase()===moiEmail());
 const nomCirc=(role,def)=>((S.circuit||{})[role]||{}).nom||def;
+const ACT_PF={soumettre:'a soumis la préfacture au Responsable ADV →',adv_valider:'a vérifié et envoyé la préfacture à Mecalux →',adv_renvoyer:'a renvoyé la préfacture pour correction →',mecalux_valider:'a validé la préfacture et transmis le BDC →',mecalux_refuser:'a refusé la préfacture →',facturer:'a facturé et envoyé la facture →',rouvrir:'a remis la préfacture en brouillon →'};
+// nom d'une personne à partir de son e-mail (circuit, ressources, chefs de projet, équipe)
+function nomDeEmail(e,p){const m=String(e||'').toLowerCase();if(!m)return '';const C=S.circuit||{};for(const k in C)if((C[k].email||'').toLowerCase()===m&&C[k].nom)return C[k].nom;
+  const r=list('ressources').find(x=>(x.email||'').toLowerCase()===m);if(r)return r.nom;
+  const pr=p&&(p.cpMecaluxEmail||'').toLowerCase()===m?p:list('projets').find(x=>(x.cpMecaluxEmail||'').toLowerCase()===m);if(pr&&(pr.cpMecaluxPrenom||pr.cpMecaluxNom))return [pr.cpMecaluxPrenom,pr.cpMecaluxNom].filter(Boolean).join(' ');
+  const q=(ui.acces&&ui.acces.equipe||[]).find(x=>(x.email||'').toLowerCase()===m);if(q&&q.nom)return q.nom;
+  if(session&&session.user&&(session.user.email||'').toLowerCase()===m){const md=session.user.user_metadata||{};const n=[md.prenom,md.nom].filter(Boolean).join(' ');if(n)return n}
+  return e}
 function pfCircuit(key,p,pf,st){const F=(pf&&pf.fichiers)||{};const cpH=p.cpHaringtonId?byId('ressources',p.cpHaringtonId):null;const cpM=[p.cpMecaluxPrenom,p.cpMecaluxNom].filter(Boolean).join(' ');
   const piece=(k,lib)=>F[k]?'<button class="btn o sm" data-act="pfFichier" data-v="'+esc(F[k])+'" data-n="'+esc(lib)+'">'+esc(lib)+'</button>':'';
   let h='<section class="card"><h2>Validation</h2>';
@@ -1148,7 +1156,7 @@ function pfCircuit(key,p,pf,st){const F=(pf&&pf.fichiers)||{};const cpH=p.cpHari
   }else if(st==='Facturée'){h+='<p class="small" style="margin:0;color:var(--ok);font-weight:700">Facturée et envoyée à Mecalux.</p>'}
   if(estAdmin&&pf&&st!=='Brouillon')h+='<details><summary class="small" style="cursor:pointer">Remettre en brouillon (administrateur)</summary>'+ta('pfComR','Obligatoire : motif')+'<button class="btn o sm" data-act="pfEtape" data-v="rouvrir" data-k="'+key+'">Remettre en brouillon</button></details>';
   const H=((pf&&pf.historique)||[]).slice().reverse();
-  if(H.length)h+='<details'+(st!=='Brouillon'?' open':'')+'><summary class="small" style="cursor:pointer;font-weight:700;color:var(--navy)">Historique</summary><ol class="small" style="margin:6px 0 0;padding-left:18px;display:grid;gap:4px">'+H.map(x=>'<li><b>'+esc(x.statut)+'</b> · '+(x.le?dateFr(String(x.le).slice(0,10))+' '+String(x.le).slice(11,16):'')+(x.par?' · '+esc(x.par):'')+(x.commentaire?'<div class="muted">« '+esc(x.commentaire)+' »</div>':'')+'</li>').join('')+'</ol></details>';
+  if(H.length)h+='<details'+(st!=='Brouillon'?' open':'')+'><summary class="small" style="cursor:pointer;font-weight:700;color:var(--navy)">Historique</summary><ol class="small" style="margin:6px 0 0;padding-left:18px;display:grid;gap:4px">'+H.map(x=>'<li><b>'+esc(x.par?nomDeEmail(x.par,p):'Auteur non enregistré')+'</b> '+esc(ACT_PF[x.action]||'a passé la préfacture au statut')+' <b>'+esc(x.statut)+'</b><div class="muted">'+(x.le?new Date(x.le).toLocaleString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'')+(x.par&&nomDeEmail(x.par,p)!==x.par?' · '+esc(x.par):'')+'</div>'+(x.commentaire?'<div class="muted">« '+esc(x.commentaire)+' »</div>':'')+'</li>').join('')+'</ol></details>';
   return h+'</section>'}
 async function pfEtape(key,action){const pf=byId('prefactures',key);if(!pf)return;
   const val=id=>((document.getElementById(id)||{}).value||'').trim();const com=action==='rouvrir'?val('pfComR'):val('pfCom');
