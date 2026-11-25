@@ -2113,7 +2113,7 @@ async function pfPdf(key,enBlob){
     didParseCell:d=>{if(d.section==='head'&&d.column.index>0)d.cell.styles.halign='right'},margin:{left:M,right:M,bottom:16}});
   let y=doc.lastAutoTable.finalY+7;
   if(pf&&pf.notes){doc.setFontSize(9);doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');if(y>270){doc.addPage();y=20}doc.text('Notes',M,y);doc.setFont('helvetica','normal');doc.setTextColor(27,28,28);const ls=doc.splitTextToSize(t(pf.notes),W-2*M);doc.text(ls,M,y+5)}
-  pfPdfSaisie(doc,p,m,t);
+  {const n0=doc.getNumberOfPages();pfPdfSaisie(doc,p,m,t);const n1=doc.getNumberOfPages();for(let k=n0+1;k<=n1;k++)doc.movePage(k,k-n0)}
   const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);const PW=doc.internal.pageSize.getWidth(),PH=doc.internal.pageSize.getHeight();doc.setFontSize(8);doc.setTextColor(...MUTED);doc.text(t('Préfacture '+p.client+' · '+p.nom+' · '+moisLabel(m)+' · document de travail, non valable comme facture'),M,PH-8);doc.text(i+' / '+n,PW-M,PH-8,{align:'right'})}
   if(enBlob)return doc.output('blob');
   doc.save(pfFile(key).normalize('NFD').replace(/[̀-ͯ]/g,'')+'.pdf');toast('PDF téléchargé');
