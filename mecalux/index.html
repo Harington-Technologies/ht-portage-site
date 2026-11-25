@@ -1133,10 +1133,10 @@ async function pfSynthesePdf(cles){const JS=await chargerJsPDF();const m=ui.pfMo
   const T={j:0,p:0,b:0,f:0,tot:0};
   const body=cles.map(k=>{const {p,pf,L,tot}=pfData(k);const j=L.filter(l=>l.type==='prestation').reduce((x,l)=>x+num(l.qte),0);const pr=totRub(L,'prestation'),ba=totRub(L,'bareme'),fr=totRub(L,'frais');
     T.j+=j;T.p+=pr;T.b+=ba;T.f+=fr;T.tot+=tot;
-    return[t(p.client),t(p.nom+(p.site?' ('+p.site+')':'')),t(nf(j)),E2(pr),E2(ba),E2(fr),E2(tot),t(pf&&pf.statut||'À préparer'),t(pf&&pf.bdc||'-')]});
+    return[t(p.client),t(p.nom+(p.site?' ('+p.site+')':'')),t(nf(j)),E2(pr),E2(ba),E2(fr),E2(tot),t(pf&&pf.bdc||'-')]});
   const R={halign:'right'};
-  doc.autoTable({startY:34,head:[['Client','Projet','Jours','Prestations HT','Barème HT','Frais réels HT','Total HT','Statut','N° BDC']],body,
-    foot:[[{content:'Total',colSpan:2,styles:{fillColor:PLUM,textColor:255,fontStyle:'bold'}},...[t(nf(T.j)),E2(T.p),E2(T.b),E2(T.f),E2(T.tot)].map(v=>({content:v,styles:{halign:'right',fillColor:PLUM,textColor:255,fontStyle:'bold'}})),{content:'',colSpan:2,styles:{fillColor:PLUM}}]],showFoot:'lastPage',
+  doc.autoTable({startY:34,head:[['Client','Projet','Jours','Prestations HT','Barème HT','Frais réels HT','Total HT','N° BDC']],body,
+    foot:[[{content:'Total',colSpan:2,styles:{fillColor:PLUM,textColor:255,fontStyle:'bold'}},...[t(nf(T.j)),E2(T.p),E2(T.b),E2(T.f),E2(T.tot)].map(v=>({content:v,styles:{halign:'right',fillColor:PLUM,textColor:255,fontStyle:'bold'}})),{content:'',styles:{fillColor:PLUM}}]],showFoot:'lastPage',
     styles:{fontSize:9,cellPadding:2,textColor:[27,28,28],lineColor:[228,233,240],lineWidth:{bottom:0.1}},headStyles:{fillColor:[255,255,255],textColor:MUTED,fontStyle:'bold',fontSize:8,lineWidth:{bottom:0.4},lineColor:NAVY},
     columnStyles:{0:{fontStyle:'bold'},2:R,3:R,4:R,5:R,6:{halign:'right',fontStyle:'bold'}},didParseCell:d=>{if(d.section==='head'&&d.column.index>=2&&d.column.index<=6)d.cell.styles.halign='right'},margin:{left:M,right:M,bottom:14}});
   const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(...MUTED);doc.text(t('Synthèse des préfactures · '+moisLabel(m)+' · '+cles.length+' projet'+(cles.length>1?'s':'')+' · document de travail, non valable comme facture'),M,203);doc.text(i+' / '+n,W-M,203,{align:'right'})}
