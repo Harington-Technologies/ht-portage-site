@@ -2059,33 +2059,60 @@ function formFrais(f){
 }
 
 /* ---------- exports ---------- */
-// page « Saisie des jours » de la préfacture : le calendrier du mois, une ligne par collaborateur
+// page « Saisie des jours » de la préfacture : la grille de la saisie mensuelle (jours + barèmes), avec les légendes
 function pfPdfSaisie(doc,p,m,t){
-  const cals=list('calendrier').filter(c=>c.projetId===p.id&&c.mois===m&&c.jours&&Object.values(c.jours).some(Boolean));if(!cals.length)return;
+  const cals=list('calendrier').filter(c=>c.projetId===p.id&&c.mois===m&&c.jours&&Object.values(c.jours).some(Boolean))
+    .sort((a,b)=>String((byId('ressources',a.ressourceId)||{}).nom).localeCompare(String((byId('ressources',b.ressourceId)||{}).nom)));if(!cals.length)return;
   const [y,mo]=m.split('-').map(Number);const N=new Date(y,mo,0).getDate();const fer=new Set(feriesFR(y).map(f=>f[0]));
   const ds=Array.from({length:N},(_,k)=>m+'-'+String(k+1).padStart(2,'0'));const we=d=>{const w=new Date(d+'T12:00:00').getDay();return w===0||w===6};
-  const rgb=h=>[1,3,5].map(k=>parseInt(h.slice(k,k+2),16));const clair=c=>c.map(v=>Math.round(v+(255-v)*0.55));
-  const NAVY=[33,50,78],MUTED=[74,84,104],W=297,M=10;
-  doc.addPage('a4','landscape');doc.setFillColor(...NAVY);doc.rect(0,0,W,20,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text(t('Saisie des jours · '+p.client+' · '+p.nom),M,11);
-  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(t(moisLabel(m).replace(/^./,c=>c.toUpperCase())+(p.site?' · '+p.site:'')),M,16.5);
-  const J=['D','L','M','M','J','V','S'];
-  const head=[[{content:'Collaborateur',styles:{halign:'left'}},...ds.map(d=>({content:+d.slice(8)+'\n'+J[new Date(d+'T12:00:00').getDay()],styles:{halign:'center',fillColor:fer.has(d)?[250,228,214]:we(d)?[232,236,242]:[255,255,255]}})),{content:'Détail',styles:{halign:'left'}}]];
-  const cnt={};
-  const body=cals.map(c=>{const r=byId('ressources',c.ressourceId)||{};const tot={};
-    const cells=ds.map(d=>{const ps=pjs(c.jours[d]);if(!ps.length)return{content:'',styles:{fillColor:fer.has(d)?[253,243,236]:we(d)?[244,246,249]:[255,255,255]}};
-      ps.forEach(x=>{tot[x.t]=(tot[x.t]||0)+x.q;cnt[x.t]=(cnt[x.t]||0)+x.q});
-      if(ps.length===1&&!ps[0].demi)return{content:(TYPES_J[ps[0].t]||{}).c||ps[0].t,styles:{fillColor:rgb(COUL_T[ps[0].t]||'#888888'),textColor:[255,255,255],fontStyle:'bold'}};
-      return{content:'',demi:ps.slice(0,2),styles:{fillColor:fer.has(d)?[253,243,236]:we(d)?[244,246,249]:[255,255,255]}}});
-    const det=Object.keys(TYPES_J).filter(k=>tot[k]).map(k=>TYPES_J[k].c+' '+nf(tot[k])).join(' · ');
-    return[{content:t((r.code?r.code+' · ':'')+(r.nom||'?')),styles:{fontStyle:'bold'}},...cells,{content:t(det)}]});
-  doc.autoTable({startY:26,head,body,theme:'grid',styles:{fontSize:6.5,cellPadding:0.8,halign:'center',valign:'middle',lineColor:[220,226,234],lineWidth:0.1,textColor:[27,28,28],minCellHeight:8},
-    headStyles:{fillColor:[255,255,255],textColor:MUTED,fontStyle:'bold',fontSize:6},columnStyles:Object.assign({0:{cellWidth:38,halign:'left',fontSize:7.5},[N+1]:{cellWidth:44,halign:'left',fontSize:7}},...ds.map((_,k)=>({[k+1]:{cellWidth:(W-2*M-82)/N}}))),margin:{left:M,right:M,bottom:14},
-    didDrawCell:d=>{const ps=d.section==='body'&&d.cell.raw&&d.cell.raw.demi;if(!ps)return;const c=d.cell,h=c.height/2;
-      ps.forEach((x,k)=>{const y0=c.y+k*h;doc.setFillColor(...rgb(COUL_T[x.t]||'#888888'));doc.rect(c.x+0.25,y0+0.25,c.width-0.5,h-0.5,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.text(String((TYPES_J[x.t]||{}).c||x.t),c.x+c.width/2,y0+h/2,{align:'center',baseline:'middle'})});
-      doc.setTextColor(27,28,28);doc.setFont('helvetica','normal')}});
-  let yy=doc.lastAutoTable.finalY+6;doc.setFontSize(7.5);doc.setTextColor(...MUTED);doc.setFont('helvetica','bold');doc.text(t('Légende'),M,yy);doc.setFont('helvetica','normal');
-  let x=M+16;Object.keys(TYPES_J).filter(k=>cnt[k]).forEach(k=>{const lab=t(TYPES_J[k].c+' '+TYPES_J[k].nom+' ('+nf(cnt[k])+' j)');doc.setFillColor(...rgb(COUL_T[k]||'#888888'));doc.rect(x,yy-2.6,3,3,'F');doc.text(lab,x+4.5,yy);x+=doc.getTextWidth(lab)+10;if(x>W-60){x=M+16;yy+=5}});
-  yy+=5;doc.text(t('Case remplie à moitié = demi-journée (deux types dans la même case = une demi-journée de chaque) · fond gris : samedi et dimanche · fond orangé : jour férié'),M,yy);
+  const rgb=h=>[1,3,5].map(k=>parseInt(String(h).slice(k,k+2),16));
+  const NAVY=[33,50,78],MUTED=[74,84,104],W=297,M=8,GR=[241,243,246],FE=[250,232,222];
+  const fond=d=>fer.has(d)?FE:we(d)?GR:[255,255,255];
+  const R=cals.map(c=>{const jours=c.jours||{},bar=c.baremes||{};const rs=resumeJours(jours,m);return{c,r:byId('ressources',c.ressourceId)||{},jours,bar,rs,tot:totalTravaille(rs),rb:resumeBaremes(bar,jours)}});
+  const TY=Object.keys(TYPES_J).filter(k=>R.some(x=>x.rs[k].total));
+  const BU={};R.forEach(x=>Object.entries(x.rb.n).forEach(([b,n])=>BU[b]=(BU[b]||0)+n));
+  doc.addPage('a4','landscape');doc.setFillColor(...NAVY);doc.rect(0,0,W,20,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text(t('Saisie des jours · '+p.client+' · '+p.nom),M+2,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(t(moisLabel(m).replace(/^./,c=>c.toUpperCase())+(p.site?' · '+p.site:'')),M+2,16.5);
+  const JL=['D','L','M','M','J','V','S'];const wN=34,wT=9,wTr=12,wF=22;const wD=(W-2*M-wN-TY.length*wT-wTr-wF)/N;
+  const hd=(c,o)=>Object.assign({content:c,styles:Object.assign({halign:'center',valign:'bottom'},o||{})});
+  const head=[[hd('Ressource',{halign:'left'}),...ds.map(d=>hd(JL[new Date(d+'T12:00:00').getDay()]+'\n'+(+d.slice(8)),{fillColor:fond(d)})),...TY.map(k=>hd(t(TYPES_J[k].court))),hd('Travaillé'),hd(t('Frais barème'),{halign:'right'})]];
+  const body=[];
+  R.forEach(x=>{
+    body.push([{content:t((x.r.code?x.r.code+'  ':'')+(x.r.nom||'?')),styles:{fontStyle:'bold',fontSize:7.5,halign:'left'}},
+      ...ds.map(d=>({content:'',jr:pjs(x.jours[d]),styles:{fillColor:fond(d)}})),
+      ...TY.map(k=>({content:x.rs[k].total?t(nf(x.rs[k].total)):'·',styles:{textColor:x.rs[k].total?[27,28,28]:[170,176,188]}})),
+      {content:t(nf(x.tot)),styles:{fontStyle:'bold'}},
+      {content:Object.keys(x.bar).length&&x.rb.montant+x.rb.nuitsReel?t(eur(x.rb.montant))+(x.rb.nuitsReel?'\n'+t('+ '+x.rb.nuitsReel+' nuit'+(x.rb.nuitsReel>1?'s':'')+' au réel'):''):'—',rowSpan:2,styles:{halign:'right',fontStyle:'bold',valign:'middle'}}]);
+    body.push([{content:t('Barème déplacement'),styles:{fontSize:6,textColor:MUTED,halign:'left',cellPadding:{left:4}}},
+      ...ds.map(d=>({content:'',br:baremeCompte(d,x.jours)?(x.bar[d]||'-'):null,styles:{fillColor:fond(d)}})),
+      {content:Object.keys(x.rb.n).length?t(ORDRE_B.filter(b=>x.rb.n[b]).map(b=>codeB(b)+' '+x.rb.n[b]).join(' · ')):'',colSpan:TY.length+1,styles:{halign:'left',fontSize:6.5,textColor:MUTED}}]);
+  });
+  const pill=(x,y,w,h,col,txt,txtCol,fs)=>{doc.setFillColor(...col);doc.roundedRect(x,y,w,h,0.8,0.8,'F');if(txt){doc.setTextColor(...txtCol);doc.setFont('helvetica','bold');doc.setFontSize(fs);doc.text(txt,x+w/2,y+h/2,{align:'center',baseline:'middle'})}};
+  doc.autoTable({startY:25,head,body,theme:'plain',
+    styles:{fontSize:6.5,cellPadding:0.6,halign:'center',valign:'middle',textColor:[27,28,28],minCellHeight:6.2},
+    headStyles:{fontStyle:'bold',fontSize:6,textColor:MUTED,fillColor:[255,255,255]},
+    columnStyles:Object.assign({0:{cellWidth:wN}},...ds.map((_,k)=>({[k+1]:{cellWidth:wD}})),...TY.map((_,k)=>({[N+1+k]:{cellWidth:wT}})),{[N+1+TY.length]:{cellWidth:wTr},[N+2+TY.length]:{cellWidth:wF}}),
+    margin:{left:M,right:M,bottom:12},
+    willDrawCell:d=>{if(d.section==='body'&&d.row.index%2===0){doc.setDrawColor(228,233,240);doc.setLineWidth(0.15);doc.line(d.cell.x,d.cell.y,d.cell.x+d.cell.width,d.cell.y)}},
+    didDrawCell:d=>{if(d.section!=='body')return;const c=d.cell,raw=c.raw||{};const ix=0.35;
+      if(raw.jr){const ps=raw.jr;if(!ps.length){doc.setDrawColor(222,227,234);doc.setLineWidth(0.15);doc.roundedRect(c.x+ix,c.y+ix,c.width-2*ix,c.height-2*ix,0.8,0.8,'S');return}
+        if(ps.length===1&&!ps[0].demi)pill(c.x+ix,c.y+ix,c.width-2*ix,c.height-2*ix,rgb(COUL_T[ps[0].t]||'#888888'),String((TYPES_J[ps[0].t]||{}).c||ps[0].t),[255,255,255],5.6);
+        else{const h=(c.height-2*ix)/2;doc.setDrawColor(222,227,234);doc.setLineWidth(0.15);doc.roundedRect(c.x+ix,c.y+ix,c.width-2*ix,c.height-2*ix,0.8,0.8,'S');ps.slice(0,2).forEach((x,k)=>pill(c.x+ix,c.y+ix+k*h,c.width-2*ix,h,rgb(COUL_T[x.t]||'#888888'),String((TYPES_J[x.t]||{}).c||x.t),[255,255,255],4.6))}}
+      else if(raw.br!==undefined){const b=raw.br;const x0=c.x+ix,y0=c.y+ix+0.4,w=c.width-2*ix,h=c.height-2*ix-0.8;
+        if(b===null){doc.setDrawColor(232,235,240);doc.setLineWidth(0.1);doc.setLineDashPattern([0.6,0.6],0);doc.roundedRect(x0,y0,w,h,0.8,0.8,'S');doc.setLineDashPattern([],0);return}
+        if(b==='-'){doc.setDrawColor(200,206,216);doc.setLineWidth(0.15);doc.roundedRect(x0,y0,w,h,0.8,0.8,'S');return}
+        const cb=BAREMES_J[b]?COUL_B[BAREMES_J[b].i%COUL_B.length]:['#EEEEEE','#555555','#BBBBBB'];doc.setFillColor(...rgb(cb[0]));doc.setDrawColor(...rgb(cb[2]));doc.setLineWidth(0.15);doc.roundedRect(x0,y0,w,h,0.8,0.8,'FD');
+        doc.setTextColor(...rgb(cb[1]));doc.setFont('helvetica','bold');doc.setFontSize(5.2);doc.text(t(codeB(b)),x0+w/2,y0+h/2,{align:'center',baseline:'middle'})}}});
+  // légendes
+  let yy=doc.lastAutoTable.finalY+6;const PH=doc.internal.pageSize.getHeight();
+  const ligne=(titre,items)=>{if(!items.length)return;if(yy>PH-20){doc.addPage('a4','landscape');yy=20}doc.setFontSize(7.5);doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.text(t(titre),M,yy);let x=M+30;
+    items.forEach(([dessin,lab])=>{doc.setFont('helvetica','normal');doc.setFontSize(7);const w=doc.getTextWidth(lab)+12;if(x+w>W-M){x=M+30;yy+=5.5}dessin(x,yy-3.2);doc.setTextColor(27,28,28);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(lab,x+7,yy);x+=w});yy+=7};
+  ligne('Types de journée',TY.map(k=>[(x,y)=>pill(x,y,5.5,4,rgb(COUL_T[k]||'#888888'),String(TYPES_J[k].c),[255,255,255],4.8),t(TYPES_J[k].nom+' · '+nf(R.reduce((s,x)=>s+x.rs[k].total,0))+' j')]));
+  ligne('Barèmes utilisés',ORDRE_B.filter(b=>BU[b]).map(b=>{const cb=COUL_B[BAREMES_J[b].i%COUL_B.length];const mb=montantBareme(b);return[(x,y)=>{doc.setFillColor(...rgb(cb[0]));doc.setDrawColor(...rgb(cb[2]));doc.setLineWidth(0.15);doc.roundedRect(x,y,5.5,4,0.8,0.8,'FD');doc.setTextColor(...rgb(cb[1]));doc.setFont('helvetica','bold');doc.setFontSize(4.8);doc.text(t(codeB(b)),x+2.75,y+2,{align:'center',baseline:'middle'})},
+    t(BAREMES_J[b].nom+' · '+eur(mb.v)+' / jour'+(mb.reel?' + nuit au réel':'')+' · '+BU[b]+' j')]}));
+  const det=ORDRE_B.filter(b=>BU[b]).map(b=>codeB(b)+' : '+detailBareme(b));
+  if(det.length){doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.setFont('helvetica','normal');det.forEach(l=>{const ls=doc.splitTextToSize(t(l),W-2*M-30);if(yy>PH-14){doc.addPage('a4','landscape');yy=20}doc.text(ls,M+30,yy);yy+=ls.length*3.2+1})}
+  doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.text(t('Case coupée en deux = demi-journées · fond gris : samedi et dimanche · fond orangé : jour férié · case de barème en pointillés : barème non applicable ce jour-là'),M,Math.min(yy+2,PH-13));
 }
 async function pfPdf(key,enBlob){
   let JS;try{if(!enBlob)toast('Préparation du PDF…');JS=await chargerJsPDF()}catch(e){if(enBlob)throw e;toast(e.message);return}
