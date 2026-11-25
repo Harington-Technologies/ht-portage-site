@@ -244,12 +244,14 @@ async function partagerPrefactures(req: Request, b) {
   const m = String(b.mois ?? ""); const [an, mo] = m.split("-"); const periode = /^\d{4}-\d{2}$/.test(m) ? `${MOIS[+mo - 1]} ${an}` : "";
   const qui = par.nom || par.email;
   const message = String(b.message ?? "").trim().slice(0, 2000);
-  const liste = `<ul style="margin:0 0 16px;padding-left:20px">${pj.map((x) => `<li>${esc(x.filename)}</li>`).join("")}</ul>`;
-  const html = gabarit(`Préfactures${periode ? " de " + periode : ""}`,
-    P("Bonjour,") + P(`${esc(qui)} vous transmet ${pj.length > 1 ? `les ${pj.length} préfactures` : "la préfacture"}${periode ? " de " + esc(periode) : ""}, en pièce jointe.`) +
-    (message ? P(esc(message).replace(/\n/g, "<br>")) : "") + liste +
-    P(`<span style="color:#6B7385;font-size:13px">Documents de travail, non valables comme factures.</span>`),
-    { texte: "Ouvrir le pilotage", url: SITE + "#prefactures" });
+  const de = periode ? (/^[aeiouyàâéèêîôû]/i.test(periode) ? " d'" : " de ") + periode : "";
+  const nbPf = pj.filter((x) => !/^00_Synthese/i.test(x.filename)).length, syn = nbPf < pj.length;
+  const corps = message
+    ? P(esc(message).replace(/\n/g, "<br>"))
+    : P("Bonjour,") + P(`${esc(qui)} vous transmet ${nbPf > 1 ? `les ${nbPf} préfactures` : "la préfacture"}${esc(de)}${syn ? " et leur synthèse" : ""}, en ${pj.length > 1 ? "pièces jointes" : "pièce jointe"}.`) +
+      `<ul style="margin:0 0 16px;padding-left:20px">${pj.map((x) => `<li>${esc(x.filename)}</li>`).join("")}</ul>` +
+      P(`<span style="color:#6B7385;font-size:13px">Documents de travail, non valables comme factures.</span>`);
+  const html = gabarit(`Préfactures${de}`, corps, { texte: "Ouvrir le pilotage", url: SITE + "#prefactures" });
   const ok = await envoyer(a, `Préfactures${periode ? " " + periode : ""} — envoyées par ${qui}`, html, { attachments: pj, reply_to: par.email });
   if (!ok) return json(req, { erreur: "L'envoi de l'e-mail a échoué. Réessayez." }, 502);
   console.log("Préfactures partagées", pj.length, "→", a.join(", "), "par", par.email);
