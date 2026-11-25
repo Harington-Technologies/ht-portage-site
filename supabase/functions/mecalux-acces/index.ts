@@ -5,6 +5,8 @@
 //   POST { action: "decider", d, decision, role? }                        → valide ou refuse (administrateur connecté avec double authentification) ;
 //                                                                      un refus supprime le compte s'il a été créé pour le pilotage (jamais un compte HT Portage)
 //   POST { action: "retirer", email }                              → retire l'accès et supprime le compte s'il a été créé pour le pilotage (administrateur)
+//   POST { action: "partager_prefactures", a: [emails], fichiers: [{chemin, nom}], mois, message? } → envoie les PDF des préfactures
+//                                                                      à des membres de l'équipe (membre Harington connecté avec double authentification)
 //   POST { action: "reinit_mfa", email }                           → supprime la double authentification d'un membre (téléphone perdu ; administrateur)
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_demandes → e-mail aux administrateurs : valider / refuser
 //   POST (déclencheur base, en-tête x-webhook-secret) INSERT mecalux_pf_evenements → e-mail du circuit des préfactures aux bonnes personnes
@@ -49,12 +51,12 @@ const texte = (html: string) => html.replace(/<(style|title|head)[\s\S]*?<\/\1>/
   .replace(/<\/(p|h1|tr|table)>|<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">")
   .split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
 
-async function envoyer(to: string[], sujet: string, html: string, extra: { cc?: string[]; attachments?: { filename: string; content: string }[] } = {}) {
+async function envoyer(to: string[], sujet: string, html: string, extra: { cc?: string[]; attachments?: { filename: string; content: string }[]; reply_to?: string } = {}) {
   const from = (NOTIFY_FROM.match(/<([^>]+)>/)?.[1] ?? NOTIFY_FROM).trim();
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: `Pilotage Mecalux <${from}>`, to, subject: sujet, html, text: texte(html), ...(extra.cc?.length ? { cc: extra.cc } : {}), ...(extra.attachments?.length ? { attachments: extra.attachments } : {}) }),
+    body: JSON.stringify({ from: `Pilotage Mecalux <${from}>`, to, subject: sujet, html, text: texte(html), ...(extra.cc?.length ? { cc: extra.cc } : {}), ...(extra.attachments?.length ? { attachments: extra.attachments } : {}), ...(extra.reply_to ? { reply_to: extra.reply_to } : {}) }),
   });
   if (!r.ok) { console.error("Resend", r.status, await r.text()); return false; }
   return true;
@@ -203,6 +205,58 @@ async function adminConnecte(req: Request): Promise<string> {
   return ad ? u.user.email : "";
 }
 
+// Membre Harington du pilotage (admin, superuser ou harington), session validée par la double authentification (aal2)
+async function haringtonConnecte(req: Request) {
+  const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return null;
+  const { data: u, error } = await admin.auth.getUser(jwt);
+  if (error || !u?.user?.email) return null;
+  let aal = "";
+  try { aal = JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).aal ?? ""; } catch { aal = ""; }
+  if (aal !== "aal2") return null;
+  const { data: m } = await admin.from("mecalux_equipe").select("email,nom,role,admin").ilike("email", u.user.email).maybeSingle();
+  return m && (m.admin || ["admin", "superuser", "harington"].includes(m.role)) ? m : null;
+}
+
+// Envoi des préfactures d'un mois à des membres de l'équipe choisis dans la liste
+async function partagerPrefactures(req: Request, b) {
+  const par = await haringtonConnecte(req);
+  if (!par) return json(req, { erreur: "Action réservée à l'équipe Harington connectée avec la double authentification." }, 403);
+  if (!(await autorise("mecalux-partage:" + par.email.toLowerCase(), 20, 3600))) return json(req, { erreur: "Trop d'envois : réessayez plus tard." }, 429);
+  const a = [...new Set((Array.isArray(b.a) ? b.a : []).map((e) => String(e ?? "").trim().toLowerCase()).filter((e) => EMAIL_OK.test(e)))].slice(0, 20);
+  if (!a.length) return json(req, { erreur: "Choisissez au moins un destinataire." }, 400);
+  const { data: eq } = await admin.from("mecalux_equipe").select("email");
+  const equipe = new Set((eq ?? []).map((x) => String(x.email).toLowerCase()));
+  const hors = a.filter((e) => !equipe.has(e));
+  if (hors.length) return json(req, { erreur: "Destinataire hors de l'équipe : " + hors.join(", ") }, 400);
+  const fichiers = (Array.isArray(b.fichiers) ? b.fichiers : []).slice(0, 40);
+  if (!fichiers.length) return json(req, { erreur: "Aucune préfacture à envoyer." }, 400);
+  const pj = []; let taille = 0;
+  for (const f of fichiers) {
+    const chemin = String(f?.chemin ?? "");
+    if (!/^prefactures\/partage\/[\w-]+\/[\w.-]+\.pdf$/.test(chemin)) return json(req, { erreur: "Fichier refusé." }, 400);
+    const nom = String(f?.nom ?? "prefacture.pdf").replace(/[\\/:*?"<>|]+/g, " ").slice(0, 120);
+    const x = await pieceJointe(chemin, /\.pdf$/i.test(nom) ? nom : nom + ".pdf");
+    if (!x) return json(req, { erreur: "Fichier introuvable : " + nom }, 400);
+    taille += x.content.length; if (taille > 30_000_000) return json(req, { erreur: "Pièces jointes trop lourdes : envoyez moins de préfactures à la fois." }, 400);
+    pj.push(x);
+  }
+  const m = String(b.mois ?? ""); const [an, mo] = m.split("-"); const periode = /^\d{4}-\d{2}$/.test(m) ? `${MOIS[+mo - 1]} ${an}` : "";
+  const qui = par.nom || par.email;
+  const message = String(b.message ?? "").trim().slice(0, 2000);
+  const liste = `<ul style="margin:0 0 16px;padding-left:20px">${pj.map((x) => `<li>${esc(x.filename)}</li>`).join("")}</ul>`;
+  const html = gabarit(`Préfactures${periode ? " de " + periode : ""}`,
+    P("Bonjour,") + P(`${esc(qui)} vous transmet ${pj.length > 1 ? `les ${pj.length} préfactures` : "la préfacture"}${periode ? " de " + esc(periode) : ""}, en pièce jointe.`) +
+    (message ? P(esc(message).replace(/\n/g, "<br>")) : "") + liste +
+    P(`<span style="color:#6B7385;font-size:13px">Documents de travail, non valables comme factures.</span>`),
+    { texte: "Ouvrir le pilotage", url: SITE + "#prefactures" });
+  const ok = await envoyer(a, `Préfactures${periode ? " " + periode : ""} — envoyées par ${qui}`, html, { attachments: pj, reply_to: par.email });
+  if (!ok) return json(req, { erreur: "L'envoi de l'e-mail a échoué. Réessayez." }, 502);
+  console.log("Préfactures partagées", pj.length, "→", a.join(", "), "par", par.email);
+  for (const f of fichiers) await admin.storage.from("mecalux-justifs").remove([String(f.chemin)]);
+  return json(req, { ok: true, n: pj.length, a });
+}
+
 async function decider(req: Request, b) {
   const { data: d } = await admin.from("mecalux_demandes").select("*").eq("id", b.d).maybeSingle();
   if (!d) return json(req, { erreur: "Demande introuvable." }, 404);
@@ -329,6 +383,7 @@ Deno.serve(async (req) => {
       return json(req, { ok: true, supprime });
     }
     if (b.action === "decider") return await decider(req, b);
+    if (b.action === "partager_prefactures") return await partagerPrefactures(req, b);
   } catch (e) { console.error(e); return json(req, { erreur: "Erreur inattendue. Réessayez." }, 500); }
   return json(req, { erreur: "Action inconnue." }, 400);
 });
