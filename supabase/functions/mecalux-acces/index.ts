@@ -231,6 +231,16 @@ async function partagerPrefactures(req: Request, b) {
   if (hors.length) return json(req, { erreur: "Destinataire hors de l'équipe : " + hors.join(", ") }, 400);
   const fichiers = (Array.isArray(b.fichiers) ? b.fichiers : []).slice(0, 40);
   if (!fichiers.length) return json(req, { erreur: "Aucune préfacture à envoyer." }, 400);
+  // Préfactures jointes : toutes doivent être validées (ou déjà envoyées) et du mois envoyé
+  const m = String(b.mois ?? "");
+  const pfIds = [...new Set(fichiers.map((f) => String(f?.pf ?? "")).filter(Boolean))];
+  let pfs = [];
+  if (pfIds.length) {
+    const { data } = await admin.from("mecalux_prefactures").select("id,mois,statut").in("id", pfIds);
+    pfs = data ?? [];
+    if (pfs.length !== pfIds.length || pfs.some((x) => x.mois !== m)) return json(req, { erreur: "Préfacture introuvable pour ce mois." }, 400);
+    if (pfs.some((x) => x.statut === "Brouillon")) return json(req, { erreur: "Toutes les préfactures doivent être validées avant l'envoi." }, 400);
+  }
   const pj = []; let taille = 0;
   for (const f of fichiers) {
     const chemin = String(f?.chemin ?? "");
@@ -242,7 +252,7 @@ async function partagerPrefactures(req: Request, b) {
     taille += x.content.length; if (taille > 30_000_000) return json(req, { erreur: "Pièces jointes trop lourdes : envoyez moins de préfactures à la fois." }, 400);
     pj.push(x);
   }
-  const m = String(b.mois ?? ""); const [an, mo] = m.split("-"); const periode = /^\d{4}-\d{2}$/.test(m) ? `${MOIS[+mo - 1]} ${an}` : "";
+  const [an, mo] = m.split("-"); const periode = /^\d{4}-\d{2}$/.test(m) ? `${MOIS[+mo - 1]} ${an}` : "";
   const qui = par.nom || par.email;
   const message = String(b.message ?? "").trim().slice(0, 2000);
   const de = periode ? (/^[aeiouyàâéèêîôû]/i.test(periode) ? " d'" : " de ") + periode : "";
@@ -256,8 +266,17 @@ async function partagerPrefactures(req: Request, b) {
   const ok = await envoyer(a, `Préfactures${periode ? " " + periode : ""} — envoyées par ${qui}`, html, { attachments: pj, reply_to: par.email });
   if (!ok) return json(req, { erreur: "L'envoi de l'e-mail a échoué. Réessayez." }, 502);
   console.log("Préfactures partagées", pj.length, "→", a.join(", "), "par", par.email);
-  for (const f of fichiers) await admin.storage.from("mecalux-justifs").remove([String(f.chemin)]);
-  return json(req, { ok: true, n: pj.length, a });
+  // Les préfactures validées passent à « Envoyée à Mecalux » ; leur PDF envoyé est conservé
+  const aEnvoyer = pfs.filter((x) => x.statut === "Validée").map((x) => x.id);
+  const garde = Object.fromEntries(fichiers.filter((f) => aEnvoyer.includes(String(f?.pf ?? ""))).map((f) => [String(f.pf), String(f.chemin)]));
+  let envoyees = 0;
+  if (aEnvoyer.length) {
+    const { data: n, error } = await admin.rpc("mecalux_pf_envoyer", { p_ids: aEnvoyer, p_par: par.email, p_dest: a.join(", "), p_fichiers: garde });
+    if (error) console.error("mecalux_pf_envoyer", error); else envoyees = n ?? 0;
+  }
+  const gardes = new Set(Object.values(garde));
+  for (const f of fichiers) if (!gardes.has(String(f.chemin))) await admin.storage.from("mecalux-justifs").remove([String(f.chemin)]);
+  return json(req, { ok: true, n: pj.length, a, envoyees });
 }
 
 async function decider(req: Request, b) {

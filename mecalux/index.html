@@ -188,7 +188,7 @@ const CAS={
   continu:{nom:'Grand déplacement · week-ends sur place',desc:'Reste sur site les week-ends, un seul aller-retour.'},
   ponctuel:{nom:'Intervention ponctuelle',desc:'Mission courte avec un seul aller-retour.'}
 };
-const STATUTS_PF=['Brouillon','À vérifier ADV','Envoyée à Mecalux','BDC reçu','Facturée'];
+const STATUTS_PF=['Brouillon','Validée','Envoyée à Mecalux','BDC reçu','Facturée'];
 const ROLES_CIRCUIT=[['preparation','Préparation des préfactures','Reçoit, avec le chef de projet Harington du projet, les demandes de correction'],['adv','Responsable ADV Harington','Vérifie la préfacture, l\'envoie à Mecalux, puis facture'],['adv_mecalux','Responsable ADV Mecalux','Valide la préfacture et transmet le bon de commande']];
 const CAT_FRAIS=['Forfait hôtel','Hôtel (au réel)','Forfait repas','Per diem','Repas','Location voiture','Forfait location voiture','Voiture Harington','Carburant','Péages','Train','Avion','Bus / taxi','Parking','Équipements / matériels','Divers'];
 const CAT_FORFAIT=['Forfait hôtel','Forfait repas','Per diem','Voiture Harington','Forfait location voiture'];
@@ -611,7 +611,7 @@ function vDash(){
     if(p.mesDebut&&p.mesDebut>today()&&p.mesDebut<=addDays(today(),21))alerts.push(['',esc(p.client+' · '+p.nom)+' : départ sur site le '+dateFr(p.mesDebut)+'. Préparez les réservations.',p.id]);
   });
   let h=head(moisLabel(mois),'Tableau de bord','<a class="btn o" href="#calculateur">'+ic('calc',18)+'Estimer des frais</a><button class="btn p" data-act="newProjet">+ Nouveau projet</button>');
-  if(pfTodo.length)h+='<section class="hero" aria-label="Action en attente"><div style="display:flex;flex-direction:column;gap:6px;max-width:640px"><span class="t">Préfactures · '+moisLabel(pfMois)+'</span><span class="m">'+pfTodo.length+' préfacture'+(pfTodo.length>1?'s':'')+' à préparer et soumettre au Responsable ADV.</span><span style="color:#D9E0EA">'+pfTodo.map(p=>esc(p.client)).join(', ')+'</span></div><a class="btn r" href="#prefactures" data-pfmois="'+pfMois+'">Préparer les préfactures</a></section>';
+  if(pfTodo.length)h+='<section class="hero" aria-label="Action en attente"><div style="display:flex;flex-direction:column;gap:6px;max-width:640px"><span class="t">Préfactures · '+moisLabel(pfMois)+'</span><span class="m">'+pfTodo.length+' préfacture'+(pfTodo.length>1?'s':'')+' à valider avant l\'envoi du mois.</span><span style="color:#D9E0EA">'+pfTodo.map(p=>esc(p.client)).join(', ')+'</span></div><a class="btn r" href="#prefactures" data-pfmois="'+pfMois+'">Préparer les préfactures</a></section>';
   h+='<div class="filters"><label class="f">Client<select data-ui="dashClient"><option value="">Tous les clients</option>'+clients().map(c=>'<option'+(c===ui.dashClient?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label><label class="f">Ressource'+selRes('dashRes',ui.dashRes,'Toutes les ressources').replace('data-k="dashRes"','data-ui="dashRes"')+'</label></div>';
   h+='<section class="kpis" aria-label="Indicateurs clés">'+
     kpi('Projets en cours',actifs.length,st.length+' projet'+(st.length>1?'s':'')+' au total')+
@@ -786,7 +786,7 @@ function vProjet(id){
   h+='<div class="row"><span class="sp"></span><button class="btn d sm" data-act="delProjet" data-id="'+id+'">Supprimer le projet</button></div>';
   return h;
 }
-function pfStatusPill(pf){const s=pf&&pf.statut||'À préparer';const c={'Brouillon':'','À vérifier ADV':'warn','Envoyée à Mecalux':'dev','BDC reçu':'mes','Facturée':'ok'}[s];return '<span class="pill '+(c||'')+'">'+esc(s)+'</span>'}
+function pfStatusPill(pf){const s=pf&&pf.statut||'À préparer';const c={'Brouillon':'','Validée':'warn','Envoyée à Mecalux':'dev','BDC reçu':'mes','Facturée':'ok'}[s];return '<span class="pill '+(c||'')+'">'+esc(s)+'</span>'}
 
 /* filtres par colonne (tableaux .filtrable) */
 function filtreLigne(tid,cols){
@@ -1135,12 +1135,13 @@ function vSaisie(){
 function vPrefactures(){
   const m=ui.pfMois;
   let h=head('Préparation de la facturation','Préfactures');
-  h+='<div class="filters"><label class="f">Mois<input type="month" data-ui="pfMois" value="'+m+'"></label><div class="note i small" style="flex:1 1 320px">Une préfacture par projet et par mois. Circuit : préparation → vérification par le Responsable ADV Harington → validation par le Responsable ADV Mecalux avec le bon de commande → facture. Un e-mail part à chaque étape.</div></div>';
+  h+='<div class="filters"><label class="f">Mois<input type="month" data-ui="pfMois" value="'+m+'"></label><div class="note i small" style="flex:1 1 320px">Une préfacture par projet et par mois. Chaque préfacture est validée par Harington ou par Mecalux (ou remise en brouillon). Quand toutes sont validées, un seul envoi du mois avec « Envoyer à… » : elles sont alors figées. Ensuite : bon de commande puis facture. Aucun e-mail automatique.</div></div>';
   const rows=list('projets').map(p=>{const L=pfLines(p.id,m);const pf=pfOf(p.id,m);const tot=pf&&pf.lignes?pf.lignes.reduce((x,l)=>x+num(l.montant),0):L.reduce((x,l)=>x+l.montant,0);return{p,L,pf,tot}}).filter(x=>x.L.length||x.pf);
   const total=rows.reduce((x,r)=>x+r.tot,0);
-  h+='<section class="kpis">'+kpi('Préfactures du mois',rows.length,'projets avec de l\'activité')+kpi('Montant HT',eur(total),'prestations + frais refacturés')+kpi('En validation',rows.filter(r=>r.pf&&['À vérifier ADV','Envoyée à Mecalux'].includes(r.pf.statut)).length,'chez le Responsable ADV Harington ou Mecalux')+kpi('BDC reçus',rows.filter(r=>r.pf&&['BDC reçu','Facturée'].includes(r.pf.statut)).length,'prêtes à facturer')+'</section>';
-  if(rows.length)h+='<div class="row" style="flex-wrap:wrap;gap:8px;margin:0 0 12px"><button class="btn o" data-act="pfZipTout">Télécharger toutes les préfactures ('+rows.length+')</button>'+(peutPleo?'<button class="btn p" data-act="pfEnvoyerTout">Envoyer à…</button>':'')+'</div>';
-  h+='<section class="card">'+(rows.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Client · projet</th><th class="n">Jours</th><th class="n">Montant HT</th><th>Statut</th><th>N° BDC</th><th></th></tr></thead><tbody>'+rows.map(({p,L,pf,tot})=>'<tr><td style="font-weight:700">'+esc(p.client)+'<div class="small muted" style="font-weight:400">'+esc(p.nom)+'</div></td><td class="n">'+nf((pf&&pf.lignes||L).filter(l=>l.type==='prestation').reduce((x,l)=>x+num(l.qte),0))+'</td><td class="n" style="font-weight:700">'+eur2(tot)+'</td><td>'+pfStatusPill(pf)+(pf&&pf.lignes&&changed(pf,L)?' <span class="pill warn" title="Les saisies ont changé depuis que la préfacture a été figée">Saisies modifiées</span>':'')+'</td><td>'+esc(pf&&pf.bdc||'—')+'</td><td class="n"><a class="btn o sm" href="#prefacture-'+pfDocId(p.id,m)+'">Ouvrir</a></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="2">Total</td><td class="n">'+eur2(total)+'</td><td colspan="3"></td></tr></tfoot></table></div>':'<div class="empty">Aucune activité saisie en <span style="text-transform:capitalize">'+moisLabel(m)+'</span>. Les jours et frais se saisissent dans <a href="#saisie">Saisie mensuelle</a>.</div>')+'</section>';
+  h+='<section class="kpis">'+kpi('Préfactures du mois',rows.length,'projets avec de l\'activité')+kpi('Montant HT',eur(total),'prestations + frais refacturés')+kpi('À valider',rows.filter(r=>!r.pf||r.pf.statut==='Brouillon').length,'brouillons')+kpi('Validées',rows.filter(r=>r.pf&&r.pf.statut==='Validée').length,'prêtes à envoyer')+kpi('Envoyées',rows.filter(r=>r.pf&&['Envoyée à Mecalux','BDC reçu','Facturée'].includes(r.pf.statut)).length,'figées · BDC / facture')+'</section>';
+  const nbAValider=rows.filter(r=>!r.pf||r.pf.statut==='Brouillon').length;
+  if(rows.length)h+='<div class="row" style="flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center"><button class="btn o" data-act="pfZipTout">Télécharger toutes les préfactures ('+rows.length+')</button>'+(peutPleo?'<button class="btn p" data-act="pfEnvoyerTout"'+(nbAValider?' disabled title="Toutes les préfactures du mois doivent être validées"':'')+'>Envoyer à…</button>'+(nbAValider?'<span class="small muted">'+nbAValider+' préfacture'+(nbAValider>1?'s':'')+' à valider avant l\'envoi</span>':''):'')+'</div>';
+  h+='<section class="card">'+(rows.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Client · projet</th><th class="n">Jours</th><th class="n">Montant HT</th><th>Statut</th><th>N° BDC</th><th></th></tr></thead><tbody>'+rows.map(({p,L,pf,tot})=>'<tr><td style="font-weight:700">'+esc(p.client)+'<div class="small muted" style="font-weight:400">'+esc(p.nom)+'</div></td><td class="n">'+nf((pf&&pf.lignes||L).filter(l=>l.type==='prestation').reduce((x,l)=>x+num(l.qte),0))+'</td><td class="n" style="font-weight:700">'+eur2(tot)+'</td><td>'+pfStatusPill(pf)+(pf&&pf.lignes&&changed(pf,L)?' <span class="pill warn" title="Les saisies ont changé depuis que la préfacture a été figée">Saisies modifiées</span>':'')+'</td><td>'+esc(pf&&pf.bdc||'—')+'</td><td class="n" style="white-space:nowrap">'+pfBoutons(pfDocId(p.id,m),pf,true)+' <a class="btn o sm" href="#prefacture-'+pfDocId(p.id,m)+'">Ouvrir</a></td></tr>').join('')+'</tbody><tfoot><tr><td colspan="2">Total</td><td class="n">'+eur2(total)+'</td><td colspan="3"></td></tr></tfoot></table></div>':'<div class="empty">Aucune activité saisie en <span style="text-transform:capitalize">'+moisLabel(m)+'</span>. Les jours et frais se saisissent dans <a href="#saisie">Saisie mensuelle</a>.</div>')+'</section>';
   return h;
 }
 // ---------- préfactures du mois : tout télécharger / envoyer à des membres de l'équipe ----------
@@ -1170,6 +1171,7 @@ async function pfZipTout(){if(!pfCles().length){toast('Aucune préfacture ce moi
     const b=await z.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Prefactures_'+ui.pfMois+'.zip';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
     toast(pfResume(L)+' téléchargées')}catch(e){toast('Téléchargement impossible : '+(e.message||e))}finally{libre()}}
 async function pfEnvoyerTout(){const cles=pfCles();if(!cles.length){toast('Aucune préfacture ce mois-ci');return}
+  const nv=cles.filter(k=>{const pf=byId('prefactures',k);return !pf||pf.statut==='Brouillon'});if(nv.length){toast(nv.length+' préfacture'+(nv.length>1?'s':'')+' à valider avant l\'envoi.');return}
   occupe('Chargement de l\'équipe…');let eq=[];try{const r=await sb.from('mecalux_equipe').select('email,nom,role').order('nom');if(r.error)throw r.error;eq=r.data||[]}catch(e){libre();handleErr(e);return}libre();
   const ROLE={admin:'Administrateur',superuser:'Harington',harington:'Harington',mecalux:'Mecalux'};const moi=moiEmail();
   document.getElementById('dlgBody').innerHTML='<h2>Envoyer les préfactures</h2><p class="small muted" style="margin:0 0 10px">'+cles.length+' préfacture'+(cles.length>1?'s':'')+' de <span style="text-transform:capitalize">'+esc(moisLabel(ui.pfMois))+'</span>, leur synthèse avec les montants et la restitution Mecalux en Excel, joints à un e-mail.</p>'+
@@ -1180,16 +1182,28 @@ async function pfEnvoyerTout(){const cles=pfCles();if(!cles.length){toast('Aucun
   document.getElementById('pfGo').onclick=async()=>{const a=[...document.querySelectorAll('input[name=pfDest]:checked')].map(x=>x.value);if(!a.length){toast('Choisissez au moins un destinataire');return}
     const message=document.getElementById('pfMsg').value;dlg.close();occupe('Préparation des PDF…');
     try{const L=await pfBlobs();const dos='prefactures/partage/'+Date.now()+'-'+Math.random().toString(36).slice(2,8);const fichiers=[];
-      for(const x of L){occupeMsg('Envoi des fichiers… '+(fichiers.length+1)+' / '+L.length);const chemin=dos+'/'+x.nom.replace(/[^\w.-]+/g,'_');const {error}=await sb.storage.from(BUCKET_J).upload(chemin,x.blob,{contentType:x.blob.type||'application/pdf'});if(error)throw error;fichiers.push({chemin,nom:x.nom})}
+      for(const x of L){occupeMsg('Envoi des fichiers… '+(fichiers.length+1)+' / '+L.length);const chemin=dos+'/'+x.nom.replace(/[^\w.-]+/g,'_');const {error}=await sb.storage.from(BUCKET_J).upload(chemin,x.blob,{contentType:x.blob.type||'application/pdf'});if(error)throw error;fichiers.push(Object.assign({chemin,nom:x.nom},x.k!=='synthese'&&x.k!=='restitution'?{pf:x.k}:{}))}
       occupeMsg('Envoi de l\'e-mail…');const cfg=window.HTP_CONFIG;const r=await fetch(cfg.supabaseUrl+'/functions/v1/mecalux-acces',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'partager_prefactures',a,fichiers,mois:ui.pfMois,message})});
       const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.erreur||'Envoi impossible');
-      toast(pfResume(L)+' envoyées à '+a.length+' destinataire'+(a.length>1?'s':''))}catch(e){toast('Envoi impossible : '+(e.message||e))}finally{libre()}}}
+      const {data:rs}=await sb.from(TBL('prefactures')).select('*').eq('mois',ui.pfMois);(rs||[]).forEach(r=>S.prefactures[r.id]=fromRow(r));render();
+      toast(pfResume(L)+' envoyées à '+a.length+' destinataire'+(a.length>1?'s':'')+(j.envoyees?' · '+j.envoyees+' préfacture'+(j.envoyees>1?'s':'')+' figée'+(j.envoyees>1?'s':''):''))}catch(e){toast('Envoi impossible : '+(e.message||e))}finally{libre()}}}
+function pfBoutons(key,pf,sm){const st=pf&&pf.statut||'Brouillon';const c=sm?' sm':'';
+  if(st==='Brouillon')return '<button class="btn p'+c+'" data-act="pfValider" data-k="'+key+'">Valider</button>';
+  if(st==='Validée')return '<button class="btn o'+c+'" data-act="pfEtape" data-v="brouillon" data-k="'+key+'">Revenir en brouillon</button>';
+  return ''}
+async function pfFiger(key,notes){const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);const pf=pfOf(pid,m)||{};
+  if(pf.statut&&pf.statut!=='Brouillon'){toast('Préfacture validée ou envoyée : ses lignes sont figées.');return false}
+  const o={projetId:pid,mois:m,notes:notes!=null?notes:(pf.notes||''),lignes:pfLines(pid,m).map(l=>Object.assign({},l,{pu:Math.round(l.pu*100)/100,montant:Math.round(l.montant*100)/100}))};
+  if(!pf.statut)Object.assign(o,{statut:'Brouillon',historique:[]});return await save('prefactures',key,o)}
+async function pfValider(key){const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);const pf=pfOf(pid,m);
+  if(pf&&pf.statut&&pf.statut!=='Brouillon')return;if(!pfLines(pid,m).length&&!(pf&&pf.lignes&&pf.lignes.length)){toast('Aucune ligne à valider.');return}
+  occupe('Validation…');const n=document.getElementById('pfNotes');const ok=await pfFiger(key,n?n.value:null);libre();if(!ok)return;await pfEtape(key,'valider')}
 function changed(pf,L){const a=pf.lignes.reduce((x,l)=>x+num(l.montant),0),b=L.reduce((x,l)=>x+l.montant,0);return Math.abs(a-b)>0.01}
 // ---------- circuit de validation des préfactures ----------
 const moiEmail=()=>apercu?apercu.email:((session&&session.user&&session.user.email)||'').toLowerCase();
 const estCirc=role=>estAdmin||(!!(S.circuit||{})[role]&&(S.circuit[role].email||'').toLowerCase()===moiEmail());
 const nomCirc=(role,def)=>((S.circuit||{})[role]||{}).nom||def;
-const ACT_PF={soumettre:'a soumis la préfacture au Responsable ADV →',adv_valider:'a vérifié et envoyé la préfacture à Mecalux →',adv_renvoyer:'a renvoyé la préfacture pour correction →',mecalux_valider:'a validé la préfacture et transmis le BDC →',mecalux_refuser:'a refusé la préfacture →',facturer:'a facturé et envoyé la facture →',rouvrir:'a remis la préfacture en brouillon →'};
+const ACT_PF={valider:'a validé la préfacture →',brouillon:'a remis la préfacture en brouillon →',envoyer:'a envoyé la préfacture →',soumettre:'a soumis la préfacture au Responsable ADV →',adv_valider:'a vérifié et envoyé la préfacture à Mecalux →',adv_renvoyer:'a renvoyé la préfacture pour correction →',mecalux_valider:'a enregistré le bon de commande →',mecalux_refuser:'a refusé la préfacture →',facturer:'a joint la facture →',rouvrir:'a remis la préfacture en brouillon →'};
 // nom d'une personne à partir de son e-mail (circuit, ressources, chefs de projet, équipe)
 function nomDeEmail(e,p){const m=String(e||'').toLowerCase();if(!m)return '';const C=S.circuit||{};for(const k in C)if((C[k].email||'').toLowerCase()===m&&C[k].nom)return C[k].nom;
   const r=list('ressources').find(x=>(x.email||'').toLowerCase()===m);if(r)return r.nom;
@@ -1200,44 +1214,41 @@ function nomDeEmail(e,p){const m=String(e||'').toLowerCase();if(!m)return '';con
 function pfCircuit(key,p,pf,st){const F=(pf&&pf.fichiers)||{};const cpH=p.cpHaringtonId?byId('ressources',p.cpHaringtonId):null;const cpM=[p.cpMecaluxPrenom,p.cpMecaluxNom].filter(Boolean).join(' ');
   const piece=(k,lib)=>F[k]?'<button class="btn o sm" data-act="pfFichier" data-v="'+esc(F[k])+'" data-n="'+esc(lib)+'">'+esc(lib)+'</button>':'';
   let h='<section class="card"><h2>Validation</h2>';
-  h+='<div class="small" style="display:grid;gap:3px"><div><span class="muted">Chef de projet Harington :</span> '+(cpH?esc(cpH.nom):'<span class="muted">non renseigné</span>')+'</div><div><span class="muted">Chef de projet Mecalux :</span> '+(cpM||p.cpMecaluxEmail?esc(cpM||p.cpMecaluxEmail):'<span class="muted">non renseigné</span>')+'</div>'+
-    '<div><span class="muted">Responsable ADV Harington :</span> '+esc(nomCirc('adv','non renseignée'))+' · <span class="muted">Responsable ADV Mecalux :</span> '+esc(nomCirc('adv_mecalux','non renseignée'))+'</div></div>';
+  h+='<div class="small" style="display:grid;gap:3px"><div><span class="muted">Chef de projet Harington :</span> '+(cpH?esc(cpH.nom):'<span class="muted">non renseigné</span>')+'</div><div><span class="muted">Chef de projet Mecalux :</span> '+(cpM||p.cpMecaluxEmail?esc(cpM||p.cpMecaluxEmail):'<span class="muted">non renseigné</span>')+'</div>'+'</div>';
   if(pf&&pf.bdc)h+='<div class="small"><b>BDC</b> '+esc(pf.bdc)+'</div>';if(pf&&pf.numeroFacture)h+='<div class="small"><b>Facture</b> '+esc(pf.numeroFacture)+'</div>';
   const pcs=piece('pdf','Préfacture envoyée')+piece('bdc','Bon de commande')+piece('facture','Facture');if(pcs)h+='<div class="row" style="flex-wrap:wrap;gap:6px">'+pcs+'</div>';
   const ta=(id,ph)=>'<label class="f">Commentaire<textarea id="'+id+'" rows="2" placeholder="'+esc(ph)+'"></textarea></label>';
-  const harington=peutPleo;
+  const harington=peutPleo;const dern=a=>((pf&&pf.historique)||[]).filter(x=>x.action===a).slice(-1)[0];const quand=x=>x&&x.le?new Date(x.le).toLocaleString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   if(st==='À préparer'||st==='Brouillon'){
-    h+='<label class="f">Notes pour le Responsable ADV<textarea id="pfNotes" rows="3">'+esc(pf&&pf.notes||'')+'</textarea></label>';
-    if(harington)h+='<button class="btn o" data-act="pfSave" data-k="'+key+'">Enregistrer et figer les lignes</button>'+(pf?ta('pfCom','Facultatif : précision pour le Responsable ADV')+'<button class="btn p" data-act="pfEtape" data-v="soumettre" data-k="'+key+'">Soumettre au Responsable ADV ('+esc(nomCirc('adv','ADV'))+')</button>':'<p class="small muted" style="margin:0">Enregistrez d\'abord la préfacture pour pouvoir la soumettre.</p>');
+    h+='<label class="f">Notes<textarea id="pfNotes" rows="3">'+esc(pf&&pf.notes||'')+'</textarea></label>';
+    h+='<div class="row" style="flex-wrap:wrap"><button class="btn p" data-act="pfValider" data-k="'+key+'">Valider la préfacture</button><button class="btn o" data-act="pfSave" data-k="'+key+'">Enregistrer le brouillon</button></div><p class="small muted" style="margin:0">La validation fige les lignes. Une préfacture validée peut revenir en brouillon tant que l\'envoi du mois n\'est pas fait.</p>';
     h+='<a class="small" href="#saisie" data-saisieproj="'+p.id+'" data-saisiemois="'+key.slice(key.lastIndexOf('_')+1)+'" style="font-weight:600">Corriger les jours ou les frais</a>';
-  }else if(st==='À vérifier ADV'){
-    if(estCirc('adv'))h+=ta('pfCom','Obligatoire pour un renvoi, facultatif pour l\'envoi')+'<div class="row" style="flex-wrap:wrap"><button class="btn p" data-act="pfEtape" data-v="adv_valider" data-k="'+key+'">Valider et envoyer à Mecalux</button><button class="btn o" data-act="pfEtape" data-v="adv_renvoyer" data-k="'+key+'">Renvoyer pour correction</button></div><p class="small muted" style="margin:0">L\'envoi joint le PDF de la préfacture au mail destiné au Responsable ADV Mecalux et au chef de projet Mecalux.</p>';
-    else h+='<p class="small muted" style="margin:0">En attente de la vérification par '+esc(nomCirc('adv','le Responsable ADV Harington'))+'.</p>';
-  }else if(st==='Envoyée à Mecalux'){
-    if(estCirc('adv_mecalux'))h+='<label class="f">N° de bon de commande<input id="pfBdc" placeholder="Obligatoire pour valider"></label><label class="f">Bon de commande (PDF, facultatif)<input type="file" id="pfFic" accept=".pdf,image/*"></label>'+ta('pfCom','Obligatoire pour un refus')+'<div class="row" style="flex-wrap:wrap"><button class="btn p" data-act="pfEtape" data-v="mecalux_valider" data-k="'+key+'">Valider et transmettre le BDC</button><button class="btn o" data-act="pfEtape" data-v="mecalux_refuser" data-k="'+key+'">Refuser</button></div>';
-    else h+='<p class="small muted" style="margin:0">En attente de la validation par '+esc(nomCirc('adv_mecalux','le Responsable ADV Mecalux'))+' et du bon de commande.</p>';
+  }else if(st==='Validée'){const v=dern('valider');
+    h+='<p class="small" style="margin:0"><b>Validée</b>'+(v?' par '+esc(nomDeEmail(v.par,p))+' · '+quand(v):'')+'. Elle partira avec l\'envoi du mois (bouton « Envoyer à… » de la page Préfactures), quand toutes les préfactures du mois seront validées.</p><div class="row"><button class="btn o" data-act="pfEtape" data-v="brouillon" data-k="'+key+'">Revenir en brouillon</button></div>';
+  }else if(st==='Envoyée à Mecalux'){const e=dern('envoyer');
+    h+='<p class="small" style="margin:0"><b>Envoyée</b>'+(e?' par '+esc(nomDeEmail(e.par,p))+' · '+quand(e)+(e.commentaire?' · '+esc(e.commentaire.replace(/^Envoyée à /,'à ')):''):'')+'. La préfacture est figée.</p>';
+    h+='<label class="f">N° de bon de commande<input id="pfBdc" placeholder="Obligatoire"></label><label class="f">Bon de commande (PDF, facultatif)<input type="file" id="pfFic" accept=".pdf,image/*"></label><button class="btn p" data-act="pfEtape" data-v="mecalux_valider" data-k="'+key+'">Enregistrer le bon de commande</button>';
   }else if(st==='BDC reçu'){
-    if(estCirc('adv'))h+='<label class="f">N° de facture<input id="pfNum" placeholder="Numéro VSA"></label><label class="f">Facture (PDF issu de VSA)<input type="file" id="pfFic" accept=".pdf"></label>'+ta('pfCom','Facultatif')+'<button class="btn p" data-act="pfEtape" data-v="facturer" data-k="'+key+'">Facturer et envoyer à Mecalux</button>';
-    else h+='<p class="small muted" style="margin:0">En attente de la facture par '+esc(nomCirc('adv','le Responsable ADV Harington'))+'.</p>';
-  }else if(st==='Facturée'){h+='<p class="small" style="margin:0;color:var(--ok);font-weight:700">Facturée et envoyée à Mecalux.</p>'}
+    if(harington)h+='<label class="f">N° de facture<input id="pfNum" placeholder="Numéro VSA"></label><label class="f">Facture (PDF issu de VSA)<input type="file" id="pfFic" accept=".pdf"></label><button class="btn p" data-act="pfEtape" data-v="facturer" data-k="'+key+'">Joindre la facture</button>';
+    else h+='<p class="small muted" style="margin:0">Bon de commande reçu : en attente de la facture Harington.</p>';
+  }else if(st==='Facturée'){h+='<p class="small" style="margin:0;color:var(--ok);font-weight:700">Facturée.</p>'}
   if(estAdmin&&pf&&st!=='Brouillon')h+='<details><summary class="small" style="cursor:pointer">Remettre en brouillon (administrateur)</summary>'+ta('pfComR','Obligatoire : motif')+'<button class="btn o sm" data-act="pfEtape" data-v="rouvrir" data-k="'+key+'">Remettre en brouillon</button></details>';
   const H=((pf&&pf.historique)||[]).slice().reverse();
   if(H.length)h+='<details'+(st!=='Brouillon'?' open':'')+'><summary class="small" style="cursor:pointer;font-weight:700;color:var(--navy)">Historique</summary><ol class="small" style="margin:6px 0 0;padding-left:18px;display:grid;gap:4px">'+H.map(x=>'<li><b>'+esc(x.par?nomDeEmail(x.par,p):'Auteur non enregistré')+'</b> '+esc(ACT_PF[x.action]||'a passé la préfacture au statut')+' <b>'+esc(x.statut)+'</b><div class="muted">'+(x.le?new Date(x.le).toLocaleString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'')+(x.par&&nomDeEmail(x.par,p)!==x.par?' · '+esc(x.par):'')+'</div>'+(x.commentaire?'<div class="muted">« '+esc(x.commentaire)+' »</div>':'')+'</li>').join('')+'</ol></details>';
   return h+'</section>'}
 async function pfEtape(key,action){const pf=byId('prefactures',key);if(!pf)return;
   const val=id=>((document.getElementById(id)||{}).value||'').trim();const com=action==='rouvrir'?val('pfComR'):val('pfCom');
-  if(['adv_renvoyer','mecalux_refuser','rouvrir'].includes(action)&&!com){toast('Indiquez un commentaire.');(document.getElementById(action==='rouvrir'?'pfComR':'pfCom')||{focus(){}}).focus();return}
+  if(action==='rouvrir'&&!com){toast('Indiquez un commentaire.');(document.getElementById(action==='rouvrir'?'pfComR':'pfCom')||{focus(){}}).focus();return}
   const bdc=val('pfBdc'),numero=val('pfNum');if(action==='mecalux_valider'&&!bdc){toast('Saisissez le numéro du bon de commande.');document.getElementById('pfBdc').focus();return}
   const inp=document.getElementById('pfFic');const fic=inp&&inp.files&&inp.files[0];
   if(action==='facturer'&&!fic){toast('Joignez la facture (PDF issu de VSA).');return}
   if(fic&&fic.size>15*1024*1024){toast('Fichier trop lourd (15 Mo maximum).');return}
-  occupe('Envoi en cours…');
+  occupe('Enregistrement…');
   try{let chemin=null;const nomS=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w.\-]+/g,'_').slice(-80);
-    if(action==='adv_valider'){occupeMsg('Préparation du PDF…');const blob=await pfPdf(key,true);chemin='prefactures/'+key+'/prefacture-'+Date.now()+'.pdf';const {error}=await sb.storage.from(BUCKET_J).upload(chemin,blob,{contentType:'application/pdf'});if(error)throw error}
     if(fic&&(action==='mecalux_valider'||action==='facturer')){occupeMsg('Envoi du fichier…');chemin='prefactures/'+key+'/'+(action==='facturer'?'facture':'bdc')+'-'+Date.now()+'-'+nomS(fic.name);const {error}=await sb.storage.from(BUCKET_J).upload(chemin,fic,{contentType:fic.type||'application/pdf'});if(error)throw error}
     occupeMsg('Validation…');const {data,error}=await sb.rpc('mecalux_pf_action',{p_id:key,p_action:action,p_commentaire:com||null,p_bdc:bdc||null,p_fichier:chemin,p_numero:numero||null});if(error)throw error;
     const {data:row}=await sb.from(TBL('prefactures')).select('*').eq('id',key).maybeSingle();if(row)S.prefactures[key]=fromRow(row);
-    libre();render();toast({soumettre:'Préfacture soumise au Responsable ADV : e-mail envoyé',adv_valider:'Préfacture envoyée à Mecalux : e-mail envoyé avec le PDF',adv_renvoyer:'Préfacture renvoyée pour correction',mecalux_valider:'Bon de commande transmis au Responsable ADV Harington',mecalux_refuser:'Refus transmis au Responsable ADV Harington',facturer:'Facture envoyée à Mecalux',rouvrir:'Préfacture remise en brouillon'}[action]||('Statut : '+data))}
+    libre();render();toast({valider:'Préfacture validée',brouillon:'Préfacture remise en brouillon',mecalux_valider:'Bon de commande enregistré',facturer:'Facture jointe',rouvrir:'Préfacture remise en brouillon'}[action]||('Statut : '+data))}
   catch(e){libre();toast(String(e.message||e).replace(/^.*?: /,''))}}
 function vPrefacture(key){
   const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);
@@ -2320,11 +2331,8 @@ document.addEventListener('click',async e=>{
     case'copyEst':{const r=calcFrais(ui.calc);copy(r.lines.map(l=>l.k+' ('+l.d+') : '+eur2(l.v)).join('\n')+'\nTotal frais : '+eur2(r.totalFrais)+'\nPrestation : '+eur2(r.presta)+(r.trajet?'\nTemps de trajet : '+eur2(r.trajet):'')+'\nCoût total : '+eur2(r.presta+r.trajet+r.refac));break}
     case'loadEst':{const x=byId('estimations',id);const pr=clone(x.params||{});Object.assign(ui.calc,{qKm:'',qCarb:'',qPeage:'',trainNb:'',trainPrix:'',avionNb:'',avionPrix:'',nuitsDepart:'',nuitsArrivee:'',divers:[]},pr,{divers:(pr.divers||[]).map(d=>Object.assign({},d))},{projetId:x.projetId,ressourceId:x.ressourceId,libelle:x.libelle,estId:x.id});location.hash='calculateur';break}
     case'delEst':confirmBox('Supprimer cette estimation ?',()=>del('estimations',id));break;
-    case'pfSave':case'pfRefresh':{const key=b.dataset.k;const i=key.lastIndexOf('_');const pid=key.slice(0,i),m=key.slice(i+1);const pf=pfOf(pid,m)||{};
-      if(pf.statut&&pf.statut!=='Brouillon'){toast('Préfacture en cours de validation : ses lignes sont figées.');break}
-      const o={projetId:pid,mois:m,notes:act==='pfSave'&&document.getElementById('pfNotes')?document.getElementById('pfNotes').value:(pf.notes||''),lignes:pfLines(pid,m).map(l=>Object.assign({},l,{pu:Math.round(l.pu*100)/100,montant:Math.round(l.montant*100)/100}))};
-      if(!pf.statut)Object.assign(o,{statut:'Brouillon',historique:[]});
-      occupe('Enregistrement…');const ok=await save('prefactures',key,o);libre();if(ok)toast('Préfacture enregistrée');break}
+    case'pfSave':case'pfRefresh':{occupe('Enregistrement…');const ok=await pfFiger(b.dataset.k,act==='pfSave'&&document.getElementById('pfNotes')?document.getElementById('pfNotes').value:null);libre();if(ok)toast('Préfacture enregistrée');break}
+    case'pfValider':await pfValider(b.dataset.k);break;
     case'circuitSave':{const rows=[];for(const [k] of ROLES_CIRCUIT){const nom=(document.querySelector('[data-circ-nom="'+k+'"]')||{}).value||'';const em=((document.querySelector('[data-circ-email="'+k+'"]')||{}).value||'').trim().toLowerCase();if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail invalide : '+em);return}rows.push({role:k,nom:nom.trim()||null,email:em||null,maj_le:new Date().toISOString()})}
       occupe('Enregistrement…');const {error}=await sb.from('mecalux_circuit').upsert(rows);libre();if(error){handleErr(error);break}rows.forEach(r=>S.circuit[r.role]={nom:r.nom||'',email:r.email||''});toast('Circuit des préfactures enregistré');break}
     case'pfEtape':await pfEtape(b.dataset.k,b.dataset.v);break;
