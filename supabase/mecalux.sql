@@ -452,3 +452,78 @@ alter table public.mecalux_affectations drop constraint mecalux_affectations_pha
 alter table public.mecalux_affectations add constraint mecalux_affectations_phase_check check (phase in ('dev','mes','pil','pmo','hyp','form'));
 alter table public.mecalux_temps drop constraint mecalux_temps_phase_check;
 alter table public.mecalux_temps add constraint mecalux_temps_phase_check check (phase in ('dev','mes','pil','pmo','hyp','form'));
+-- Nouveau circuit des préfactures : validation (Harington ou Mecalux) dans la rubrique Préfactures, aucun e-mail automatique,
+-- un seul envoi du mois (bouton « Envoyer à… ») qui fige les préfactures validées ; BDC et facture ensuite.
+drop trigger if exists notify_mecalux_pf on public.mecalux_pf_evenements;
+
+alter table public.mecalux_prefactures drop constraint if exists mecalux_prefactures_statut_check;
+update public.mecalux_prefactures set statut = 'Validée' where statut = 'À vérifier ADV';
+alter table public.mecalux_prefactures add constraint mecalux_prefactures_statut_check
+  check (statut in ('Brouillon','Validée','Envoyée à Mecalux','BDC reçu','Facturée'));
+
+create or replace function public.mecalux_pf_action(p_id text, p_action text, p_commentaire text default null, p_bdc text default null, p_fichier text default null, p_numero text default null)
+returns text language plpgsql security definer set search_path to 'public' as $function$
+declare
+  pf public.mecalux_prefactures; moi text := lower(coalesce(auth.jwt()->>'email','')); role text := public.mecalux_role();
+  cible text; cle text; com text := nullif(btrim(coalesce(p_commentaire,'')),'');
+begin
+  if not public.mecalux_est_membre() then raise exception 'Accès refusé.'; end if;
+  select * into pf from public.mecalux_prefactures where id = p_id for update;
+  if not found or not public.mecalux_voit_projet(pf.projet_id) or not public.mecalux_droit('prefactures') then raise exception 'Préfacture introuvable.'; end if;
+  if p_action = 'valider' then
+    if pf.statut <> 'Brouillon' then raise exception 'La préfacture n''est pas en brouillon.'; end if;
+    if pf.lignes is null or jsonb_array_length(pf.lignes) = 0 then raise exception 'La préfacture n''a aucune ligne.'; end if;
+    cible := 'Validée';
+  elsif p_action = 'brouillon' then
+    if pf.statut <> 'Validée' then raise exception 'Seule une préfacture validée et pas encore envoyée peut revenir en brouillon.'; end if;
+    cible := 'Brouillon';
+  elsif p_action = 'mecalux_valider' then
+    if pf.statut <> 'Envoyée à Mecalux' then raise exception 'La préfacture n''a pas encore été envoyée.'; end if;
+    if nullif(btrim(coalesce(p_bdc,'')),'') is null then raise exception 'Saisissez le numéro du bon de commande.'; end if;
+    if p_fichier is not null and p_fichier !~ ('^prefactures/' || p_id || '/') then raise exception 'Fichier invalide.'; end if;
+    cible := 'BDC reçu'; cle := 'bdc';
+  elsif p_action = 'facturer' then
+    if pf.statut <> 'BDC reçu' then raise exception 'La préfacture n''a pas encore de bon de commande.'; end if;
+    if not public.mecalux_est_harington() then raise exception 'Réservé à Harington.'; end if;
+    if coalesce(p_fichier,'') !~ ('^prefactures/' || p_id || '/') then raise exception 'Joignez la facture (PDF issu de VSA).'; end if;
+    cible := 'Facturée'; cle := 'facture';
+  elsif p_action = 'rouvrir' then
+    if role <> 'admin' then raise exception 'Réservé à l''administrateur.'; end if;
+    if com is null then raise exception 'Indiquez pourquoi la préfacture est rouverte.'; end if;
+    cible := 'Brouillon';
+  else raise exception 'Action inconnue.'; end if;
+
+  perform set_config('mecalux.circuit', '1', true);
+  update public.mecalux_prefactures set
+    statut = cible,
+    bdc = case when p_action = 'mecalux_valider' then btrim(p_bdc) when p_action = 'rouvrir' then null else bdc end,
+    numero_facture = case when p_action = 'facturer' then nullif(btrim(coalesce(p_numero,'')),'') when p_action = 'rouvrir' then null else numero_facture end,
+    fichiers = case when p_action = 'rouvrir' then '{}'::jsonb when cle is not null and p_fichier is not null then fichiers || jsonb_build_object(cle, p_fichier) else fichiers end,
+    historique = coalesce(historique,'[]'::jsonb) || jsonb_build_array(jsonb_build_object('statut', cible, 'le', now(), 'par', moi, 'action', p_action, 'commentaire', com)),
+    maj_le = now()
+  where id = p_id;
+  perform set_config('mecalux.circuit', '', true);
+  insert into public.mecalux_pf_evenements (pf_id, action, statut, par_email, commentaire) values (p_id, p_action, cible, moi, com);
+  return cible;
+end $function$;
+
+-- Envoi du mois (appelé uniquement par la fonction serveur après l'envoi de l'e-mail) : les préfactures validées passent à « Envoyée à Mecalux »
+create or replace function public.mecalux_pf_envoyer(p_ids text[], p_par text, p_dest text, p_fichiers jsonb)
+returns integer language plpgsql security definer set search_path to 'public' as $function$
+declare n integer := 0; x record;
+begin
+  perform set_config('mecalux.circuit', '1', true);
+  for x in select id from public.mecalux_prefactures where id = any(p_ids) and statut = 'Validée' for update loop
+    update public.mecalux_prefactures set statut = 'Envoyée à Mecalux',
+      fichiers = case when p_fichiers ? x.id then fichiers || jsonb_build_object('pdf', p_fichiers->>x.id) else fichiers end,
+      historique = coalesce(historique,'[]'::jsonb) || jsonb_build_array(jsonb_build_object('statut','Envoyée à Mecalux','le',now(),'par',lower(p_par),'action','envoyer','commentaire','Envoyée à ' || p_dest)),
+      maj_le = now()
+    where id = x.id;
+    insert into public.mecalux_pf_evenements (pf_id, action, statut, par_email, commentaire) values (x.id, 'envoyer', 'Envoyée à Mecalux', lower(p_par), 'Envoyée à ' || p_dest);
+    n := n + 1;
+  end loop;
+  perform set_config('mecalux.circuit', '', true);
+  return n;
+end $function$;
+revoke all on function public.mecalux_pf_envoyer(text[], text, text, jsonb) from public, anon, authenticated;
+grant execute on function public.mecalux_pf_envoyer(text[], text, text, jsonb) to service_role;
